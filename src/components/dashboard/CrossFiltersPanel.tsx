@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import { 
   Calendar as CalendarIcon, 
   Users, 
@@ -199,6 +200,7 @@ export function CrossFiltersPanel({ filters, onFiltersChange, onClose, processId
   const [presets, setPresets] = useState<FilterPreset[]>([]);
   const [presetName, setPresetName] = useState('');
   const [showSavePreset, setShowSavePreset] = useState(false);
+  const [overwritePresetId, setOverwritePresetId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -256,7 +258,7 @@ export function CrossFiltersPanel({ filters, onFiltersChange, onClose, processId
   };
 
   const handleSavePreset = async () => {
-    if (!user?.id || !presetName.trim()) return;
+    if (!user?.id) return;
     const serialized = {
       ...filters,
       dateRange: {
@@ -264,24 +266,43 @@ export function CrossFiltersPanel({ filters, onFiltersChange, onClose, processId
         end: filters.dateRange.end?.toISOString() ?? null,
       },
     };
-    const { data, error } = await (supabase as any)
-      .from('user_filter_presets')
-      .insert({
-        user_id: user.id,
-        name: presetName.trim(),
-        filters: serialized,
-        process_template_id: processId ?? null,
-      })
-      .select('id, name, filters')
-      .single();
-    if (error) {
-      toast.error('Erreur lors de la sauvegarde');
-      return;
+
+    if (overwritePresetId) {
+      // Overwrite existing preset
+      const { error } = await (supabase as any)
+        .from('user_filter_presets')
+        .update({ filters: serialized })
+        .eq('id', overwritePresetId);
+      if (error) {
+        toast.error('Erreur lors de la sauvegarde');
+        return;
+      }
+      setPresets(prev => prev.map(p => p.id === overwritePresetId ? { ...p, filters: serialized } : p));
+      const name = presets.find(p => p.id === overwritePresetId)?.name;
+      setOverwritePresetId(null);
+      setShowSavePreset(false);
+      toast.success(`Contexte "${name}" mis à jour`);
+    } else {
+      if (!presetName.trim()) return;
+      const { data, error } = await (supabase as any)
+        .from('user_filter_presets')
+        .insert({
+          user_id: user.id,
+          name: presetName.trim(),
+          filters: serialized,
+          process_template_id: processId ?? null,
+        })
+        .select('id, name, filters')
+        .single();
+      if (error) {
+        toast.error('Erreur lors de la sauvegarde');
+        return;
+      }
+      setPresets(prev => [data, ...prev]);
+      setPresetName('');
+      setShowSavePreset(false);
+      toast.success('Contexte enregistré');
     }
-    setPresets(prev => [data, ...prev]);
-    setPresetName('');
-    setShowSavePreset(false);
-    toast.success('Contexte enregistré');
   };
 
   const handleLoadPreset = (preset: FilterPreset) => {
@@ -410,25 +431,59 @@ export function CrossFiltersPanel({ filters, onFiltersChange, onClose, processId
             </Popover>
           )}
           {/* Save preset */}
-          <Popover open={showSavePreset} onOpenChange={setShowSavePreset}>
+          <Popover open={showSavePreset} onOpenChange={(open) => { setShowSavePreset(open); if (!open) setOverwritePresetId(null); }}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1 text-keon-600">
                 <Save className="h-4 w-4" />
                 Enregistrer
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-64 p-3" align="end">
-              <div className="space-y-2">
-                <Label className="text-xs">Nom du contexte</Label>
-                <Input
-                  value={presetName}
-                  onChange={(e) => setPresetName(e.target.value)}
-                  placeholder="Ex: Vue département IT"
-                  className="h-8"
-                />
-                <Button size="sm" className="w-full" onClick={handleSavePreset} disabled={!presetName.trim()}>
-                  Enregistrer
-                </Button>
+            <PopoverContent className="w-72 p-3" align="end">
+              <div className="space-y-3">
+                {/* New preset */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Nouveau contexte</Label>
+                  <Input
+                    value={presetName}
+                    onChange={(e) => { setPresetName(e.target.value); setOverwritePresetId(null); }}
+                    placeholder="Ex: Vue département IT"
+                    className="h-8"
+                  />
+                  <Button size="sm" className="w-full" onClick={handleSavePreset} disabled={!presetName.trim() || !!overwritePresetId}>
+                    Enregistrer
+                  </Button>
+                </div>
+
+                {/* Overwrite existing */}
+                {presets.length > 0 && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium">Écraser un contexte existant</Label>
+                      <div className="max-h-32 overflow-y-auto space-y-1">
+                        {presets.map((preset) => (
+                          <button
+                            key={preset.id}
+                            onClick={() => { setOverwritePresetId(preset.id); setPresetName(''); }}
+                            className={cn(
+                              'w-full text-left text-sm px-2 py-1.5 rounded-md transition-colors',
+                              overwritePresetId === preset.id
+                                ? 'bg-primary text-primary-foreground'
+                                : 'hover:bg-muted text-foreground'
+                            )}
+                          >
+                            {preset.name}
+                          </button>
+                        ))}
+                      </div>
+                      {overwritePresetId && (
+                        <Button size="sm" variant="destructive" className="w-full" onClick={handleSavePreset}>
+                          Écraser "{presets.find(p => p.id === overwritePresetId)?.name}"
+                        </Button>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </PopoverContent>
           </Popover>
