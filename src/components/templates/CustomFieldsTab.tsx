@@ -323,7 +323,7 @@ export function CustomFieldsTab() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">Tous les processus</SelectItem>
-            {processes.map((p: any) => (
+            {[...processes].sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '')).map((p: any) => (
               <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
             ))}
           </SelectContent>
@@ -335,7 +335,7 @@ export function CustomFieldsTab() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">Tous les sous-processus</SelectItem>
-            {filteredSubProcessesForFilter.map((sp: any) => (
+            {[...filteredSubProcessesForFilter].sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '')).map((sp: any) => (
               <SelectItem key={sp.id} value={sp.id}>{sp.name}</SelectItem>
             ))}
           </SelectContent>
@@ -706,7 +706,7 @@ export function CustomFieldsTab() {
                   </SelectTrigger>
                   <SelectContent className="bg-popover">
                     <SelectItem value="__none__">Aucun</SelectItem>
-                    {processes.map((p) => (
+                    {[...processes].sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '')).map((p) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.name}
                       </SelectItem>
@@ -725,7 +725,7 @@ export function CustomFieldsTab() {
                   </SelectTrigger>
                   <SelectContent className="bg-popover">
                     <SelectItem value="__none__">Aucun</SelectItem>
-                    {subProcesses.map((sp) => (
+                    {[...subProcesses].sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '')).map((sp) => (
                       <SelectItem key={sp.id} value={sp.id}>
                         {sp.name}
                       </SelectItem>

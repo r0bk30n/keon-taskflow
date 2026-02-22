@@ -394,7 +394,7 @@ export function EditCustomFieldDialog({
                   </SelectTrigger>
                   <SelectContent className="bg-popover">
                     <SelectItem value="__none__">Aucun (non lié)</SelectItem>
-                    {processes.map((p) => (
+                    {[...processes].sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '')).map((p) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.name}
                       </SelectItem>
@@ -413,7 +413,7 @@ export function EditCustomFieldDialog({
                   </SelectTrigger>
                   <SelectContent className="bg-popover">
                     <SelectItem value="__none__">Aucun (non lié)</SelectItem>
-                    {subProcesses.map((sp) => (
+                    {[...subProcesses].sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '')).map((sp) => (
                       <SelectItem key={sp.id} value={sp.id}>
                         {sp.name}
                       </SelectItem>
