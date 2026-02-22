@@ -379,7 +379,7 @@ export function AddCustomFieldDialog({
                       <SelectValue placeholder="Sélectionner un processus" />
                     </SelectTrigger>
                     <SelectContent>
-                      {processes.map((p) => (
+                      {[...processes].sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '')).map((p) => (
                         <SelectItem key={p.id} value={p.id}>
                           {p.name}
                         </SelectItem>
@@ -398,7 +398,7 @@ export function AddCustomFieldDialog({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__all__">Tous</SelectItem>
-                      {processes.map((p) => (
+                      {[...processes].sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '')).map((p) => (
                         <SelectItem key={p.id} value={p.id}>
                           {p.name}
                         </SelectItem>
@@ -413,7 +413,7 @@ export function AddCustomFieldDialog({
                       <SelectValue placeholder="Sélectionner un sous-processus" />
                     </SelectTrigger>
                     <SelectContent>
-                      {filteredSubProcesses.map((sp) => (
+                      {[...filteredSubProcesses].sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '')).map((sp) => (
                         <SelectItem key={sp.id} value={sp.id}>
                           {sp.name}
                         </SelectItem>
