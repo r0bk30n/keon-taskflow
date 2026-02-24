@@ -43,6 +43,8 @@ import { VALIDATION_TYPE_LABELS, CONDITION_OPERATOR_LABELS } from '@/types/formB
 import { FIELD_TYPE_LABELS, FieldOption } from '@/types/customField';
 import { ValidationPropertiesPanel } from './ValidationPropertiesPanel';
 import { RepeatableTableColumnsEditor } from '@/components/templates/RepeatableTableColumnsEditor';
+import { TableLookupSourcePicker, TableLookupSourceValue } from '@/components/templates/TableLookupSourcePicker';
+import { useTableLookupConfigs } from '@/hooks/useTableLookupConfigs';
 import { cn } from '@/lib/utils';
 
 interface EnhancedPropertiesPanelProps {
@@ -72,6 +74,7 @@ export const EnhancedPropertiesPanel = memo(function EnhancedPropertiesPanel({
   const [localField, setLocalField] = useState<FormField | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const { activeConfigs } = useTableLookupConfigs();
 
   // Sync with selected items
   useEffect(() => {
@@ -521,6 +524,62 @@ export const EnhancedPropertiesPanel = memo(function EnhancedPropertiesPanel({
                   <RepeatableTableColumnsEditor
                     columns={(localField.options as FieldOption[]) || []}
                     onChange={(cols) => handleFieldChange('options', cols)}
+                  />
+                </>
+              )}
+
+              {/* Table Lookup Source Config */}
+              {localField.field_type === 'table_lookup' && canManage && (
+                <>
+                  <Separator />
+                  <TableLookupSourcePicker
+                    value={{
+                      mode: (() => {
+                        // Determine mode from existing field data
+                        const lt = (localField as any).lookup_table;
+                        if (!lt) return 'config';
+                        const matchingConfig = activeConfigs.find(
+                          c => c.table_name === lt &&
+                               c.display_column === (localField as any).lookup_label_column &&
+                               c.value_column === (localField as any).lookup_value_column
+                        );
+                        return matchingConfig ? 'config' : 'direct';
+                      })(),
+                      configId: (() => {
+                        const lt = (localField as any).lookup_table;
+                        if (!lt) return null;
+                        const match = activeConfigs.find(
+                          c => c.table_name === lt &&
+                               c.display_column === (localField as any).lookup_label_column &&
+                               c.value_column === (localField as any).lookup_value_column
+                        );
+                        return match?.id || null;
+                      })(),
+                      tableName: (localField as any).lookup_table || null,
+                      valueColumn: (localField as any).lookup_value_column || null,
+                      labelColumn: (localField as any).lookup_label_column || null,
+                      filterColumn: (localField as any).lookup_filter_column || null,
+                      filterValue: (localField as any).lookup_filter_value || null,
+                    }}
+                    onChange={(source) => {
+                      if (source.mode === 'config' && source.configId) {
+                        const config = activeConfigs.find(c => c.id === source.configId);
+                        if (config) {
+                          handleFieldChange('lookup_table' as any, config.table_name);
+                          handleFieldChange('lookup_value_column' as any, config.value_column);
+                          handleFieldChange('lookup_label_column' as any, config.display_column);
+                        }
+                      } else if (source.mode === 'direct') {
+                        handleFieldChange('lookup_table' as any, source.tableName || null);
+                        handleFieldChange('lookup_value_column' as any, source.valueColumn || null);
+                        handleFieldChange('lookup_label_column' as any, source.labelColumn || null);
+                      } else {
+                        handleFieldChange('lookup_table' as any, null);
+                        handleFieldChange('lookup_value_column' as any, null);
+                        handleFieldChange('lookup_label_column' as any, null);
+                      }
+                    }}
+                    activeConfigs={activeConfigs}
                   />
                 </>
               )}
