@@ -1889,6 +1889,67 @@ export type Database = {
         }
         Relationships: []
       }
+      process_table_output_mappings: {
+        Row: {
+          created_at: string
+          field_mappings: Json
+          id: string
+          is_active: boolean
+          process_template_id: string | null
+          static_mappings: Json
+          sub_process_template_id: string | null
+          target_table: string
+          trigger_event: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          field_mappings?: Json
+          id?: string
+          is_active?: boolean
+          process_template_id?: string | null
+          static_mappings?: Json
+          sub_process_template_id?: string | null
+          target_table: string
+          trigger_event?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          field_mappings?: Json
+          id?: string
+          is_active?: boolean
+          process_template_id?: string | null
+          static_mappings?: Json
+          sub_process_template_id?: string | null
+          target_table?: string
+          trigger_event?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "process_table_output_mappings_process_template_id_fkey"
+            columns: ["process_template_id"]
+            isOneToOne: false
+            referencedRelation: "process_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "process_table_output_mappings_sub_process_template_id_fkey"
+            columns: ["sub_process_template_id"]
+            isOneToOne: false
+            referencedRelation: "request_progress_view"
+            referencedColumns: ["sub_process_template_id"]
+          },
+          {
+            foreignKeyName: "process_table_output_mappings_sub_process_template_id_fkey"
+            columns: ["sub_process_template_id"]
+            isOneToOne: false
+            referencedRelation: "sub_process_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       process_template_visible_companies: {
         Row: {
           company_id: string

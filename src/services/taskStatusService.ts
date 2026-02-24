@@ -7,6 +7,22 @@ import { supabase } from '@/integrations/supabase/client';
 import type { TaskStatus } from '@/types/task';
 import { emitWorkflowEvent } from './workflowEventService';
 
+/**
+ * Déclenche la sortie vers table si un mapping est configuré (non-bloquant)
+ */
+async function triggerTableOutput(taskId: string): Promise<void> {
+  try {
+    const { error } = await supabase.functions.invoke('process-table-output', {
+      body: { task_id: taskId },
+    });
+    if (error) {
+      console.warn('[TaskStatus] Table output error:', error);
+    }
+  } catch (err) {
+    console.warn('[TaskStatus] Table output invoke failed:', err);
+  }
+}
+
 // ============================================================================
 // LABELS ET COULEURS (SOURCE UNIQUE DE VÉRITÉ)
 // ============================================================================
@@ -373,6 +389,13 @@ export async function transitionTaskStatus(
           comment: options.comment,
         },
         task.workflow_run_id || undefined
+      );
+    }
+
+    // Trigger table output if task is done or validated
+    if (newStatus === 'done' || newStatus === 'validated') {
+      triggerTableOutput(taskId).catch(err => 
+        console.warn('[TaskStatus] Table output trigger failed (non-blocking):', err)
       );
     }
 
