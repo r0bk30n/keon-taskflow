@@ -576,12 +576,37 @@ export function validateCustomFields(
 ): { isValid: boolean; errors: Record<string, string> } {
   const errors: Record<string, string> = {};
 
+  // Helper to check if a field is visible based on conditions
+  const isFieldVisible = (field: TemplateCustomField): boolean => {
+    if (!field.condition_field_id) return true;
+    const conditionValue = values[field.condition_field_id];
+    switch (field.condition_operator) {
+      case 'equals':
+        return conditionValue === field.condition_value;
+      case 'not_equals':
+        return conditionValue !== field.condition_value;
+      case 'contains':
+        return typeof conditionValue === 'string' &&
+               conditionValue.toLowerCase().includes((field.condition_value || '').toLowerCase());
+      case 'not_empty':
+        return Boolean(conditionValue && conditionValue !== '');
+      default:
+        return true;
+    }
+  };
+
   for (const field of fields) {
+    // Skip validation for conditionally hidden fields
+    if (!isFieldVisible(field)) continue;
+
     const value = values[field.id];
 
     // Check required fields
     if (field.is_required) {
-      if (value === undefined || value === null || value === '') {
+      // For file fields, value is an object with { name, file, ... }
+      const isEmpty = value === undefined || value === null || value === '' ||
+        (field.field_type === 'file' && (!value || (typeof value === 'object' && !value.name && !value.file)));
+      if (isEmpty) {
         errors[field.id] = 'Merci de remplir tous les champs obligatoires';
         continue;
       }
