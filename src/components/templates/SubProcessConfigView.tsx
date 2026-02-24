@@ -54,6 +54,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AddTaskTemplateDialog } from './AddTaskTemplateDialog';
 import { EditTaskTemplateDialog } from './EditTaskTemplateDialog';
 import { SubProcessNotificationsPanel } from './SubProcessNotificationsPanel';
+import { TableOutputMappingPanel } from './TableOutputMappingPanel';
 import { addTaskToWorkflow, removeTaskFromWorkflow } from '@/hooks/useAutoWorkflowGeneration';
 import { cn } from '@/lib/utils';
 
@@ -468,6 +469,7 @@ export function SubProcessConfigView({
     { id: 'tasks', label: 'Tâches', icon: ListTodo },
     { id: 'assignment', label: 'Affectation', icon: Users },
     { id: 'validations', label: 'Validations', icon: CheckSquare },
+    { id: 'output', label: 'Sortie table', icon: Database },
     { id: 'visibility', label: 'Visibilité', icon: Eye },
     { id: 'notifications', label: 'Notifications', icon: Bell },
   ];
@@ -507,7 +509,7 @@ export function SubProcessConfigView({
           className="flex-1 flex flex-col min-h-0"
         >
           <div className="px-6 pt-4 shrink-0">
-            <TabsList className="w-full grid grid-cols-6">
+            <TabsList className="w-full grid grid-cols-7">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
@@ -1124,6 +1126,16 @@ export function SubProcessConfigView({
                     )}
                   </CardContent>
                 </Card>
+              </TabsContent>
+
+              {/* Output Tab */}
+              <TabsContent value="output" className="mt-0 space-y-4">
+                <TableOutputMappingPanel
+                  processTemplateId={subProcess?.process_template_id || null}
+                  subProcessTemplateId={subProcessId}
+                  canManage={canManage}
+                  onUpdate={onUpdate}
+                />
               </TabsContent>
 
               {/* Notifications Tab */}
