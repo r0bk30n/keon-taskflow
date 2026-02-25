@@ -124,6 +124,7 @@ export function SubProcessConfigView({
     name: '',
     description: '',
     is_mandatory: true,
+    apply_request_validation: true,
     assignment_type: 'manager' as 'manager' | 'user' | 'role' | 'group',
     target_assignee_id: null as string | null,
     target_manager_id: null as string | null,
@@ -135,10 +136,13 @@ export function SubProcessConfigView({
 
   // Table filters config (stored in form_schema.table_filters, keyed by table_name)
   const [tableFilters, setTableFilters] = useState<Record<string, { ref_prefix: string; exclude_des: string }>>({});
-  // Tables actually used by this sub-process's custom fields
-  const [usedTables, setUsedTables] = useState<{ table_name: string; label: string }[]>([]);
+  // All available lookup table configs
+  const [allLookupConfigs, setAllLookupConfigs] = useState<{ table_name: string; label: string }[]>([]);
+  // Selected tables for integrated components & filters
+  const [enabledComponents, setEnabledComponents] = useState<string[]>([]);
+  const [enabledFilterTables, setEnabledFilterTables] = useState<string[]>([]);
 
-  // Built-in component flags
+  // Built-in component flags (legacy)
   const [hasMaterialLines, setHasMaterialLines] = useState(false);
 
   // Hidden request fields config (stored in form_schema)
@@ -167,6 +171,7 @@ export function SubProcessConfigView({
           name: spData.name,
           description: spData.description || '',
           is_mandatory: spData.is_mandatory ?? true,
+          apply_request_validation: ((spData as any).form_schema as any)?.apply_request_validation !== false,
           assignment_type: spData.assignment_type as any,
           target_assignee_id: spData.target_assignee_id,
           target_manager_id: spData.target_manager_id,
@@ -196,10 +201,12 @@ export function SubProcessConfigView({
           } else {
             setHiddenRequestFields([]);
           }
-          // Load material lines flag
+          // Load material lines flag and enabled components/filters
           setHasMaterialLines(!!(formSchema as any).has_material_lines);
+          setEnabledComponents(Array.isArray((formSchema as any).enabled_components) ? (formSchema as any).enabled_components : []);
+          setEnabledFilterTables(Array.isArray((formSchema as any).enabled_filter_tables) ? (formSchema as any).enabled_filter_tables : []);
         }
-        
+
         // Load validation levels from validation_config JSONB column
         const validationConfig = (spData as any).validation_config;
         if (validationConfig && Array.isArray(validationConfig)) {
@@ -252,19 +259,9 @@ export function SubProcessConfigView({
       if (groupRes.data) setGroups(groupRes.data);
       if (customFieldsRes.data) setCustomFields(customFieldsRes.data);
       
-      // Determine which tables are used by this sub-process
-      if (spFieldsRes.data && lookupConfigsRes.data) {
-        const usedTableNames = new Set(spFieldsRes.data.map((f: any) => f.lookup_table).filter(Boolean));
-        // Also check if the process uses material lines (articles table)
-        // by checking if there's a demande_materiel reference or articles in form_schema
-        const formSchema = (spData as any)?.form_schema;
-        if (formSchema?.article_filter) {
-          usedTableNames.add('articles');
-        }
-        const tables = lookupConfigsRes.data
-          .filter((c: any) => usedTableNames.has(c.table_name))
-          .map((c: any) => ({ table_name: c.table_name, label: c.label }));
-        setUsedTables(tables);
+      // Store all lookup configs for component/filter selection
+      if (lookupConfigsRes.data) {
+        setAllLookupConfigs(lookupConfigsRes.data.map((c: any) => ({ table_name: c.table_name, label: c.label })));
       }
 
     } catch (error) {
@@ -293,6 +290,9 @@ export function SubProcessConfigView({
         } : (existingSchema.article_filter || null),
         hidden_request_fields: hiddenRequestFields,
         has_material_lines: hasMaterialLines,
+        apply_request_validation: formData.apply_request_validation,
+        enabled_components: enabledComponents,
+        enabled_filter_tables: enabledFilterTables,
       };
 
       const { error } = await supabase
@@ -327,10 +327,10 @@ export function SubProcessConfigView({
         .from('sub_process_templates')
         .update({
           assignment_type: formData.assignment_type,
-          target_assignee_id: formData.assignment_type === 'user' ? formData.target_assignee_id : null,
-          target_manager_id: formData.assignment_type === 'manager' ? formData.target_manager_id : null,
-          target_department_id: formData.target_department_id,
-          target_group_id: formData.assignment_type === 'group' ? formData.target_group_id : null,
+          target_assignee_id: formData.assignment_type === 'user' ? (formData.target_assignee_id || null) : null,
+          target_manager_id: formData.assignment_type === 'manager' ? (formData.target_manager_id || null) : null,
+          target_department_id: formData.target_department_id || null,
+          target_group_id: formData.assignment_type === 'group' ? (formData.target_group_id || null) : null,
         })
         .eq('id', subProcessId);
 
@@ -563,6 +563,19 @@ export function SubProcessConfigView({
                     </div>
                     <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                       <div>
+                        <Label>Validations de la demande</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Appliquer les règles de validations du processus
+                        </p>
+                      </div>
+                      <Switch
+                        checked={formData.apply_request_validation}
+                        onCheckedChange={(checked) => setFormData({ ...formData, apply_request_validation: checked })}
+                        disabled={!canManage}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                      <div>
                         <Label>Afficher en lancement rapide</Label>
                         <p className="text-xs text-muted-foreground">
                           Ajoute un bouton raccourci sur la carte du processus dans la page Demandes
@@ -577,7 +590,7 @@ export function SubProcessConfigView({
 
                     <Separator />
 
-                    {/* Built-in components */}
+                    {/* Built-in components - multi-table selection */}
                     <Card className="border-warning/30 bg-warning/5">
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm flex items-center gap-2">
@@ -585,10 +598,11 @@ export function SubProcessConfigView({
                           Composants intégrés
                         </CardTitle>
                         <CardDescription className="text-xs">
-                          Composants spéciaux ajoutés automatiquement au formulaire de demande
+                          Sélectionnez les tables à intégrer au formulaire de demande
                         </CardDescription>
                       </CardHeader>
-                      <CardContent>
+                      <CardContent className="space-y-2">
+                        {/* Legacy material lines toggle */}
                         <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                           <div className="flex items-center gap-3">
                             <div className="h-8 w-8 rounded bg-warning/10 flex items-center justify-center">
@@ -607,63 +621,108 @@ export function SubProcessConfigView({
                             disabled={!canManage}
                           />
                         </div>
+                        {/* Dynamic table components */}
+                        {allLookupConfigs.map((config) => {
+                          const isEnabled = enabledComponents.includes(config.table_name);
+                          return (
+                            <div key={config.table_name} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 rounded bg-warning/10 flex items-center justify-center">
+                                  <Database className="h-4 w-4 text-warning" />
+                                </div>
+                                <div>
+                                  <Label className="text-sm">{config.label}</Label>
+                                  <p className="text-xs text-muted-foreground">
+                                    Table : {config.table_name}
+                                  </p>
+                                </div>
+                              </div>
+                              <Switch
+                                checked={isEnabled}
+                                onCheckedChange={(checked) => {
+                                  setEnabledComponents(prev =>
+                                    checked ? [...prev, config.table_name] : prev.filter(t => t !== config.table_name)
+                                  );
+                                }}
+                                disabled={!canManage}
+                              />
+                            </div>
+                          );
+                        })}
                       </CardContent>
                     </Card>
 
                     <Separator />
 
-                    {usedTables.length > 0 && (
-                      <Card className="border-primary/30 bg-primary/5">
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm flex items-center gap-2">
-                            <Filter className="h-4 w-4 text-primary" />
-                            Filtre des tables
-                          </CardTitle>
-                          <CardDescription className="text-xs">
-                            Paramétrer les filtres pour les tables utilisées dans ce sous-processus
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          {usedTables.map((table) => {
-                            const filter = tableFilters[table.table_name] || { ref_prefix: '', exclude_des: '' };
+                    {/* Table filters - multi-table selection */}
+                    <Card className="border-primary/30 bg-primary/5">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Filter className="h-4 w-4 text-primary" />
+                          Filtre des tables
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                          Sélectionnez les tables à filtrer et configurez les filtres
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* Table selection */}
+                        <div className="space-y-2">
+                          {allLookupConfigs.map((config) => {
+                            const isEnabled = enabledFilterTables.includes(config.table_name);
                             return (
-                              <div key={table.table_name} className="space-y-2 p-3 bg-muted/50 rounded-lg">
-                                <Label className="text-xs font-semibold flex items-center gap-2">
-                                  <Database className="h-3.5 w-3.5" />
-                                  {table.label}
-                                </Label>
-                                <div className="space-y-2">
-                                  <Label className="text-xs">Préfixe de référence</Label>
-                                  <Input
-                                    value={filter.ref_prefix}
-                                    onChange={(e) => setTableFilters(prev => ({
-                                      ...prev,
-                                      [table.table_name]: { ...filter, ref_prefix: e.target.value }
-                                    }))}
-                                    placeholder="Ex: ASM, AD0... (vide = tous)"
-                                    className="h-8 text-sm"
+                              <div key={config.table_name} className="space-y-2">
+                                <div className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
+                                  <Label className="text-xs font-semibold flex items-center gap-2">
+                                    <Database className="h-3.5 w-3.5" />
+                                    {config.label}
+                                  </Label>
+                                  <Switch
+                                    checked={isEnabled}
+                                    onCheckedChange={(checked) => {
+                                      setEnabledFilterTables(prev =>
+                                        checked ? [...prev, config.table_name] : prev.filter(t => t !== config.table_name)
+                                      );
+                                    }}
                                     disabled={!canManage}
                                   />
                                 </div>
-                                <div className="space-y-2">
-                                  <Label className="text-xs">Exclure les désignations contenant</Label>
-                                  <Input
-                                    value={filter.exclude_des}
-                                    onChange={(e) => setTableFilters(prev => ({
-                                      ...prev,
-                                      [table.table_name]: { ...filter, exclude_des: e.target.value }
-                                    }))}
-                                    placeholder="Ex: NON DEFINI (vide = aucune exclusion)"
-                                    className="h-8 text-sm"
-                                    disabled={!canManage}
-                                  />
-                                </div>
+                                {isEnabled && (
+                                  <div className="pl-4 space-y-2 border-l-2 border-primary/20 ml-2">
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">Préfixe de référence</Label>
+                                      <Input
+                                        value={(tableFilters[config.table_name] || { ref_prefix: '', exclude_des: '' }).ref_prefix}
+                                        onChange={(e) => setTableFilters(prev => ({
+                                          ...prev,
+                                          [config.table_name]: { ...(prev[config.table_name] || { ref_prefix: '', exclude_des: '' }), ref_prefix: e.target.value }
+                                        }))}
+                                        placeholder="Ex: ASM, AD0... (vide = tous)"
+                                        className="h-8 text-sm"
+                                        disabled={!canManage}
+                                      />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">Exclure les désignations contenant</Label>
+                                      <Input
+                                        value={(tableFilters[config.table_name] || { ref_prefix: '', exclude_des: '' }).exclude_des}
+                                        onChange={(e) => setTableFilters(prev => ({
+                                          ...prev,
+                                          [config.table_name]: { ...(prev[config.table_name] || { ref_prefix: '', exclude_des: '' }), exclude_des: e.target.value }
+                                        }))}
+                                        placeholder="Ex: NON DEFINI (vide = aucune exclusion)"
+                                        className="h-8 text-sm"
+                                        disabled={!canManage}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
-                        </CardContent>
-                      </Card>
-                    )}
+                        </div>
+                      </CardContent>
+                    </Card>
                     {canManage && (
                       <Button onClick={handleSaveGeneral} disabled={isSaving}>
                         {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

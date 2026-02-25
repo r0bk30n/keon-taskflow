@@ -44,7 +44,14 @@ export function TableLookupSourcePicker({ value, onChange, activeConfigs }: Tabl
 
       <Tabs
         value={value.mode}
-        onValueChange={(m) => onChange({ mode: m as 'config' | 'direct' })}
+        onValueChange={(m) => {
+          const newMode = m as 'config' | 'direct';
+          if (newMode === 'config') {
+            onChange({ mode: 'config', configId: value.configId || null });
+          } else {
+            onChange({ ...value, mode: 'direct' });
+          }
+        }}
       >
         <TabsList className="grid grid-cols-2 w-full">
           <TabsTrigger value="config" className="flex items-center gap-1.5">
