@@ -868,7 +868,7 @@ export function NewRequestDialog({ open, onClose, onAdd, onTasksCreated, initial
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent 
-        className="sm:max-w-[920px] max-h-[92vh] p-0 flex flex-col overflow-hidden rounded-3xl border-2 border-primary/10 shadow-2xl shadow-primary/5 bg-gradient-to-b from-white to-muted/20"
+        className="!max-w-[100vw] !w-[100vw] !h-[100vh] !max-h-[100vh] !rounded-none p-0 flex flex-col overflow-hidden border-0 shadow-none bg-gradient-to-b from-white to-muted/20"
         hideCloseButton
       >
         {/* A11y: Radix Dialog requires a DialogTitle; keep it hidden visually */}
