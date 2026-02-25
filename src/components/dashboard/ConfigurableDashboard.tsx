@@ -279,13 +279,15 @@ export function ConfigurableDashboard({
 
   // Fetch task -> label mappings for label filtering
   const [taskLabelMap, setTaskLabelMap] = useState<Map<string, string[]>>(new Map());
-  // Fetch process_template -> service_group mappings
+  // Fetch process_template -> service_group mappings + dept -> service_group
   const [processServiceGroupMap, setProcessServiceGroupMap] = useState<Map<string, string>>(new Map());
+  const [deptServiceGroupMap, setDeptServiceGroupMap] = useState<Map<string, string>>(new Map());
   useEffect(() => {
     (async () => {
-      const [labelsData, ptData] = await Promise.all([
+      const [labelsData, ptData, sgDeptData] = await Promise.all([
         (supabase as any).from('task_labels').select('task_id, label_id'),
         supabase.from('process_templates').select('id, service_group_id'),
+        (supabase as any).from('service_group_departments').select('service_group_id, department_id'),
       ]);
       if (labelsData.data) {
         const map = new Map<string, string[]>();
@@ -301,6 +303,13 @@ export function ConfigurableDashboard({
           if (row.service_group_id) map.set(row.id, row.service_group_id);
         }
         setProcessServiceGroupMap(map);
+      }
+      if (sgDeptData.data) {
+        const map = new Map<string, string>();
+        for (const row of sgDeptData.data) {
+          map.set(row.department_id, row.service_group_id);
+        }
+        setDeptServiceGroupMap(map);
       }
     })();
   }, [tasks]);
@@ -354,7 +363,10 @@ export function ConfigurableDashboard({
     // Service Group filter
     if (activeFilters.serviceGroupIds.length > 0) {
       result = result.filter(t => {
-        const sgId = t.source_process_template_id ? processServiceGroupMap.get(t.source_process_template_id) : null;
+        const sgId = 
+          (t.source_process_template_id ? processServiceGroupMap.get(t.source_process_template_id) : null) ||
+          ((t as any).process_template_id ? processServiceGroupMap.get((t as any).process_template_id) : null) ||
+          (t.target_department_id ? deptServiceGroupMap.get(t.target_department_id) : null);
         return sgId ? activeFilters.serviceGroupIds.includes(sgId) : false;
       });
     }
