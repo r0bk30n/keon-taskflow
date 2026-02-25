@@ -160,11 +160,13 @@ const Index = () => {
 
   // Fetch profiles for group labels + process→service_group mapping
   const [processServiceGroupMap, setProcessServiceGroupMap] = useState<Map<string, string>>(new Map());
+  const [deptServiceGroupMap, setDeptServiceGroupMap] = useState<Map<string, string>>(new Map());
   useEffect(() => {
     const fetchData = async () => {
-      const [profilesRes, ptRes] = await Promise.all([
+      const [profilesRes, ptRes, sgDeptRes] = await Promise.all([
         supabase.from('profiles').select('id, display_name'),
         supabase.from('process_templates').select('id, service_group_id'),
+        (supabase as any).from('service_group_departments').select('service_group_id, department_id'),
       ]);
       
       if (profilesRes.data) {
@@ -176,6 +178,11 @@ const Index = () => {
         const map = new Map<string, string>();
         ptRes.data.forEach(pt => { if (pt.service_group_id) map.set(pt.id, pt.service_group_id); });
         setProcessServiceGroupMap(map);
+      }
+      if (sgDeptRes.data) {
+        const map = new Map<string, string>();
+        sgDeptRes.data.forEach((r: any) => map.set(r.department_id, r.service_group_id));
+        setDeptServiceGroupMap(map);
       }
     };
     fetchData();
@@ -198,7 +205,10 @@ const Index = () => {
       if (crossFilters.assigneeIds.length > 0 && !crossFilters.assigneeIds.includes(task.assignee_id || '')) return false;
       if (crossFilters.categoryIds.length > 0 && !crossFilters.categoryIds.includes(task.category_id || '')) return false;
       if (crossFilters.serviceGroupIds.length > 0) {
-        const sgId = task.source_process_template_id ? processServiceGroupMap.get(task.source_process_template_id) : null;
+        const sgId = 
+          (task.source_process_template_id ? processServiceGroupMap.get(task.source_process_template_id) : null) ||
+          ((task as any).process_template_id ? processServiceGroupMap.get((task as any).process_template_id) : null) ||
+          (task.target_department_id ? deptServiceGroupMap.get(task.target_department_id) : null);
         if (!sgId || !crossFilters.serviceGroupIds.includes(sgId)) return false;
       }
       if (crossFilters.dateRange.start && task.created_at) {
