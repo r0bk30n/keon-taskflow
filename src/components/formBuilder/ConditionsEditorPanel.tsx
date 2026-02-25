@@ -1,4 +1,4 @@
-import { memo, useState, useCallback } from 'react';
+import { memo, useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,6 +31,29 @@ export const ConditionsEditorPanel = memo(function ConditionsEditorPanel({
 }: ConditionsEditorPanelProps) {
   // Get available fields for conditions (exclude self)
   const availableFields = allFields.filter((f) => f.id !== field.id);
+
+  // Get the selected condition field to check if it's a select/multiselect
+  const conditionField = useMemo(() => {
+    if (!field.condition_field_id) return null;
+    return allFields.find((f) => f.id === field.condition_field_id) || null;
+  }, [field.condition_field_id, allFields]);
+
+  const conditionFieldOptions = useMemo(() => {
+    if (!conditionField) return null;
+    if (['select', 'multiselect'].includes(conditionField.field_type) && conditionField.options) {
+      return conditionField.options;
+    }
+    return null;
+  }, [conditionField]);
+
+  // Helper to get options for a field by ID (for additional conditions)
+  const getFieldOptions = useCallback((fieldId: string) => {
+    const f = allFields.find((af) => af.id === fieldId);
+    if (f && ['select', 'multiselect'].includes(f.field_type) && f.options) {
+      return f.options;
+    }
+    return null;
+  }, [allFields]);
 
   // Get additional conditions
   const additionalConditions: FieldCondition[] = field.additional_conditions || [];
@@ -160,6 +183,25 @@ export const ConditionsEditorPanel = memo(function ConditionsEditorPanel({
 
               {/* Value input (not needed for is_empty/not_empty) */}
               {!['is_empty', 'not_empty'].includes(field.condition_operator || '') && (
+                conditionFieldOptions ? (
+                  <Select
+                    value={field.condition_value || '__none__'}
+                    onValueChange={(v) => handleMainConditionChange('condition_value', v === '__none__' ? '' : v)}
+                    disabled={disabled}
+                  >
+                    <SelectTrigger className="text-sm">
+                      <SelectValue placeholder="Sélectionner une valeur" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover">
+                      <SelectItem value="__none__">Sélectionner une valeur</SelectItem>
+                      {conditionFieldOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
                   <Input
                     value={field.condition_value || ''}
                     onChange={(e) => handleMainConditionChange('condition_value', e.target.value)}
@@ -167,7 +209,8 @@ export const ConditionsEditorPanel = memo(function ConditionsEditorPanel({
                     placeholder="Valeur attendue"
                     className="text-sm"
                   />
-                )}
+                )
+              )}
             </>
           )}
         </div>
@@ -253,15 +296,39 @@ export const ConditionsEditorPanel = memo(function ConditionsEditorPanel({
                     </SelectContent>
                   </Select>
 
-                  {!['is_empty', 'not_empty'].includes(condition.operator) && (
-                    <Input
-                      value={condition.value}
-                      onChange={(e) => updateCondition(index, 'value', e.target.value)}
-                      disabled={disabled}
-                      placeholder="Valeur"
-                      className="text-xs"
-                    />
-                  )}
+                  {!['is_empty', 'not_empty'].includes(condition.operator) && (() => {
+                    const opts = getFieldOptions(condition.field_id);
+                    if (opts) {
+                      return (
+                        <Select
+                          value={condition.value || '__none__'}
+                          onValueChange={(v) => updateCondition(index, 'value', v === '__none__' ? '' : v)}
+                          disabled={disabled}
+                        >
+                          <SelectTrigger className="text-xs">
+                            <SelectValue placeholder="Valeur" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover">
+                            <SelectItem value="__none__">Sélectionner</SelectItem>
+                            {opts.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      );
+                    }
+                    return (
+                      <Input
+                        value={condition.value}
+                        onChange={(e) => updateCondition(index, 'value', e.target.value)}
+                        disabled={disabled}
+                        placeholder="Valeur"
+                        className="text-xs"
+                      />
+                    );
+                  })()}
                 </div>
 
                 <Button
