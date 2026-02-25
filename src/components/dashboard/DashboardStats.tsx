@@ -9,6 +9,7 @@ import {
 import { TaskStats } from '@/types/task';
 import { StatsCard } from './StatsCard';
 import { ProgressRing } from './ProgressRing';
+import { CompletionRing } from './CompletionRing';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -35,10 +36,9 @@ export function DashboardStats({
       <div className="flex flex-wrap items-center gap-3 p-3 bg-white rounded-sm border border-keon-300 mb-4">
         {/* Progress ring mini */}
         <div className="flex items-center gap-2 shrink-0">
-          <ProgressRing progress={stats.completionRate} size={32} strokeWidth={3} />
+          <CompletionRing progress={stats.completionRate} size={36} strokeWidth={4} />
           <div className="text-xs whitespace-nowrap">
-            <span className="font-bold text-keon-900">{stats.completionRate}%</span>
-            <span className="text-keon-500 ml-1">terminé</span>
+            <span className="text-keon-500">terminé</span>
           </div>
         </div>
 
