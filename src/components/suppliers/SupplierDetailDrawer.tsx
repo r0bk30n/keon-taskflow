@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSupplierCategories, useSupplierFamillesByCategorie } from "@/hooks/useSupplierCategorisation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -9,13 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Collapsible,
   CollapsibleContent,
@@ -33,8 +27,16 @@ import {
   User,
   Lock,
   Plus,
+  Globe,
+  Paperclip,
+  Upload,
+  Trash2,
+  ExternalLink,
+  Clock,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 interface SupplierDetailDrawerProps {
   supplierId: string | null;
@@ -72,11 +74,21 @@ type SupplierRow = {
   poste: string | null;
   adresse_mail: string | null;
   telephone: string | null;
+  site_web: string | null;
   commentaires: string | null;
   completeness_score: number | null;
   status: "a_completer" | "en_cours" | "complet" | null;
   updated_at: string | null;
 };
+
+interface SupplierAttachment {
+  id: string;
+  supplier_id: string;
+  file_name: string;
+  file_url: string;
+  storage_path: string;
+  created_at: string;
+}
 
 const SEGMENTS = ["Production", "Services", "IT", "Maintenance", "Transport", "Énergie", "Autre"];
 const TYPES_CONTRAT = ["Contrat cadre", "Commande ponctuelle", "Appel d'offres", "Marché", "Convention"];
@@ -98,12 +110,18 @@ export function SupplierDetailDrawer({ supplierId, open, onClose, canEdit = true
   const [newCompanyName, setNewCompanyName] = useState("");
   const [addingCompany, setAddingCompany] = useState(false);
 
+  // Attachments
+  const [attachments, setAttachments] = useState<SupplierAttachment[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     segmentation: true,
     contrat: true,
     paiement: true,
     logistique: true,
     contact: true,
+    piecesjointes: true,
     commentaires: true,
   });
 
@@ -118,9 +136,22 @@ export function SupplierDetailDrawer({ supplierId, open, onClose, canEdit = true
     if (data) setCompanies(data);
   }, []);
 
+  const fetchAttachments = useCallback(async () => {
+    if (!supplierId) return;
+    const { data } = await supabase
+      .from("supplier_attachments")
+      .select("*")
+      .eq("supplier_id", supplierId)
+      .order("created_at", { ascending: false });
+    if (data) setAttachments(data as SupplierAttachment[]);
+  }, [supplierId]);
+
   useEffect(() => {
-    if (open) fetchCompanies();
-  }, [open, fetchCompanies]);
+    if (open) {
+      fetchCompanies();
+      fetchAttachments();
+    }
+  }, [open, fetchCompanies, fetchAttachments]);
 
   const handleAddCompany = async () => {
     const trimmed = newCompanyName.trim();
@@ -148,6 +179,7 @@ export function SupplierDetailDrawer({ supplierId, open, onClose, canEdit = true
       if (!open || !supplierId) {
         setSupplier(null);
         setFormData({});
+        setAttachments([]);
         return;
       }
       setIsLoading(true);
@@ -165,19 +197,13 @@ export function SupplierDetailDrawer({ supplierId, open, onClose, canEdit = true
         if (!cancelled) {
           setSupplier(null);
           setFormData({});
-          toast({
-            title: "Erreur",
-            description: "Impossible de charger le fournisseur.",
-            variant: "destructive",
-          });
+          toast({ title: "Erreur", description: "Impossible de charger le fournisseur.", variant: "destructive" });
         }
       } finally {
         if (!cancelled) setIsLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [open, supplierId]);
 
   // Debounced save
@@ -212,38 +238,24 @@ export function SupplierDetailDrawer({ supplierId, open, onClose, canEdit = true
 
   const handleMarkComplete = async () => {
     const requiredFields: (keyof SupplierRow)[] = [
-      "categorie",
-      "famille",
-      "segment",
-      "entite",
-      "delai_de_paiement",
-      "incoterm",
-      "adresse_mail",
-      "telephone",
-      "type_de_contrat",
-      "nom_contact",
+      "categorie", "famille", "segment", "entite",
+      "delai_de_paiement", "incoterm", "adresse_mail",
+      "telephone", "type_de_contrat", "nom_contact",
     ];
     const missing = requiredFields.filter((f) => {
       const v = (formData as any)[f];
       return v === null || v === undefined || String(v).trim() === "";
     });
     if (missing.length > 0) {
-      toast({
-        title: "Champs obligatoires manquants",
-        description: `Veuillez remplir: ${missing.join(", ")}`,
-        variant: "destructive",
-      });
+      toast({ title: "Champs obligatoires manquants", description: `Veuillez remplir: ${missing.join(", ")}`, variant: "destructive" });
       return;
     }
     if (!supplierId) return;
     try {
-      const { error } = await supabase
-        .from("supplier_purchase_enrichment")
-        .update({ status: "complet" })
-        .eq("id", supplierId);
+      const { error } = await supabase.from("supplier_purchase_enrichment").update({ status: "complet" }).eq("id", supplierId);
       if (error) throw error;
       setFormData((p) => ({ ...p, status: "complet" }));
-      toast({ title: "Fournisseur marqué comme complet", description: "La fiche a été validée." });
+      toast({ title: "Fournisseur marqué comme complet" });
     } catch (e) {
       toast({ title: "Erreur", description: "Impossible de valider la fiche.", variant: "destructive" });
     }
@@ -251,6 +263,79 @@ export function SupplierDetailDrawer({ supplierId, open, onClose, canEdit = true
 
   const toggleSection = (section: string) => {
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  // File upload handler
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !supplierId) return;
+    setIsUploading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Non connecté");
+
+      const fileExt = file.name.split('.').pop();
+      const storagePath = `${supplierId}/${crypto.randomUUID()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('supplier-attachments')
+        .upload(storagePath, file);
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('supplier-attachments')
+        .getPublicUrl(storagePath);
+
+      // Use signed URL since bucket is private
+      const { data: signedData } = await supabase.storage
+        .from('supplier-attachments')
+        .createSignedUrl(storagePath, 60 * 60 * 24 * 365); // 1 year
+
+      const fileUrl = signedData?.signedUrl || publicUrl;
+
+      const { error: insertError } = await supabase
+        .from('supplier_attachments')
+        .insert({
+          supplier_id: supplierId,
+          file_name: file.name,
+          file_url: fileUrl,
+          storage_path: storagePath,
+          uploaded_by: user.id,
+        });
+      if (insertError) throw insertError;
+
+      await fetchAttachments();
+      toast({ title: "Fichier ajouté", description: file.name });
+    } catch (err: any) {
+      toast({ title: "Erreur", description: err.message || "Échec du téléchargement", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDeleteAttachment = async (att: SupplierAttachment) => {
+    try {
+      await supabase.storage.from('supplier-attachments').remove([att.storage_path]);
+      await supabase.from('supplier_attachments').delete().eq('id', att.id);
+      setAttachments((prev) => prev.filter((a) => a.id !== att.id));
+      toast({ title: "Fichier supprimé" });
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de supprimer", variant: "destructive" });
+    }
+  };
+
+  const handleViewAttachment = async (att: SupplierAttachment) => {
+    try {
+      const { data } = await supabase.storage
+        .from('supplier-attachments')
+        .createSignedUrl(att.storage_path, 60 * 60);
+      if (data?.signedUrl) {
+        window.open(data.signedUrl, '_blank');
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Impossible d'ouvrir le fichier", variant: "destructive" });
+    }
   };
 
   if (!open) return null;
@@ -289,26 +374,22 @@ export function SupplierDetailDrawer({ supplierId, open, onClose, canEdit = true
                     <div className="flex items-center gap-2">
                       {saveStatus === "saving" && (
                         <span className="text-sm text-muted-foreground flex items-center gap-1">
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          Sauvegarde...
+                          <Loader2 className="h-3 w-3 animate-spin" /> Sauvegarde...
                         </span>
                       )}
                       {saveStatus === "saved" && (
                         <span className="text-sm text-success flex items-center gap-1">
-                          <Check className="h-3 w-3" />
-                          Sauvegardé
+                          <Check className="h-3 w-3" /> Sauvegardé
                         </span>
                       )}
                       {saveStatus === "error" && (
                         <span className="text-sm text-destructive flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          Erreur
+                          <AlertCircle className="h-3 w-3" /> Erreur
                         </span>
                       )}
                     </div>
                     <Button onClick={handleMarkComplete} disabled={!canEdit || formData.status === "complet"}>
-                      <Check className="h-4 w-4 mr-2" />
-                      Marquer complet
+                      <Check className="h-4 w-4 mr-2" /> Marquer complet
                     </Button>
                   </div>
                 </div>
@@ -317,11 +398,24 @@ export function SupplierDetailDrawer({ supplierId, open, onClose, canEdit = true
               {/* Scrollable Content */}
               <div className="flex-1 overflow-y-auto p-6">
                 <div className="max-w-4xl mx-auto space-y-6">
+
+                  {/* Last Modified Date Card */}
+                  {formData.updated_at && (
+                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
+                      <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Dernière modification : </span>
+                        <span className="font-medium">
+                          {format(new Date(formData.updated_at), "dd MMMM yyyy 'à' HH:mm", { locale: fr })}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Source Data (Read-only) */}
                   <div className="bg-muted/50 rounded-lg p-4 space-y-3">
                     <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                      <Lock className="h-4 w-4" />
-                      Données source (lecture seule)
+                      <Lock className="h-4 w-4" /> Données source (lecture seule)
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
@@ -332,12 +426,12 @@ export function SupplierDetailDrawer({ supplierId, open, onClose, canEdit = true
                         <Label className="text-xs text-muted-foreground">NOM FOURNISSEUR</Label>
                         <div className="font-medium">{supplier.nomfournisseur || "—"}</div>
                       </div>
-                      {supplier.famille_source_initiale ? (
+                      {supplier.famille_source_initiale && (
                         <div className="col-span-2">
                           <Label className="text-xs text-muted-foreground">FAMILLE SOURCE</Label>
                           <div>{supplier.famille_source_initiale}</div>
                         </div>
-                      ) : null}
+                      )}
                     </div>
                   </div>
 
@@ -352,7 +446,7 @@ export function SupplierDetailDrawer({ supplierId, open, onClose, canEdit = true
                   >
                     <div className="grid grid-cols-2 gap-4">
                       <FormField label="Catégorie *">
-                        <Select
+                        <SearchableSelect
                           value={formData.categorie || ""}
                           onValueChange={(v) => {
                             const newData = { ...formData, categorie: v, famille: null };
@@ -360,60 +454,32 @@ export function SupplierDetailDrawer({ supplierId, open, onClose, canEdit = true
                             setPendingSave(newData);
                           }}
                           disabled={catLoading || !canEdit}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={catLoading ? "Chargement..." : "Sélectionner..."} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {categories.map((c) => (
-                              <SelectItem key={c} value={c}>
-                                {c}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          placeholder={catLoading ? "Chargement..." : "Sélectionner..."}
+                          searchPlaceholder="Rechercher une catégorie..."
+                          options={categories.map((c) => ({ value: c, label: c }))}
+                        />
                       </FormField>
 
                       <FormField label="Famille *">
-                        <Select
+                        <SearchableSelect
                           value={formData.famille || ""}
                           onValueChange={(v) => handleFieldChange("famille", v)}
                           disabled={!canEdit || !formData.categorie || famLoading}
-                        >
-                          <SelectTrigger>
-                            <SelectValue
-                              placeholder={
-                                !formData.categorie
-                                  ? "Choisir une catégorie d'abord"
-                                  : famLoading
-                                  ? "Chargement..."
-                                  : "Sélectionner..."
-                              }
-                            />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {familles.map((f) => (
-                              <SelectItem key={f} value={f}>
-                                {f}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          placeholder={!formData.categorie ? "Choisir une catégorie d'abord" : famLoading ? "Chargement..." : "Sélectionner..."}
+                          searchPlaceholder="Rechercher une famille..."
+                          options={familles.map((f) => ({ value: f, label: f }))}
+                        />
                       </FormField>
 
                       <FormField label="Segment">
-                        <Select value={formData.segment || ""} onValueChange={(v) => handleFieldChange("segment", v)} disabled={!canEdit}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sélectionner..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {SEGMENTS.map((s) => (
-                              <SelectItem key={s} value={s}>
-                                {s}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <SearchableSelect
+                          value={formData.segment || ""}
+                          onValueChange={(v) => handleFieldChange("segment", v)}
+                          disabled={!canEdit}
+                          placeholder="Sélectionner..."
+                          searchPlaceholder="Rechercher..."
+                          options={SEGMENTS.map((s) => ({ value: s, label: s }))}
+                        />
                       </FormField>
 
                       <FormField label="Sous-segment">
@@ -427,30 +493,17 @@ export function SupplierDetailDrawer({ supplierId, open, onClose, canEdit = true
 
                       <FormField label="Entité *" className="col-span-2">
                         <div className="flex gap-2">
-                          <Select
+                          <SearchableSelect
                             value={formData.entite || ""}
                             onValueChange={(v) => handleFieldChange("entite", v)}
                             disabled={!canEdit}
-                          >
-                            <SelectTrigger className="flex-1">
-                              <SelectValue placeholder="Sélectionner..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {companies.map((c) => (
-                                <SelectItem key={c.id} value={c.name}>
-                                  {c.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            placeholder="Sélectionner..."
+                            searchPlaceholder="Rechercher une société..."
+                            triggerClassName="flex-1"
+                            options={companies.map((c) => ({ value: c.name, label: c.name }))}
+                          />
                           {canEdit && (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              onClick={() => setShowAddCompany(true)}
-                              title="Ajouter une société"
-                            >
+                            <Button type="button" variant="outline" size="icon" onClick={() => setShowAddCompany(true)} title="Ajouter une société">
                               <Plus className="h-4 w-4" />
                             </Button>
                           )}
@@ -468,22 +521,14 @@ export function SupplierDetailDrawer({ supplierId, open, onClose, canEdit = true
                   >
                     <div className="grid grid-cols-2 gap-4">
                       <FormField label="Type de contrat *">
-                        <Select
+                        <SearchableSelect
                           value={formData.type_de_contrat || ""}
                           onValueChange={(v) => handleFieldChange("type_de_contrat", v)}
                           disabled={!canEdit}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sélectionner..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {TYPES_CONTRAT.map((t) => (
-                              <SelectItem key={t} value={t}>
-                                {t}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          placeholder="Sélectionner..."
+                          searchPlaceholder="Rechercher..."
+                          options={TYPES_CONTRAT.map((t) => ({ value: t, label: t }))}
+                        />
                       </FormField>
 
                       <FormField label="Évolution tarif 2026">
@@ -496,40 +541,19 @@ export function SupplierDetailDrawer({ supplierId, open, onClose, canEdit = true
                       </FormField>
 
                       <FormField label="Validité prix">
-                        <Input
-                          type="date"
-                          value={formData.validite_prix || ""}
-                          onChange={(e) => handleFieldChange("validite_prix", e.target.value)}
-                          disabled={!canEdit}
-                        />
+                        <Input type="date" value={formData.validite_prix || ""} onChange={(e) => handleFieldChange("validite_prix", e.target.value)} disabled={!canEdit} />
                       </FormField>
 
                       <FormField label="Validité contrat">
-                        <Input
-                          type="date"
-                          value={formData.validite_du_contrat || ""}
-                          onChange={(e) => handleFieldChange("validite_du_contrat", e.target.value)}
-                          disabled={!canEdit}
-                        />
+                        <Input type="date" value={formData.validite_du_contrat || ""} onChange={(e) => handleFieldChange("validite_du_contrat", e.target.value)} disabled={!canEdit} />
                       </FormField>
 
                       <FormField label="Date 1ère signature">
-                        <Input
-                          type="date"
-                          value={formData.date_premiere_signature || ""}
-                          onChange={(e) => handleFieldChange("date_premiere_signature", e.target.value)}
-                          disabled={!canEdit}
-                        />
+                        <Input type="date" value={formData.date_premiere_signature || ""} onChange={(e) => handleFieldChange("date_premiere_signature", e.target.value)} disabled={!canEdit} />
                       </FormField>
 
                       <FormField label="Avenants" className="col-span-2">
-                        <Textarea
-                          value={formData.avenants || ""}
-                          onChange={(e) => handleFieldChange("avenants", e.target.value)}
-                          placeholder="Détail des avenants..."
-                          rows={2}
-                          disabled={!canEdit}
-                        />
+                        <Textarea value={formData.avenants || ""} onChange={(e) => handleFieldChange("avenants", e.target.value)} placeholder="Détail des avenants..." rows={2} disabled={!canEdit} />
                       </FormField>
                     </div>
                   </CollapsibleSection>
@@ -543,68 +567,34 @@ export function SupplierDetailDrawer({ supplierId, open, onClose, canEdit = true
                   >
                     <div className="grid grid-cols-2 gap-4">
                       <FormField label="Délai de paiement *">
-                        <Select
+                        <SearchableSelect
                           value={formData.delai_de_paiement || ""}
                           onValueChange={(v) => handleFieldChange("delai_de_paiement", v)}
                           disabled={!canEdit}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sélectionner..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {DELAIS_PAIEMENT.map((d) => (
-                              <SelectItem key={d} value={d}>
-                                {d}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          placeholder="Sélectionner..."
+                          searchPlaceholder="Rechercher..."
+                          options={DELAIS_PAIEMENT.map((d) => ({ value: d, label: d }))}
+                        />
                       </FormField>
 
                       <FormField label="Échéances de paiement">
-                        <Input
-                          value={formData.echeances_de_paiement || ""}
-                          onChange={(e) => handleFieldChange("echeances_de_paiement", e.target.value)}
-                          placeholder="Ex: fin de mois"
-                          disabled={!canEdit}
-                        />
+                        <Input value={formData.echeances_de_paiement || ""} onChange={(e) => handleFieldChange("echeances_de_paiement", e.target.value)} placeholder="Ex: fin de mois" disabled={!canEdit} />
                       </FormField>
 
                       <FormField label="Pénalités" className="col-span-2">
-                        <Textarea
-                          value={formData.penalites || ""}
-                          onChange={(e) => handleFieldChange("penalites", e.target.value)}
-                          placeholder="Conditions de pénalités..."
-                          rows={2}
-                          disabled={!canEdit}
-                        />
+                        <Textarea value={formData.penalites || ""} onChange={(e) => handleFieldChange("penalites", e.target.value)} placeholder="Conditions de pénalités..." rows={2} disabled={!canEdit} />
                       </FormField>
 
                       <FormField label="Exclusivité / Non-sollicitation">
-                        <Input
-                          value={formData.exclusivite_non_sollicitation || ""}
-                          onChange={(e) => handleFieldChange("exclusivite_non_sollicitation", e.target.value)}
-                          placeholder="Oui / Non / Détails..."
-                          disabled={!canEdit}
-                        />
+                        <Input value={formData.exclusivite_non_sollicitation || ""} onChange={(e) => handleFieldChange("exclusivite_non_sollicitation", e.target.value)} placeholder="Oui / Non / Détails..." disabled={!canEdit} />
                       </FormField>
 
                       <FormField label="Remise">
-                        <Input
-                          value={formData.remise || ""}
-                          onChange={(e) => handleFieldChange("remise", e.target.value)}
-                          placeholder="% ou montant"
-                          disabled={!canEdit}
-                        />
+                        <Input value={formData.remise || ""} onChange={(e) => handleFieldChange("remise", e.target.value)} placeholder="% ou montant" disabled={!canEdit} />
                       </FormField>
 
                       <FormField label="RFA">
-                        <Input
-                          value={formData.rfa || ""}
-                          onChange={(e) => handleFieldChange("rfa", e.target.value)}
-                          placeholder="Ristourne fin d'année"
-                          disabled={!canEdit}
-                        />
+                        <Input value={formData.rfa || ""} onChange={(e) => handleFieldChange("rfa", e.target.value)} placeholder="Ristourne fin d'année" disabled={!canEdit} />
                       </FormField>
                     </div>
                   </CollapsibleSection>
@@ -618,41 +608,22 @@ export function SupplierDetailDrawer({ supplierId, open, onClose, canEdit = true
                   >
                     <div className="grid grid-cols-2 gap-4">
                       <FormField label="Incoterm *">
-                        <Select
+                        <SearchableSelect
                           value={formData.incoterm || ""}
                           onValueChange={(v) => handleFieldChange("incoterm", v)}
                           disabled={!canEdit}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sélectionner..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {INCOTERMS.map((i) => (
-                              <SelectItem key={i} value={i}>
-                                {i}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          placeholder="Sélectionner..."
+                          searchPlaceholder="Rechercher..."
+                          options={INCOTERMS.map((i) => ({ value: i, label: i }))}
+                        />
                       </FormField>
 
                       <FormField label="Transport">
-                        <Input
-                          value={formData.transport || ""}
-                          onChange={(e) => handleFieldChange("transport", e.target.value)}
-                          placeholder="Conditions de transport"
-                          disabled={!canEdit}
-                        />
+                        <Input value={formData.transport || ""} onChange={(e) => handleFieldChange("transport", e.target.value)} placeholder="Conditions de transport" disabled={!canEdit} />
                       </FormField>
 
                       <FormField label="Garanties bancaires & équipement" className="col-span-2">
-                        <Textarea
-                          value={String(formData.garanties_bancaire_et_equipement ?? "")}
-                          onChange={(e) => handleFieldChange("garanties_bancaire_et_equipement", e.target.value)}
-                          placeholder="Détails des garanties..."
-                          rows={2}
-                          disabled={!canEdit}
-                        />
+                        <Textarea value={String(formData.garanties_bancaire_et_equipement ?? "")} onChange={(e) => handleFieldChange("garanties_bancaire_et_equipement", e.target.value)} placeholder="Détails des garanties..." rows={2} disabled={!canEdit} />
                       </FormField>
                     </div>
                   </CollapsibleSection>
@@ -666,42 +637,94 @@ export function SupplierDetailDrawer({ supplierId, open, onClose, canEdit = true
                   >
                     <div className="grid grid-cols-2 gap-4">
                       <FormField label="Nom du contact *">
-                        <Input
-                          value={formData.nom_contact || ""}
-                          onChange={(e) => handleFieldChange("nom_contact", e.target.value)}
-                          placeholder="Prénom NOM"
-                          disabled={!canEdit}
-                        />
+                        <Input value={formData.nom_contact || ""} onChange={(e) => handleFieldChange("nom_contact", e.target.value)} placeholder="Prénom NOM" disabled={!canEdit} />
                       </FormField>
 
                       <FormField label="Poste">
-                        <Input
-                          value={formData.poste || ""}
-                          onChange={(e) => handleFieldChange("poste", e.target.value)}
-                          placeholder="Fonction"
-                          disabled={!canEdit}
-                        />
+                        <Input value={formData.poste || ""} onChange={(e) => handleFieldChange("poste", e.target.value)} placeholder="Fonction" disabled={!canEdit} />
                       </FormField>
 
                       <FormField label="Email *">
-                        <Input
-                          type="email"
-                          value={formData.adresse_mail || ""}
-                          onChange={(e) => handleFieldChange("adresse_mail", e.target.value)}
-                          placeholder="email@example.com"
-                          disabled={!canEdit}
-                        />
+                        <Input type="email" value={formData.adresse_mail || ""} onChange={(e) => handleFieldChange("adresse_mail", e.target.value)} placeholder="email@example.com" disabled={!canEdit} />
                       </FormField>
 
                       <FormField label="Téléphone *">
-                        <Input
-                          type="tel"
-                          value={formData.telephone || ""}
-                          onChange={(e) => handleFieldChange("telephone", e.target.value)}
-                          placeholder="+33 1 23 45 67 89"
-                          disabled={!canEdit}
-                        />
+                        <Input type="tel" value={formData.telephone || ""} onChange={(e) => handleFieldChange("telephone", e.target.value)} placeholder="+33 1 23 45 67 89" disabled={!canEdit} />
                       </FormField>
+
+                      <FormField label="Site web" className="col-span-2">
+                        <div className="flex gap-2">
+                          <Input
+                            type="url"
+                            value={formData.site_web || ""}
+                            onChange={(e) => handleFieldChange("site_web", e.target.value)}
+                            placeholder="https://www.example.com"
+                            disabled={!canEdit}
+                            className="flex-1"
+                          />
+                          {formData.site_web && (
+                            <Button type="button" variant="outline" size="icon" asChild>
+                              <a href={formData.site_web.startsWith('http') ? formData.site_web : `https://${formData.site_web}`} target="_blank" rel="noopener noreferrer">
+                                <Globe className="h-4 w-4" />
+                              </a>
+                            </Button>
+                          )}
+                        </div>
+                      </FormField>
+                    </div>
+                  </CollapsibleSection>
+
+                  {/* Pièces jointes */}
+                  <CollapsibleSection
+                    title="Pièces jointes"
+                    icon={<Paperclip className="h-4 w-4" />}
+                    open={openSections.piecesjointes}
+                    onToggle={() => toggleSection("piecesjointes")}
+                  >
+                    <div className="space-y-3">
+                      {attachments.length > 0 && (
+                        <div className="space-y-2">
+                          {attachments.map((att) => (
+                            <div key={att.id} className="flex items-center gap-2 p-2 rounded-lg border bg-muted/30">
+                              <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <button
+                                  onClick={() => handleViewAttachment(att)}
+                                  className="text-sm font-medium hover:underline flex items-center gap-1 text-left"
+                                >
+                                  {att.file_name}
+                                  <ExternalLink className="h-3 w-3 shrink-0" />
+                                </button>
+                                <p className="text-xs text-muted-foreground">
+                                  {format(new Date(att.created_at), "dd/MM/yyyy HH:mm", { locale: fr })}
+                                </p>
+                              </div>
+                              {canEdit && (
+                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => handleDeleteAttachment(att)}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {canEdit && (
+                        <div>
+                          <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileUpload} disabled={isUploading} />
+                          <Button type="button" variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                            {isUploading ? (
+                              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Téléchargement...</>
+                            ) : (
+                              <><Upload className="h-4 w-4 mr-2" /> Ajouter un fichier</>
+                            )}
+                          </Button>
+                        </div>
+                      )}
+
+                      {attachments.length === 0 && !canEdit && (
+                        <p className="text-sm text-muted-foreground">Aucune pièce jointe</p>
+                      )}
                     </div>
                   </CollapsibleSection>
 
@@ -713,13 +736,7 @@ export function SupplierDetailDrawer({ supplierId, open, onClose, canEdit = true
                     onToggle={() => toggleSection("commentaires")}
                   >
                     <FormField label="Notes">
-                      <Textarea
-                        value={formData.commentaires || ""}
-                        onChange={(e) => handleFieldChange("commentaires", e.target.value)}
-                        placeholder="Notes, remarques, historique..."
-                        rows={4}
-                        disabled={!canEdit}
-                      />
+                      <Textarea value={formData.commentaires || ""} onChange={(e) => handleFieldChange("commentaires", e.target.value)} placeholder="Notes, remarques, historique..." rows={4} disabled={!canEdit} />
                     </FormField>
                   </CollapsibleSection>
                 </div>
@@ -747,9 +764,7 @@ export function SupplierDetailDrawer({ supplierId, open, onClose, canEdit = true
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddCompany(false)}>
-              Annuler
-            </Button>
+            <Button variant="outline" onClick={() => setShowAddCompany(false)}>Annuler</Button>
             <Button onClick={handleAddCompany} disabled={!newCompanyName.trim() || addingCompany}>
               {addingCompany && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Créer
@@ -763,17 +778,9 @@ export function SupplierDetailDrawer({ supplierId, open, onClose, canEdit = true
 
 // Helper components
 function CollapsibleSection({
-  title,
-  icon,
-  open,
-  onToggle,
-  children,
+  title, icon, open, onToggle, children,
 }: {
-  title: string;
-  icon: React.ReactNode;
-  open: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
+  title: string; icon: React.ReactNode; open: boolean; onToggle: () => void; children: React.ReactNode;
 }) {
   return (
     <Collapsible open={open} onOpenChange={onToggle}>
@@ -791,15 +798,7 @@ function CollapsibleSection({
   );
 }
 
-function FormField({
-  label,
-  children,
-  className = "",
-}: {
-  label: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
+function FormField({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string; }) {
   return (
     <div className={`space-y-1.5 ${className}`}>
       <Label className="text-sm">{label}</Label>
