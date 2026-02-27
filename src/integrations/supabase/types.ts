@@ -3176,6 +3176,44 @@ export type Database = {
           },
         ]
       }
+      supplier_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_url: string
+          id: string
+          storage_path: string
+          supplier_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_url: string
+          id?: string
+          storage_path: string
+          supplier_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_url?: string
+          id?: string
+          storage_path?: string
+          supplier_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_attachments_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_purchase_enrichment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_categorisation: {
         Row: {
           active: boolean
@@ -3229,6 +3267,7 @@ export type Database = {
           remise: string | null
           rfa: string | null
           segment: string | null
+          site_web: string | null
           sous_segment: string | null
           status: string | null
           telephone: string | null
@@ -3265,6 +3304,7 @@ export type Database = {
           remise?: string | null
           rfa?: string | null
           segment?: string | null
+          site_web?: string | null
           sous_segment?: string | null
           status?: string | null
           telephone?: string | null
@@ -3301,6 +3341,7 @@ export type Database = {
           remise?: string | null
           rfa?: string | null
           segment?: string | null
+          site_web?: string | null
           sous_segment?: string | null
           status?: string | null
           telephone?: string | null

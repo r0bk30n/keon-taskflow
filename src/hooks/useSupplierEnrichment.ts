@@ -39,6 +39,7 @@ export interface SupplierEnrichment {
   telephone: string | null;
 
   commentaires: string | null;
+  site_web: string | null;
 
   completeness_score: number;
   status: 'a_completer' | 'en_cours' | 'complet';
