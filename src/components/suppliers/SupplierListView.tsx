@@ -629,7 +629,7 @@ export function SupplierListView({ onOpenSupplier }: SupplierListViewProps) {
       {/* Table View */}
       {viewMode === 'table' && (
         <Card className="overflow-hidden">
-          <ScrollArea className="w-full">
+          <ScrollArea className="w-full" type="always">
             <div className="min-w-max">
               <table className="w-full caption-bottom text-sm">
                 <TableHeader>
