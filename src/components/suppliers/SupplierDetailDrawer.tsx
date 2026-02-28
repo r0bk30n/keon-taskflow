@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { MultiSearchableSelect } from "@/components/ui/multi-searchable-select";
 import {
   Collapsible,
   CollapsibleContent,
@@ -161,7 +162,11 @@ export function SupplierDetailDrawer({ supplierId, open, onClose, canEdit = true
       const { data, error } = await supabase.from("companies").insert({ name: trimmed }).select("id, name").single();
       if (error) throw error;
       setCompanies((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
-      handleFieldChange("entite", data.name);
+      // Add the new company to the current entite list
+      const currentEntites = (formData.entite || "").split(",").map(s => s.trim()).filter(Boolean);
+      if (!currentEntites.includes(data.name)) {
+        handleFieldChange("entite", [...currentEntites, data.name].join(", "));
+      }
       setShowAddCompany(false);
       setNewCompanyName("");
       toast({ title: "Société ajoutée", description: `"${data.name}" a été créée.` });
@@ -493,9 +498,9 @@ export function SupplierDetailDrawer({ supplierId, open, onClose, canEdit = true
 
                       <FormField label="Entité *" className="col-span-2">
                         <div className="flex gap-2">
-                          <SearchableSelect
-                            value={formData.entite || ""}
-                            onValueChange={(v) => handleFieldChange("entite", v)}
+                          <MultiSearchableSelect
+                            values={(formData.entite || "").split(",").map(s => s.trim()).filter(Boolean)}
+                            onValuesChange={(vals) => handleFieldChange("entite", vals.join(", "))}
                             disabled={!canEdit}
                             placeholder="Sélectionner..."
                             searchPlaceholder="Rechercher une société..."

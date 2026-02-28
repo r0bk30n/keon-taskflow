@@ -107,7 +107,7 @@ function applyFilters(q: any, filters: SupplierFilters, opts?: { excludeStatus?:
   if (!opts?.excludeStatus && filters.status && filters.status !== 'all') {
     query = query.eq('status', filters.status);
   }
-  if (filters.entite && filters.entite !== 'all') query = query.eq('entite', filters.entite);
+  if (filters.entite && filters.entite !== 'all') query = query.ilike('entite', `%${filters.entite}%`);
 
   if (filters.categorie && filters.categorie !== 'all') query = query.eq('categorie', filters.categorie);
   if (filters.famille && filters.famille !== 'all') query = query.eq('famille', filters.famille);
