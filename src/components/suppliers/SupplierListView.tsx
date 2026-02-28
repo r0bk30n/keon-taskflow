@@ -86,7 +86,11 @@ export interface SupplierColumnDef {
 const ALL_COLUMNS: SupplierColumnDef[] = [
   { key: 'tiers', label: 'TIERS', defaultVisible: true, className: 'w-[120px]', render: (s) => <span className="font-mono font-medium">{s.tiers}</span> },
   { key: 'nomfournisseur', label: 'Nom Fournisseur', defaultVisible: true, render: (s) => <span className="font-medium">{s.nomfournisseur || '—'}</span> },
-  { key: 'entite', label: 'Entité', defaultVisible: true, render: (s) => s.entite || '—' },
+  { key: 'entite', label: 'Entité', defaultVisible: true, render: (s) => {
+    const entites = (s.entite || '').split(',').map(e => e.trim()).filter(Boolean);
+    if (!entites.length) return '—';
+    return <div className="flex flex-wrap gap-1">{entites.map(e => <Badge key={e} variant="secondary" className="text-xs">{e}</Badge>)}</div>;
+  }},
   { key: 'categorie', label: 'Catégorie', defaultVisible: true, render: (s) => s.categorie || '—' },
   { key: 'famille_source_initiale', label: 'Famille source', defaultVisible: false, render: (s) => s.famille_source_initiale || '—' },
   { key: 'famille', label: 'Famille', defaultVisible: true, render: (s) => s.famille || '—' },
@@ -605,7 +609,7 @@ export function SupplierListView({ onOpenSupplier }: SupplierListViewProps) {
                   </div>
                   <Progress value={score} className="h-1.5 mb-3" />
                   <div className="space-y-1 text-xs text-muted-foreground">
-                    {supplier.entite && <div className="flex justify-between"><span>Entité</span><span className="text-foreground font-medium truncate ml-2">{supplier.entite}</span></div>}
+                    {supplier.entite && <div className="flex justify-between"><span>Entité</span><span className="text-foreground font-medium truncate ml-2">{supplier.entite.split(',').map(e => e.trim()).filter(Boolean).join(', ')}</span></div>}
                     {supplier.categorie && <div className="flex justify-between"><span>Catégorie</span><span className="text-foreground font-medium truncate ml-2">{supplier.categorie}</span></div>}
                     {supplier.famille && <div className="flex justify-between"><span>Famille</span><span className="text-foreground font-medium truncate ml-2">{supplier.famille}</span></div>}
                     {supplier.segment && <div className="flex justify-between"><span>Segment</span><span className="text-foreground font-medium truncate ml-2">{supplier.segment}{supplier.sous_segment && ` / ${supplier.sous_segment}`}</span></div>}
