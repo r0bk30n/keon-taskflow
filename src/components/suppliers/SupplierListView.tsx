@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { SortableTableHead } from '@/components/ui/sortable-table-head';
 import { useSupplierEnrichment, SupplierFilters, SupplierSortConfig, SupplierEnrichment } from '@/hooks/useSupplierEnrichment';
 import { useSupplierFilterPresets, SupplierFilterPreset } from '@/hooks/useSupplierFilterPresets';
@@ -627,10 +628,10 @@ export function SupplierListView({ onOpenSupplier }: SupplierListViewProps) {
 
       {/* Table View */}
       {viewMode === 'table' && (
-        <Card className="overflow-hidden">
-          <div className="w-full overflow-x-scroll pb-2">
-            <div className="min-w-max">
-              <table className="w-full caption-bottom text-sm">
+        <Card>
+          <ScrollArea className="w-full" type="always">
+            <div className="min-w-full">
+              <table className="w-max min-w-[1800px] caption-bottom text-sm">
                 <TableHeader>
                   <TableRow>
                     {activeColumns.map(col => (
@@ -679,7 +680,8 @@ export function SupplierListView({ onOpenSupplier }: SupplierListViewProps) {
                 </TableBody>
               </table>
             </div>
-          </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
 
           {/* Bottom Pagination */}
           <div className="px-4 py-3 border-t">
