@@ -72,6 +72,7 @@ function useFinancialData(filters: {
   years: string[];
   months: string[];
   dosList: string[];
+  typeDates: string[];
 }) {
   return useQuery({
     queryKey: ['supplier-financial-dashboard', filters],
@@ -90,6 +91,9 @@ function useFinancialData(filters: {
       if (filters.dosList.length > 0) {
         query = query.in('dos', filters.dosList);
       }
+      if (filters.typeDates.length > 0) {
+        query = query.in('type_date', filters.typeDates);
+      }
 
       const { data, error } = await query.order('annee').order('mois').limit(5000);
       if (error) throw error;
@@ -103,13 +107,20 @@ function useDistinctValues(tiers: string | null) {
   return useQuery({
     queryKey: ['fou-resultat-distinct', tiers],
     queryFn: async () => {
-      let query = (supabase as any).from('fou_resultat').select('annee,dos');
-      if (tiers) query = query.eq('tiers', tiers);
-      const { data, error } = await query.limit(5000);
-      if (error) throw error;
-      const rows = (data || []) as { annee: string | null; dos: string }[];
-      const years = [...new Set(rows.map(r => r.annee).filter(Boolean) as string[])].sort();
-      const dosCodes = [...new Set(rows.map(r => r.dos).filter(Boolean))].sort();
+      // Query years - filter out nulls server-side
+      let yearQuery = (supabase as any).from('fou_resultat').select('annee').not('annee', 'is', null);
+      if (tiers) yearQuery = yearQuery.eq('tiers', tiers);
+      const { data: yearData, error: yearError } = await yearQuery.limit(5000);
+      if (yearError) throw yearError;
+      const years = [...new Set((yearData || []).map((r: any) => r.annee).filter(Boolean) as string[])].sort();
+
+      // Query dos codes
+      let dosQuery = (supabase as any).from('fou_resultat').select('dos');
+      if (tiers) dosQuery = dosQuery.eq('tiers', tiers);
+      const { data: dosData, error: dosError } = await dosQuery.limit(5000);
+      if (dosError) throw dosError;
+      const dosCodes = [...new Set((dosData || []).map((r: any) => String(r.dos)).filter(Boolean))].sort();
+
       return { years, dosCodes };
     },
   });
@@ -131,6 +142,7 @@ export function SupplierFinancialDashboard({ tiers }: SupplierFinancialDashboard
   const [selectedYears, setSelectedYears] = useState<string[]>([currentYear, prevYear]);
   const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
   const [selectedDos, setSelectedDos] = useState<string[]>([]);
+  const [selectedTypeDates, setSelectedTypeDates] = useState<string[]>([]);
 
   // Auto-adjust selected years when distinct values load (only keep years that exist)
   const [initialized, setInitialized] = useState(false);
@@ -153,6 +165,7 @@ export function SupplierFinancialDashboard({ tiers }: SupplierFinancialDashboard
     years: selectedYears,
     months: selectedMonths,
     dosList: selectedDos,
+    typeDates: selectedTypeDates,
   });
 
   // --- KPIs per year for comparison ---
@@ -275,11 +288,15 @@ export function SupplierFinancialDashboard({ tiers }: SupplierFinancialDashboard
   );
 
   const dosOptions = useMemo(() =>
-    (distinctValues?.dosCodes || []).map(d => ({ value: d, label: `${d} — ${DOS_LABELS[d] || d}` })),
+    (distinctValues?.dosCodes || []).map((d: string) => ({ value: d, label: `${d} — ${DOS_LABELS[d] || d}` })),
     [distinctValues]
   );
 
   const monthOptions = Object.entries(MONTH_LABELS).map(([val, label]) => ({ value: val, label }));
+  const typeDateOptions = [
+    { value: 'CMD', label: 'Commandes (CMD)' },
+    { value: 'FAC', label: 'Factures (FAC)' },
+  ];
 
   if (distinctLoading) {
     return (
@@ -300,9 +317,9 @@ export function SupplierFinancialDashboard({ tiers }: SupplierFinancialDashboard
         <div className="flex items-center gap-2 mb-3 text-sm font-semibold">
           <Filter className="h-4 w-4 text-primary" /> Filtres
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Année (sélectionner plusieurs pour comparer)</label>
+            <label className="text-xs text-muted-foreground mb-1 block">Année (comparer)</label>
             <MultiSearchableSelect
               values={selectedYears}
               onValuesChange={setSelectedYears}
@@ -331,8 +348,18 @@ export function SupplierFinancialDashboard({ tiers }: SupplierFinancialDashboard
               searchPlaceholder="Rechercher..."
             />
           </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Type</label>
+            <MultiSearchableSelect
+              values={selectedTypeDates}
+              onValuesChange={setSelectedTypeDates}
+              options={typeDateOptions}
+              placeholder="CMD & FAC"
+              searchPlaceholder="Rechercher..."
+            />
+          </div>
         </div>
-        {(selectedYears.length > 0 || selectedMonths.length > 0 || selectedDos.length > 0) && (
+        {(selectedYears.length > 0 || selectedMonths.length > 0 || selectedDos.length > 0 || selectedTypeDates.length > 0) && (
           <div className="flex flex-wrap gap-1.5 mt-3">
             {selectedYears.map(y => (
               <Badge key={y} variant="secondary" className="text-xs">{y}</Badge>
@@ -342,6 +369,9 @@ export function SupplierFinancialDashboard({ tiers }: SupplierFinancialDashboard
             ))}
             {selectedDos.map(d => (
               <Badge key={d} variant="secondary" className="text-xs">{DOS_LABELS[d] || d}</Badge>
+            ))}
+            {selectedTypeDates.map(t => (
+              <Badge key={t} variant="secondary" className="text-xs">{t === 'CMD' ? 'Commandes' : 'Factures'}</Badge>
             ))}
           </div>
         )}
