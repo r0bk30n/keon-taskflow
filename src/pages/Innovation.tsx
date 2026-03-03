@@ -17,24 +17,16 @@ import { fr } from 'date-fns/locale';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 
-const STATUT_COLORS: Record<string, string> = {
-  'Soumise': 'bg-blue-100 text-blue-800',
-  'En instruction': 'bg-yellow-100 text-yellow-800',
-  'A passer CODIR': 'bg-purple-100 text-purple-800',
-  'Validée': 'bg-green-100 text-green-800',
-  'Refusée': 'bg-red-100 text-red-800',
-  'En attente info': 'bg-orange-100 text-orange-800',
-};
+const INNOVATION_PROCESS_ID = 'a1b2c3d4-0000-4000-a000-000000000001';
 
-const ETAT_COLORS: Record<string, string> = {
-  'A arbitrer': 'bg-gray-100 text-gray-700',
-  'A débuter': 'bg-blue-50 text-blue-700',
-  'En cours': 'bg-emerald-100 text-emerald-800',
-  'A déployer': 'bg-cyan-100 text-cyan-800',
-  'Terminé': 'bg-green-100 text-green-800',
-  'Ecarté': 'bg-red-50 text-red-700',
-  'Standby': 'bg-amber-50 text-amber-700',
-  'Non viable': 'bg-red-100 text-red-800',
+const STATUS_LABELS: Record<string, { label: string; className: string }> = {
+  'todo': { label: 'Soumise', className: 'bg-blue-100 text-blue-800' },
+  'in-progress': { label: 'En instruction', className: 'bg-yellow-100 text-yellow-800' },
+  'pending_validation_1': { label: 'En validation', className: 'bg-purple-100 text-purple-800' },
+  'validated': { label: 'Validée', className: 'bg-green-100 text-green-800' },
+  'refused': { label: 'Refusée', className: 'bg-red-100 text-red-800' },
+  'done': { label: 'Terminée', className: 'bg-green-100 text-green-800' },
+  'cancelled': { label: 'Annulée', className: 'bg-muted text-muted-foreground' },
 };
 
 export default function Innovation() {
@@ -42,24 +34,53 @@ export default function Innovation() {
   const { profile } = useAuth();
   const { isInnoAdmin } = useInnoRole();
   const [statutFilter, setStatutFilter] = useState<string>('all');
-  const [selectedDemande, setSelectedDemande] = useState<any>(null);
+  const [selectedRequest, setSelectedRequest] = useState<any>(null);
 
-  const { data: demandes, isLoading } = useQuery({
-    queryKey: ['inno-demandes', profile?.id, isInnoAdmin],
+  // Fetch innovation requests (tasks of type 'request' linked to Innovation process)
+  const { data: requests, isLoading } = useQuery({
+    queryKey: ['inno-requests', profile?.id, isInnoAdmin],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('inno_demandes')
-        .select('*, demandeur:profiles!inno_demandes_demandeur_id_fkey(display_name), service_porteur:departments!inno_demandes_service_porteur_id_fkey(name), responsable:profiles!inno_demandes_responsable_projet_id_fkey(display_name)')
+      let query = supabase
+        .from('tasks')
+        .select('*, requester:profiles!tasks_requester_id_fkey(display_name), assignee:profiles!tasks_assignee_id_fkey(display_name)')
+        .eq('type', 'request')
+        .eq('source_process_template_id', INNOVATION_PROCESS_ID)
         .order('created_at', { ascending: false });
+
+      // Non-admin users see only their own requests
+      if (!isInnoAdmin && profile?.id) {
+        query = query.eq('requester_id', profile.id);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
     enabled: !!profile?.id,
   });
 
-  const filtered = (demandes || []).filter(d =>
-    statutFilter === 'all' || d.statut_demande === statutFilter
+  // Fetch custom field values for the selected request
+  const { data: fieldValues } = useQuery({
+    queryKey: ['inno-request-fields', selectedRequest?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('request_field_values')
+        .select('*, field:template_custom_fields!request_field_values_field_id_fkey(name, label)')
+        .eq('task_id', selectedRequest.id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedRequest?.id,
+  });
+
+  const filtered = (requests || []).filter(r =>
+    statutFilter === 'all' || r.status === statutFilter
   );
+
+  const getFieldValue = (fieldName: string) => {
+    const fv = fieldValues?.find((v: any) => v.field?.name === fieldName);
+    return fv?.value || '-';
+  };
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -67,7 +88,7 @@ export default function Innovation() {
       <main className="flex-1 p-6">
         <div className="flex items-center justify-between mb-6">
           <PageHeader title={isInnoAdmin ? 'Demandes Innovation' : 'Mes demandes Innovation'} />
-          <Button onClick={() => navigate('/innovation/new')}>
+          <Button onClick={() => navigate('/requests')}>
             <Plus className="w-4 h-4 mr-2" />
             Nouvelle demande
           </Button>
@@ -82,8 +103,8 @@ export default function Innovation() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tous les statuts</SelectItem>
-                  {Object.keys(STATUT_COLORS).map(s => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  {Object.entries(STATUS_LABELS).map(([key, { label }]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -101,35 +122,38 @@ export default function Innovation() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Nom du projet</TableHead>
-                      <TableHead>Code</TableHead>
+                      <TableHead>N°</TableHead>
+                      <TableHead>Titre</TableHead>
                       <TableHead>Statut</TableHead>
-                      <TableHead>État projet</TableHead>
+                      <TableHead>Priorité</TableHead>
                       {isInnoAdmin && <TableHead>Demandeur</TableHead>}
                       <TableHead>Date</TableHead>
                       <TableHead className="w-10"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filtered.map(d => (
-                      <TableRow key={d.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedDemande(d)}>
-                        <TableCell className="font-medium">{d.nom_projet}</TableCell>
-                        <TableCell><Badge variant="outline">{d.code_projet}</Badge></TableCell>
-                        <TableCell>
-                          <Badge className={STATUT_COLORS[d.statut_demande] || ''}>{d.statut_demande}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={ETAT_COLORS[d.etat_projet] || ''}>{d.etat_projet}</Badge>
-                        </TableCell>
-                        {isInnoAdmin && <TableCell>{(d as any).demandeur?.display_name || '-'}</TableCell>}
-                        <TableCell className="text-muted-foreground text-sm">
-                          {format(new Date(d.created_at), 'dd MMM yyyy', { locale: fr })}
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon"><Eye className="w-4 h-4" /></Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {filtered.map(r => {
+                      const statusInfo = STATUS_LABELS[r.status] || { label: r.status, className: '' };
+                      return (
+                        <TableRow key={r.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedRequest(r)}>
+                          <TableCell className="text-muted-foreground text-sm">{r.request_number || '-'}</TableCell>
+                          <TableCell className="font-medium">{r.title}</TableCell>
+                          <TableCell>
+                            <Badge className={statusInfo.className}>{statusInfo.label}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{r.priority}</Badge>
+                          </TableCell>
+                          {isInnoAdmin && <TableCell>{(r as any).requester?.display_name || '-'}</TableCell>}
+                          <TableCell className="text-muted-foreground text-sm">
+                            {format(new Date(r.created_at), 'dd MMM yyyy', { locale: fr })}
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon"><Eye className="w-4 h-4" /></Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -138,73 +162,69 @@ export default function Innovation() {
         </Card>
 
         {/* Detail dialog */}
-        <Dialog open={!!selectedDemande} onOpenChange={(open) => !open && setSelectedDemande(null)}>
+        <Dialog open={!!selectedRequest} onOpenChange={(open) => !open && setSelectedRequest(null)}>
           <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-            {selectedDemande && (
+            {selectedRequest && (
               <>
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                     <Lightbulb className="w-5 h-5 text-warning" />
-                    {selectedDemande.nom_projet}
+                    {selectedRequest.title}
                   </DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 mt-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
+                      <p className="text-xs text-muted-foreground">N° Demande</p>
+                      <p className="font-medium">{selectedRequest.request_number || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Statut</p>
+                      <Badge className={STATUS_LABELS[selectedRequest.status]?.className || ''}>
+                        {STATUS_LABELS[selectedRequest.status]?.label || selectedRequest.status}
+                      </Badge>
+                    </div>
+                    <div>
                       <p className="text-xs text-muted-foreground">Code projet</p>
-                      <p className="font-medium">{selectedDemande.code_projet}</p>
+                      <p className="font-medium">{getFieldValue('code_projet')}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Entité</p>
-                      <p className="font-medium">{selectedDemande.entite_concernee}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Statut demande</p>
-                      <Badge className={STATUT_COLORS[selectedDemande.statut_demande] || ''}>{selectedDemande.statut_demande}</Badge>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">État projet</p>
-                      <Badge className={ETAT_COLORS[selectedDemande.etat_projet] || ''}>{selectedDemande.etat_projet}</Badge>
+                      <p className="font-medium">{getFieldValue('entite_concernee')}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Usage</p>
-                      <p className="font-medium">{selectedDemande.usage}</p>
+                      <p className="font-medium">{getFieldValue('usage_inno')}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Sponsor</p>
-                      <p className="font-medium">{selectedDemande.sponsor || '-'}</p>
+                      <p className="font-medium">{getFieldValue('sponsor')}</p>
                     </div>
                   </div>
                   <Separator />
                   <div>
-                    <p className="text-xs text-muted-foreground mb-1">Descriptif</p>
-                    <p className="text-sm whitespace-pre-wrap">{selectedDemande.descriptif}</p>
+                    <p className="text-xs text-muted-foreground mb-1">Nom du projet</p>
+                    <p className="text-sm">{getFieldValue('nom_projet')}</p>
                   </div>
-                  {selectedDemande.commentaire_demande && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Descriptif</p>
+                    <p className="text-sm whitespace-pre-wrap">{getFieldValue('descriptif')}</p>
+                  </div>
+                  {selectedRequest.description && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Commentaire</p>
-                      <p className="text-sm whitespace-pre-wrap">{selectedDemande.commentaire_demande}</p>
-                    </div>
-                  )}
-                  {(selectedDemande.etiquettes || []).length > 0 && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Étiquettes</p>
-                      <div className="flex flex-wrap gap-1">
-                        {selectedDemande.etiquettes.map((e: string) => (
-                          <Badge key={e} variant="secondary" className="text-xs">{e}</Badge>
-                        ))}
-                      </div>
+                      <p className="text-xs text-muted-foreground mb-1">Description</p>
+                      <p className="text-sm whitespace-pre-wrap">{selectedRequest.description}</p>
                     </div>
                   )}
                   <Separator />
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-xs text-muted-foreground">Demandeur</p>
-                      <p>{(selectedDemande as any).demandeur?.display_name || '-'}</p>
+                      <p>{(selectedRequest as any).requester?.display_name || '-'}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Date de soumission</p>
-                      <p>{format(new Date(selectedDemande.created_at), 'dd MMMM yyyy à HH:mm', { locale: fr })}</p>
+                      <p>{format(new Date(selectedRequest.created_at), 'dd MMMM yyyy à HH:mm', { locale: fr })}</p>
                     </div>
                   </div>
                 </div>
