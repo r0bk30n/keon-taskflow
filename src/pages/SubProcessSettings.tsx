@@ -86,8 +86,12 @@ export default function SubProcessSettings() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  // Support ?tab=workflow query param
+  const searchParams = new URLSearchParams(window.location.search);
+  const initialTab = searchParams.get('tab') || 'general';
+
   const [activeView, setActiveView] = useState('templates');
-  const [activeTab, setActiveTab] = useState('general');
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [canManage, setCanManage] = useState(false);
