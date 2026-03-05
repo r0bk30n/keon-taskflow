@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,26 +6,30 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { Plus, Trash2, Edit2, Copy, GripVertical, Eye, EyeOff } from 'lucide-react';
-import type { WfStep, WfStepInsert, WfStepUpdate, WfAssignmentRule } from '@/types/workflow';
+import type { WfStep, WfStepInsert, WfStepUpdate } from '@/types/workflow';
 import { WF_STEP_TYPE_LABELS, WF_VALIDATION_MODE_LABELS } from '@/types/workflow';
+import type { EnrichedAssignmentRule } from '@/hooks/useWorkflowConfig';
 import { WfStepDrawer } from './WfStepDrawer';
 
 interface Props {
   steps: WfStep[];
-  assignmentRules: WfAssignmentRule[];
+  assignmentRules: EnrichedAssignmentRule[];
   canManage: boolean;
   onAdd: (step: Omit<WfStepInsert, 'workflow_id'>) => Promise<WfStep | null>;
   onUpdate: (id: string, updates: WfStepUpdate) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onDuplicate: (id: string) => Promise<void>;
+  onReorder: (reordered: { id: string; order_index: number }[]) => Promise<void>;
 }
 
-export function WfStepsSection({ steps, assignmentRules, canManage, onAdd, onUpdate, onDelete, onDuplicate }: Props) {
+export function WfStepsSection({ steps, assignmentRules, canManage, onAdd, onUpdate, onDelete, onDuplicate, onReorder }: Props) {
   const [editingStep, setEditingStep] = useState<WfStep | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [overIdx, setOverIdx] = useState<number | null>(null);
+  const dragRef = useRef<number | null>(null);
 
-  const editableSteps = steps.filter(s => s.step_type !== 'start' && s.step_type !== 'end');
-  const allSteps = steps.sort((a, b) => a.order_index - b.order_index);
+  const allSteps = [...steps].sort((a, b) => a.order_index - b.order_index);
 
   const handleAdd = async (step: Omit<WfStepInsert, 'workflow_id'>) => {
     await onAdd(step);
@@ -40,17 +44,63 @@ export function WfStepsSection({ steps, assignmentRules, canManage, onAdd, onUpd
 
   const getAssignmentRuleName = (ruleId: string | null) => {
     if (!ruleId) return '—';
-    return assignmentRules.find(r => r.id === ruleId)?.name || '—';
+    return assignmentRules.find(r => r.id === ruleId)?.display_name || '—';
   };
 
   const getStepTypeBadgeVariant = (type: string) => {
     switch (type) {
       case 'validation': return 'default' as const;
       case 'execution': return 'secondary' as const;
-      case 'subprocess': return 'outline' as const;
-      case 'start': case 'end': return 'outline' as const;
-      default: return 'secondary' as const;
+      default: return 'outline' as const;
     }
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (idx: number) => {
+    const step = allSteps[idx];
+    if (step.step_type === 'start' || step.step_type === 'end') return;
+    setDragIdx(idx);
+    dragRef.current = idx;
+  };
+
+  const handleDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    const step = allSteps[idx];
+    if (step.step_type === 'start' || step.step_type === 'end') return;
+    setOverIdx(idx);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    const from = dragRef.current;
+    const to = overIdx;
+    setDragIdx(null);
+    setOverIdx(null);
+    dragRef.current = null;
+
+    if (from === null || to === null || from === to) return;
+
+    // Reorder: move item from `from` to `to`
+    const reordered = [...allSteps];
+    const [moved] = reordered.splice(from, 1);
+    reordered.splice(to, 0, moved);
+
+    // Recalculate order_index: keep start=0, end=999, others sequential
+    const updates: { id: string; order_index: number }[] = [];
+    let order = 1;
+    for (const s of reordered) {
+      if (s.step_type === 'start') continue;
+      if (s.step_type === 'end') continue;
+      updates.push({ id: s.id, order_index: order });
+      order++;
+    }
+    await onReorder(updates);
+  };
+
+  const handleDragEnd = () => {
+    setDragIdx(null);
+    setOverIdx(null);
+    dragRef.current = null;
   };
 
   return (
@@ -73,11 +123,10 @@ export function WfStepsSection({ steps, assignmentRules, canManage, onAdd, onUpd
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[50px]">#</TableHead>
-                <TableHead className="w-[120px]">Step Key</TableHead>
                 <TableHead>Nom</TableHead>
                 <TableHead className="w-[110px]">Type</TableHead>
                 <TableHead>État affiché</TableHead>
-                <TableHead>Acteur</TableHead>
+                <TableHead>Affectation</TableHead>
                 <TableHead className="w-[100px]">Validation</TableHead>
                 <TableHead className="w-[60px]">Actif</TableHead>
                 {canManage && <TableHead className="w-[100px]">Actions</TableHead>}
@@ -86,18 +135,30 @@ export function WfStepsSection({ steps, assignmentRules, canManage, onAdd, onUpd
             <TableBody>
               {allSteps.map((step, idx) => {
                 const isSystem = step.step_type === 'start' || step.step_type === 'end';
+                const isDragging = dragIdx === idx;
+                const isOver = overIdx === idx && dragIdx !== null && dragIdx !== idx;
                 return (
-                  <TableRow key={step.id} className={isSystem ? 'bg-muted/30' : ''}>
+                  <TableRow
+                    key={step.id}
+                    className={`
+                      ${isSystem ? 'bg-muted/30' : ''}
+                      ${isDragging ? 'opacity-40' : ''}
+                      ${isOver ? 'border-t-2 border-t-primary' : ''}
+                      ${!isSystem && canManage ? 'cursor-grab' : ''}
+                    `}
+                    draggable={!isSystem && canManage}
+                    onDragStart={() => handleDragStart(idx)}
+                    onDragOver={(e) => handleDragOver(e, idx)}
+                    onDrop={handleDrop}
+                    onDragEnd={handleDragEnd}
+                  >
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        {canManage && !isSystem && <GripVertical className="h-3 w-3 text-muted-foreground" />}
-                        <span className="text-muted-foreground text-xs">{idx}</span>
+                        {canManage && !isSystem && (
+                          <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
+                        )}
+                        <span className="text-muted-foreground text-xs">{step.order_index}</span>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">
-                        {step.step_key.length > 12 ? step.step_key.slice(0, 12) + '…' : step.step_key}
-                      </code>
                     </TableCell>
                     <TableCell className="font-medium">{step.name}</TableCell>
                     <TableCell>
@@ -153,7 +214,6 @@ export function WfStepsSection({ steps, assignmentRules, canManage, onAdd, onUpd
         </CardContent>
       </Card>
 
-      {/* Add step drawer */}
       <WfStepDrawer
         open={isAddOpen}
         onClose={() => setIsAddOpen(false)}
@@ -164,7 +224,6 @@ export function WfStepsSection({ steps, assignmentRules, canManage, onAdd, onUpd
         maxOrderIndex={Math.max(...steps.map(s => s.order_index), 0)}
       />
 
-      {/* Edit step drawer */}
       {editingStep && (
         <WfStepDrawer
           open={!!editingStep}

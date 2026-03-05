@@ -10,14 +10,15 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Save, Loader2 } from 'lucide-react';
-import type { WfStep, WfStepInsert, WfStepUpdate, WfAssignmentRule, WfStepType, WfValidationMode } from '@/types/workflow';
+import type { WfStep, WfStepInsert, WfStepUpdate, WfStepType, WfValidationMode } from '@/types/workflow';
 import { WF_STEP_TYPE_LABELS, WF_VALIDATION_MODE_LABELS } from '@/types/workflow';
+import type { EnrichedAssignmentRule } from '@/hooks/useWorkflowConfig';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onSave: (data: any) => Promise<void>;
-  assignmentRules: WfAssignmentRule[];
+  assignmentRules: EnrichedAssignmentRule[];
   existingSteps: WfStep[];
   mode: 'add' | 'edit';
   initialData?: WfStep;
@@ -58,7 +59,6 @@ export function WfStepDrawer({ open, onClose, onSave, assignmentRules, existingS
       setAssignmentRuleId(null);
       setValidationMode('none');
       setNRequired(null);
-      // Place before end step
       const endStep = existingSteps.find(s => s.step_type === 'end');
       setOrderIndex(endStep ? endStep.order_index - 1 : maxOrderIndex + 1);
     }
@@ -134,23 +134,26 @@ export function WfStepDrawer({ open, onClose, onSave, assignmentRules, existingS
           </div>
 
           <div className="space-y-2">
-            <Label>Position (ordre)</Label>
-            <Input type="number" value={orderIndex} onChange={e => setOrderIndex(parseInt(e.target.value) || 0)} />
-          </div>
-
-          <div className="space-y-2">
             <Label>Règle d'affectation</Label>
-            <Select value={assignmentRuleId || '__none__'} onValueChange={v => setAssignmentRuleId(v === '__none__' ? null : v)}>
+            <Select
+              value={assignmentRuleId || '__none__'}
+              onValueChange={v => setAssignmentRuleId(v === '__none__' ? null : v)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Aucune" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">Aucune</SelectItem>
                 {assignmentRules.map(r => (
-                  <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                  <SelectItem key={r.id} value={r.id}>
+                    {r.display_name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {assignmentRules.length === 0 && (
+              <p className="text-xs text-muted-foreground">Aucune règle d'affectation configurée.</p>
+            )}
           </div>
 
           {stepType === 'validation' && (
