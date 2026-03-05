@@ -13,12 +13,9 @@ import {
   FormInput,
   Bell,
   Layers,
-  CheckCircle,
-  Clock,
   Building2,
   Eye,
   Users,
-  Zap,
   ArrowLeft,
   ListTodo,
 } from 'lucide-react';
@@ -32,19 +29,12 @@ import { ProcessAssignmentTab } from '@/components/templates/UnifiedModelView/Pr
 import { ProcessCustomFieldsTab } from '@/components/templates/UnifiedModelView/ProcessCustomFieldsTab';
 
 import { ProcessNotificationsTab } from '@/components/templates/UnifiedModelView/ProcessNotificationsTab';
-import { ProcessGeneratedWorkflowTab } from '@/components/templates/UnifiedModelView/ProcessGeneratedWorkflowTab';
+
 import { ProcessTaskManagement } from '@/components/process-tracking/ProcessTaskManagement';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useTasks } from '@/hooks/useTasks';
 
-interface WorkflowInfo {
-  id: string;
-  name: string;
-  status: 'draft' | 'active' | 'archived';
-  version: number;
-  updatedAt: string;
-}
 
 export default function ProcessSettings() {
   const { processId } = useParams<{ processId: string }>();
@@ -58,7 +48,6 @@ export default function ProcessSettings() {
   const [process, setProcess] = useState<ProcessWithTasks | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [canManage, setCanManage] = useState(false);
-  const [workflowInfo, setWorkflowInfo] = useState<WorkflowInfo | null>(null);
   const [subProcessCount, setSubProcessCount] = useState(0);
   const [customFieldCount, setCustomFieldCount] = useState(0);
 
@@ -87,24 +76,6 @@ export default function ProcessSettings() {
       setProcess({ ...data, task_templates: [] } as ProcessWithTasks);
       setCanManage(Boolean(canManageData));
 
-      // Fetch workflow info
-      const { data: wfData } = await supabase
-        .from('workflow_templates')
-        .select('id, name, status, version, updated_at')
-        .eq('process_template_id', processId)
-        .eq('is_default', true)
-        .single();
-
-      if (wfData) {
-        setWorkflowInfo({
-          id: wfData.id,
-          name: wfData.name,
-          status: wfData.status as 'draft' | 'active' | 'archived',
-          version: wfData.version,
-          updatedAt: wfData.updated_at,
-        });
-      }
-
       // Fetch counts
       const [{ count: spCount }, { count: cfCount }] = await Promise.all([
         supabase.from('sub_process_templates').select('id', { count: 'exact', head: true }).eq('process_template_id', processId),
@@ -129,35 +100,6 @@ export default function ProcessSettings() {
     await fetchProcess();
   };
 
-  const getWorkflowStatusBadge = () => {
-    if (!workflowInfo) {
-      return <Badge variant="outline">Non configuré</Badge>;
-    }
-
-    switch (workflowInfo.status) {
-      case 'active':
-        return (
-          <Badge className="bg-green-100 text-green-700 border-green-300">
-            <CheckCircle className="h-3 w-3 mr-1" />
-            Publié (v{workflowInfo.version})
-          </Badge>
-        );
-      case 'draft':
-        return (
-          <Badge className="bg-yellow-100 text-yellow-700 border-yellow-300">
-            <Clock className="h-3 w-3 mr-1" />
-            Brouillon
-          </Badge>
-        );
-      case 'archived':
-        return (
-          <Badge variant="secondary">Archivé</Badge>
-        );
-      default:
-        return null;
-    }
-  };
-
   const tabs = [
     { id: 'settings', label: 'Paramètres', icon: Settings },
     { id: 'access', label: 'Accès', icon: Eye },
@@ -165,7 +107,6 @@ export default function ProcessSettings() {
     { id: 'fields', label: 'Champs', icon: FormInput },
     { id: 'assignment', label: 'Affectation', icon: Users },
     { id: 'notifications', label: 'Notifs', icon: Bell },
-    { id: 'workflow', label: 'Workflow', icon: Zap },
     { id: 'tasks', label: 'Gestion des tâches', icon: ListTodo },
   ];
 
@@ -214,7 +155,6 @@ export default function ProcessSettings() {
               <p className="text-sm text-muted-foreground mb-3">{process.description}</p>
             )}
             <div className="flex flex-wrap gap-2">
-              {getWorkflowStatusBadge()}
               <Badge variant="outline" className="gap-1">
                 <GitBranch className="h-3 w-3" />
                 {subProcessCount} sous-processus
@@ -308,14 +248,8 @@ export default function ProcessSettings() {
                   />
                 </TabsContent>
 
-                <TabsContent value="workflow" className="mt-0">
-                  <ProcessGeneratedWorkflowTab
-                    processId={process.id}
-                    processName={process.name}
-                    canManage={canManage}
-                    onUpdate={handleUpdate}
-                  />
-                </TabsContent>
+
+
 
                 <TabsContent value="tasks" className="mt-0">
                   <ProcessTaskManagement
