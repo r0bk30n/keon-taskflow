@@ -9,13 +9,17 @@ import type {
   WfStepPoolValidator, WfStepSequenceValidator,
 } from '@/types/workflow';
 
+export interface EnrichedAssignmentRule extends WfAssignmentRule {
+  display_name: string;
+}
+
 export function useWorkflowConfig(subProcessTemplateId: string | undefined) {
   const [workflow, setWorkflow] = useState<WfWorkflow | null>(null);
   const [steps, setSteps] = useState<WfStep[]>([]);
   const [transitions, setTransitions] = useState<WfTransition[]>([]);
   const [notifications, setNotifications] = useState<WfNotification[]>([]);
   const [actions, setActions] = useState<WfAction[]>([]);
-  const [assignmentRules, setAssignmentRules] = useState<WfAssignmentRule[]>([]);
+  const [assignmentRules, setAssignmentRules] = useState<EnrichedAssignmentRule[]>([]);
   const [poolValidators, setPoolValidators] = useState<WfStepPoolValidator[]>([]);
   const [sequenceValidators, setSequenceValidators] = useState<WfStepSequenceValidator[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,7 +52,7 @@ export function useWorkflowConfig(subProcessTemplateId: string | undefined) {
       const wfId = wfData.id;
 
       // Fetch all related data in parallel
-      const [stepsRes, transRes, notifsRes, actionsRes, rulesRes, poolRes, seqRes] = await Promise.all([
+      const [stepsRes, transRes, notifsRes, actionsRes, rulesRes, poolRes, seqRes, deptsRes] = await Promise.all([
         supabase.from('wf_steps').select('*').eq('workflow_id', wfId).order('order_index'),
         supabase.from('wf_transitions').select('*').eq('workflow_id', wfId).order('created_at'),
         supabase.from('wf_notifications').select('*').eq('workflow_id', wfId).order('created_at'),
@@ -56,15 +60,45 @@ export function useWorkflowConfig(subProcessTemplateId: string | undefined) {
         supabase.from('wf_assignment_rules').select('*').order('name'),
         supabase.from('wf_step_pool_validators').select('*'),
         supabase.from('wf_step_sequence_validators').select('*').order('order_index'),
+        supabase.from('departments').select('id, name'),
       ]);
 
       setSteps(stepsRes.data || []);
       setTransitions(transRes.data || []);
       setNotifications(notifsRes.data || []);
       setActions(actionsRes.data || []);
-      setAssignmentRules(rulesRes.data || []);
       setPoolValidators(poolRes.data || []);
       setSequenceValidators(seqRes.data || []);
+
+      // Enrich assignment rules with human-readable names and deduplicate
+      const departments = deptsRes.data || [];
+      const deptMap = new Map(departments.map(d => [d.id, d.name]));
+      const rawRules = rulesRes.data || [];
+      
+      // Deduplicate by type+target_id
+      const seen = new Set<string>();
+      const enriched: EnrichedAssignmentRule[] = [];
+      for (const rule of rawRules) {
+        const key = `${rule.type}:${rule.target_id}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        
+        let displayName = rule.name;
+        if (rule.type === 'department' && rule.target_id) {
+          const deptName = deptMap.get(rule.target_id);
+          displayName = deptName ? `Service : ${deptName}` : rule.name;
+        } else if (rule.type === 'manager') {
+          displayName = 'Manager';
+        } else if (rule.type === 'requester') {
+          displayName = 'Demandeur';
+        } else if (rule.type === 'user') {
+          displayName = `Utilisateur : ${rule.target_id?.slice(0, 8) || ''}`;
+        }
+        
+        enriched.push({ ...rule, display_name: displayName });
+      }
+      
+      setAssignmentRules(enriched);
     } catch (error) {
       console.error('Error fetching workflow config:', error);
       toast.error('Erreur lors du chargement du workflow');
@@ -146,7 +180,6 @@ export function useWorkflowConfig(subProcessTemplateId: string | undefined) {
 
     const newTransitions: WfTransitionInsert[] = [];
     if (prevStep) {
-      // Remove existing transition from prev to next
       if (nextStep) {
         await supabase.from('wf_transitions').delete()
           .eq('workflow_id', workflow.id)
@@ -187,17 +220,40 @@ export function useWorkflowConfig(subProcessTemplateId: string | undefined) {
     toast.success('Étape mise à jour');
   };
 
+  const reorderSteps = async (reorderedSteps: { id: string; order_index: number }[]) => {
+    // Optimistic update
+    setSteps(prev => {
+      const updated = [...prev];
+      for (const r of reorderedSteps) {
+        const idx = updated.findIndex(s => s.id === r.id);
+        if (idx >= 0) updated[idx] = { ...updated[idx], order_index: r.order_index };
+      }
+      return updated.sort((a, b) => a.order_index - b.order_index);
+    });
+
+    // Persist each update
+    const promises = reorderedSteps.map(r =>
+      supabase.from('wf_steps').update({ order_index: r.order_index }).eq('id', r.id)
+    );
+    const results = await Promise.all(promises);
+    const hasError = results.some(r => r.error);
+    if (hasError) {
+      toast.error('Erreur lors du réordonnancement');
+      await fetchAll();
+    } else {
+      toast.success('Ordre mis à jour');
+    }
+  };
+
   const deleteStep = async (id: string) => {
     const step = steps.find(s => s.id === id);
     if (!step || step.step_type === 'start' || step.step_type === 'end') {
       toast.error('Impossible de supprimer cette étape');
       return;
     }
-    // Check if used in transitions
     const usedInTransitions = transitions.filter(
       t => t.from_step_key === step.step_key || t.to_step_key === step.step_key
     );
-    // Delete related transitions
     if (usedInTransitions.length > 0) {
       await supabase.from('wf_transitions').delete()
         .eq('workflow_id', workflow!.id)
@@ -310,24 +366,20 @@ export function useWorkflowConfig(subProcessTemplateId: string | undefined) {
     sequenceValidators,
     isLoading,
     refetch: fetchAll,
-    // Workflow
     createWorkflow,
     updateWorkflow,
     publishWorkflow,
-    // Steps
     addStep,
     updateStep,
+    reorderSteps,
     deleteStep,
     duplicateStep,
-    // Transitions
     addTransition,
     updateTransition,
     deleteTransition,
-    // Notifications
     addNotification,
     updateNotification,
     deleteNotification,
-    // Actions
     addAction,
     updateAction,
     deleteAction,

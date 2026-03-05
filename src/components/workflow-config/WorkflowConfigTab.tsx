@@ -24,7 +24,6 @@ export function WorkflowConfigTab({ subProcessId, subProcessName, canManage }: P
     );
   }
 
-  // No workflow yet — show creation prompt
   if (!wf.workflow) {
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-4">
@@ -47,7 +46,6 @@ export function WorkflowConfigTab({ subProcessId, subProcessName, canManage }: P
 
   return (
     <div className="space-y-6">
-      {/* Navigation anchors */}
       <nav className="flex gap-2 flex-wrap text-sm">
         {['Paramètres', 'Étapes', 'Transitions', 'Notifications', 'Actions'].map((label, i) => (
           <a
@@ -60,7 +58,6 @@ export function WorkflowConfigTab({ subProcessId, subProcessName, canManage }: P
         ))}
       </nav>
 
-      {/* Section 0: General */}
       <div id="wf-section-0">
         <WfGeneralSection
           workflow={wf.workflow}
@@ -70,7 +67,6 @@ export function WorkflowConfigTab({ subProcessId, subProcessName, canManage }: P
         />
       </div>
 
-      {/* Section 1: Steps */}
       <div id="wf-section-1">
         <WfStepsSection
           steps={wf.steps}
@@ -80,10 +76,10 @@ export function WorkflowConfigTab({ subProcessId, subProcessName, canManage }: P
           onUpdate={wf.updateStep}
           onDelete={wf.deleteStep}
           onDuplicate={wf.duplicateStep}
+          onReorder={wf.reorderSteps}
         />
       </div>
 
-      {/* Section 2: Transitions */}
       <div id="wf-section-2">
         <WfTransitionsSection
           transitions={wf.transitions}
@@ -95,7 +91,6 @@ export function WorkflowConfigTab({ subProcessId, subProcessName, canManage }: P
         />
       </div>
 
-      {/* Section 3: Notifications */}
       <div id="wf-section-3">
         <WfNotificationsSection
           notifications={wf.notifications}
@@ -107,7 +102,6 @@ export function WorkflowConfigTab({ subProcessId, subProcessName, canManage }: P
         />
       </div>
 
-      {/* Section 4: Actions & Tasks */}
       <div id="wf-section-4">
         <WfActionsSection
           actions={wf.actions}
