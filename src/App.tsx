@@ -22,7 +22,7 @@ import Requests from "./pages/Requests";
 import CalendarPage from "./pages/Calendar";
 import Chat from "./pages/Chat";
 import DesignSystem from "./pages/DesignSystem";
-import WorkflowEditor from "./pages/WorkflowEditor";
+// WorkflowEditor removed — workflow config is now in SubProcessSettings tab
 import NotFound from "./pages/NotFound";
 import SupplierReference from "./pages/SupplierReference";
 // MaterialRequests is now embedded in ProcessTracking
@@ -141,22 +141,7 @@ const App = () => (
               }
             />
             <Route path="/design-system" element={<DesignSystem />} />
-            <Route
-              path="/templates/workflow/process/:processId"
-              element={
-                <ProtectedRoute>
-                  <WorkflowEditor />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/templates/workflow/subprocess/:subProcessId"
-              element={
-                <ProtectedRoute>
-                  <WorkflowEditor />
-                </ProtectedRoute>
-              }
-            />
+            {/* Old workflow editor routes removed — config is now in SubProcessSettings */}
             {/* BE Project Hub routes */}
             <Route
               path="/be/projects/:code/overview"
