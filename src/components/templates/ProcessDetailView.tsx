@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Building2, Briefcase, Layers, ListTodo, Loader2, FormInput, Workflow, ExternalLink } from 'lucide-react';
+import { Plus, Building2, Briefcase, Layers, ListTodo, Loader2, FormInput } from 'lucide-react';
 import { useSubProcessTemplates } from '@/hooks/useSubProcessTemplates';
 import { SubProcessCard } from './SubProcessCard';
 import { AddSubProcessDialog } from './AddSubProcessDialog';
@@ -148,10 +148,6 @@ export function ProcessDetailView({
                   <FormInput className="h-4 w-4 mr-2" />
                   Champs
                 </TabsTrigger>
-                <TabsTrigger value="workflow" className="flex-1">
-                  <Workflow className="h-4 w-4 mr-2" />
-                  Workflow
-                </TabsTrigger>
               </TabsList>
             </div>
 
@@ -276,23 +272,6 @@ export function ProcessDetailView({
                 />
               </TabsContent>
 
-              <TabsContent value="workflow" className="p-6 pt-4">
-                <Card>
-                  <CardContent className="pt-6 text-center">
-                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                      <Workflow className="h-8 w-8 text-primary" />
-                    </div>
-                    <h3 className="text-lg font-semibold mb-2">Éditeur de workflow</h3>
-                    <p className="text-muted-foreground text-sm mb-6">
-                      Configurez les étapes, validations et notifications de ce processus dans l'éditeur pleine page.
-                    </p>
-                    <Button onClick={() => navigate(`/templates/workflow/process/${process.id}`)}>
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Ouvrir l'éditeur de workflow
-                    </Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
             </ScrollArea>
           </Tabs>
         </SheetContent>
