@@ -3,8 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-sync-secret",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-sync-secret",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -42,7 +41,7 @@ serve(async (req) => {
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
@@ -55,48 +54,46 @@ serve(async (req) => {
       .maybeSingle();
 
     if (catalogError || !allowedTable) {
-      return new Response(
-        JSON.stringify({ error: "Table not allowed for sync" }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: "Table not allowed for sync" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Validate conflict_key: only allow simple alphanumeric column names
     if (!/^[a-zA-Z_][a-zA-Z0-9_]*(,[a-zA-Z_][a-zA-Z0-9_]*)*$/.test(conflictKey)) {
-      return new Response(
-        JSON.stringify({ error: "Invalid conflict_key format" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: "Invalid conflict_key format" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Limit batch size to prevent abuse
     if (records.length > 5000) {
-      return new Response(
-        JSON.stringify({ error: "Batch size exceeds limit of 5000 records" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    // upsert
-    const { error } = await admin
-      .from(table)
-      .upsert(records, { onConflict: conflictKey });
-
-    if (error) {
-      console.error("Upsert error:", JSON.stringify(error));
-      return new Response(JSON.stringify({ error: "Upsert failed", details: error.message, code: error.code, hint: error.hint }), {
+      return new Response(JSON.stringify({ error: "Batch size exceeds limit of 5000 records" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // upsert
+
+    const onConflictMode = body?.on_conflict === "ignore";
+
+    const { error } = await admin.from(table).upsert(records, {
+      onConflict: conflictKey,
+      ignoreDuplicates: onConflictMode,
+    });
+
+    if (error) {
+      console.error("Upsert error:", JSON.stringify(error));
+      return new Response(
+        JSON.stringify({ error: "Upsert failed", details: error.message, code: error.code, hint: error.hint }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     return new Response(JSON.stringify({ ok: true, upserted: records.length }), {
