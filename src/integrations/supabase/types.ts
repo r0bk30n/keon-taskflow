@@ -5414,6 +5414,607 @@ export type Database = {
         }
         Relationships: []
       }
+      wf_actions: {
+        Row: {
+          action_type: Database["public"]["Enums"]["wf_action_type"]
+          config_json: Json
+          created_at: string
+          id: string
+          is_active: boolean
+          on_error: string
+          order_index: number
+          step_key: string | null
+          transition_id: string | null
+          updated_at: string
+          workflow_id: string
+        }
+        Insert: {
+          action_type: Database["public"]["Enums"]["wf_action_type"]
+          config_json?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          on_error?: string
+          order_index?: number
+          step_key?: string | null
+          transition_id?: string | null
+          updated_at?: string
+          workflow_id: string
+        }
+        Update: {
+          action_type?: Database["public"]["Enums"]["wf_action_type"]
+          config_json?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          on_error?: string
+          order_index?: number
+          step_key?: string | null
+          transition_id?: string | null
+          updated_at?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wf_actions_transition_id_fkey"
+            columns: ["transition_id"]
+            isOneToOne: false
+            referencedRelation: "wf_transitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wf_actions_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "wf_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wf_assignment_rules: {
+        Row: {
+          created_at: string
+          fallback_rule_id: string | null
+          id: string
+          name: string
+          target_id: string | null
+          type: Database["public"]["Enums"]["wf_assignment_type"]
+          updated_at: string
+          watchers_json: Json | null
+        }
+        Insert: {
+          created_at?: string
+          fallback_rule_id?: string | null
+          id?: string
+          name: string
+          target_id?: string | null
+          type: Database["public"]["Enums"]["wf_assignment_type"]
+          updated_at?: string
+          watchers_json?: Json | null
+        }
+        Update: {
+          created_at?: string
+          fallback_rule_id?: string | null
+          id?: string
+          name?: string
+          target_id?: string | null
+          type?: Database["public"]["Enums"]["wf_assignment_type"]
+          updated_at?: string
+          watchers_json?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wf_assignment_rules_fallback_rule_id_fkey"
+            columns: ["fallback_rule_id"]
+            isOneToOne: false
+            referencedRelation: "wf_assignment_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wf_model_tasks: {
+        Row: {
+          assignee_rule_snapshot_json: Json | null
+          assignee_user_id_resolved: string | null
+          created_at: string
+          demand_id: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          is_blocking: boolean
+          origin_step_key: string | null
+          status: string
+          title: string
+          updated_at: string
+          workflow_id: string
+        }
+        Insert: {
+          assignee_rule_snapshot_json?: Json | null
+          assignee_user_id_resolved?: string | null
+          created_at?: string
+          demand_id?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          is_blocking?: boolean
+          origin_step_key?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          workflow_id: string
+        }
+        Update: {
+          assignee_rule_snapshot_json?: Json | null
+          assignee_user_id_resolved?: string | null
+          created_at?: string
+          demand_id?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          is_blocking?: boolean
+          origin_step_key?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wf_model_tasks_demand_id_fkey"
+            columns: ["demand_id"]
+            isOneToOne: false
+            referencedRelation: "request_progress_view"
+            referencedColumns: ["request_id"]
+          },
+          {
+            foreignKeyName: "wf_model_tasks_demand_id_fkey"
+            columns: ["demand_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wf_model_tasks_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "wf_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wf_notifications: {
+        Row: {
+          action_url_template: string | null
+          body_template: string | null
+          channels_json: Json
+          created_at: string
+          event: string
+          id: string
+          is_active: boolean
+          recipients_rules_json: Json
+          step_key: string
+          subject_template: string | null
+          updated_at: string
+          workflow_id: string
+        }
+        Insert: {
+          action_url_template?: string | null
+          body_template?: string | null
+          channels_json?: Json
+          created_at?: string
+          event?: string
+          id?: string
+          is_active?: boolean
+          recipients_rules_json?: Json
+          step_key: string
+          subject_template?: string | null
+          updated_at?: string
+          workflow_id: string
+        }
+        Update: {
+          action_url_template?: string | null
+          body_template?: string | null
+          channels_json?: Json
+          created_at?: string
+          event?: string
+          id?: string
+          is_active?: boolean
+          recipients_rules_json?: Json
+          step_key?: string
+          subject_template?: string | null
+          updated_at?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wf_notifications_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "wf_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wf_runtime_instances: {
+        Row: {
+          completed_at: string | null
+          context_data: Json | null
+          created_at: string
+          current_state_label: string | null
+          current_step_key: string | null
+          demand_id: string
+          id: string
+          legacy_run_id: string | null
+          started_at: string
+          status: Database["public"]["Enums"]["wf_instance_status"]
+          updated_at: string
+          workflow_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          context_data?: Json | null
+          created_at?: string
+          current_state_label?: string | null
+          current_step_key?: string | null
+          demand_id: string
+          id?: string
+          legacy_run_id?: string | null
+          started_at?: string
+          status?: Database["public"]["Enums"]["wf_instance_status"]
+          updated_at?: string
+          workflow_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          context_data?: Json | null
+          created_at?: string
+          current_state_label?: string | null
+          current_step_key?: string | null
+          demand_id?: string
+          id?: string
+          legacy_run_id?: string | null
+          started_at?: string
+          status?: Database["public"]["Enums"]["wf_instance_status"]
+          updated_at?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wf_runtime_instances_demand_id_fkey"
+            columns: ["demand_id"]
+            isOneToOne: false
+            referencedRelation: "request_progress_view"
+            referencedColumns: ["request_id"]
+          },
+          {
+            foreignKeyName: "wf_runtime_instances_demand_id_fkey"
+            columns: ["demand_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wf_runtime_instances_legacy_run_id_fkey"
+            columns: ["legacy_run_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wf_runtime_instances_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "wf_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wf_runtime_logs: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          event: string
+          id: string
+          instance_id: string
+          message: string | null
+          payload_json: Json | null
+          step_key: string | null
+          workflow_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          event: string
+          id?: string
+          instance_id: string
+          message?: string | null
+          payload_json?: Json | null
+          step_key?: string | null
+          workflow_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          event?: string
+          id?: string
+          instance_id?: string
+          message?: string | null
+          payload_json?: Json | null
+          step_key?: string | null
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wf_runtime_logs_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "wf_runtime_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wf_runtime_logs_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "wf_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wf_step_pool_validators: {
+        Row: {
+          assignment_rule_id: string
+          created_at: string
+          id: string
+          step_id: string
+        }
+        Insert: {
+          assignment_rule_id: string
+          created_at?: string
+          id?: string
+          step_id: string
+        }
+        Update: {
+          assignment_rule_id?: string
+          created_at?: string
+          id?: string
+          step_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wf_step_pool_validators_assignment_rule_id_fkey"
+            columns: ["assignment_rule_id"]
+            isOneToOne: false
+            referencedRelation: "wf_assignment_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wf_step_pool_validators_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "wf_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wf_step_sequence_validators: {
+        Row: {
+          assignment_rule_id: string
+          created_at: string
+          id: string
+          order_index: number
+          step_id: string
+        }
+        Insert: {
+          assignment_rule_id: string
+          created_at?: string
+          id?: string
+          order_index?: number
+          step_id: string
+        }
+        Update: {
+          assignment_rule_id?: string
+          created_at?: string
+          id?: string
+          order_index?: number
+          step_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wf_step_sequence_validators_assignment_rule_id_fkey"
+            columns: ["assignment_rule_id"]
+            isOneToOne: false
+            referencedRelation: "wf_assignment_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wf_step_sequence_validators_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "wf_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wf_steps: {
+        Row: {
+          assignment_rule_id: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          is_required: boolean
+          legacy_node_id: string | null
+          n_required: number | null
+          name: string
+          order_index: number
+          state_label: string | null
+          step_key: string
+          step_type: Database["public"]["Enums"]["wf_step_type"]
+          updated_at: string
+          validation_mode: Database["public"]["Enums"]["wf_validation_mode"]
+          workflow_id: string
+        }
+        Insert: {
+          assignment_rule_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          legacy_node_id?: string | null
+          n_required?: number | null
+          name: string
+          order_index?: number
+          state_label?: string | null
+          step_key: string
+          step_type?: Database["public"]["Enums"]["wf_step_type"]
+          updated_at?: string
+          validation_mode?: Database["public"]["Enums"]["wf_validation_mode"]
+          workflow_id: string
+        }
+        Update: {
+          assignment_rule_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          legacy_node_id?: string | null
+          n_required?: number | null
+          name?: string
+          order_index?: number
+          state_label?: string | null
+          step_key?: string
+          step_type?: Database["public"]["Enums"]["wf_step_type"]
+          updated_at?: string
+          validation_mode?: Database["public"]["Enums"]["wf_validation_mode"]
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wf_steps_assignment_rule_id_fkey"
+            columns: ["assignment_rule_id"]
+            isOneToOne: false
+            referencedRelation: "wf_assignment_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wf_steps_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "wf_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wf_transitions: {
+        Row: {
+          condition_json: Json | null
+          created_at: string
+          event: string
+          from_step_key: string
+          id: string
+          is_active: boolean
+          to_step_key: string
+          updated_at: string
+          workflow_id: string
+        }
+        Insert: {
+          condition_json?: Json | null
+          created_at?: string
+          event?: string
+          from_step_key: string
+          id?: string
+          is_active?: boolean
+          to_step_key: string
+          updated_at?: string
+          workflow_id: string
+        }
+        Update: {
+          condition_json?: Json | null
+          created_at?: string
+          event?: string
+          from_step_key?: string
+          id?: string
+          is_active?: boolean
+          to_step_key?: string
+          updated_at?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wf_transitions_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "wf_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wf_workflows: {
+        Row: {
+          created_at: string
+          default_subprocess_mode: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_draft: boolean
+          legacy_workflow_id: string | null
+          name: string
+          published_at: string | null
+          sub_process_template_id: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          default_subprocess_mode?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_draft?: boolean
+          legacy_workflow_id?: string | null
+          name: string
+          published_at?: string | null
+          sub_process_template_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          default_subprocess_mode?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_draft?: boolean
+          legacy_workflow_id?: string | null
+          name?: string
+          published_at?: string | null
+          sub_process_template_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wf_workflows_legacy_workflow_id_fkey"
+            columns: ["legacy_workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wf_workflows_sub_process_template_id_fkey"
+            columns: ["sub_process_template_id"]
+            isOneToOne: false
+            referencedRelation: "request_progress_view"
+            referencedColumns: ["sub_process_template_id"]
+          },
+          {
+            foreignKeyName: "wf_workflows_sub_process_template_id_fkey"
+            columns: ["sub_process_template_id"]
+            isOneToOne: false
+            referencedRelation: "sub_process_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       widget_layout_presets: {
         Row: {
           created_at: string
@@ -6627,6 +7228,30 @@ export type Database = {
         | "expired"
         | "skipped"
       validation_type: "none" | "manager" | "requester" | "free"
+      wf_action_type: "db_insert" | "db_update" | "create_task" | "set_field"
+      wf_assignment_type:
+        | "user"
+        | "manager"
+        | "requester"
+        | "group"
+        | "department"
+        | "job_title"
+      wf_instance_status:
+        | "running"
+        | "completed"
+        | "failed"
+        | "cancelled"
+        | "paused"
+      wf_step_type:
+        | "start"
+        | "end"
+        | "validation"
+        | "execution"
+        | "assignment"
+        | "automatic"
+        | "subprocess"
+        | "notification"
+      wf_validation_mode: "none" | "simple" | "n_of_m" | "sequence"
       workflow_node_type:
         | "start"
         | "end"
@@ -6825,6 +7450,33 @@ export const Constants = {
         "skipped",
       ],
       validation_type: ["none", "manager", "requester", "free"],
+      wf_action_type: ["db_insert", "db_update", "create_task", "set_field"],
+      wf_assignment_type: [
+        "user",
+        "manager",
+        "requester",
+        "group",
+        "department",
+        "job_title",
+      ],
+      wf_instance_status: [
+        "running",
+        "completed",
+        "failed",
+        "cancelled",
+        "paused",
+      ],
+      wf_step_type: [
+        "start",
+        "end",
+        "validation",
+        "execution",
+        "assignment",
+        "automatic",
+        "subprocess",
+        "notification",
+      ],
+      wf_validation_mode: ["none", "simple", "n_of_m", "sequence"],
       workflow_node_type: [
         "start",
         "end",
