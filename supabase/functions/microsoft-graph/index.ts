@@ -724,10 +724,7 @@ Deno.serve(async (req) => {
       const linkedPlannerIds = new Set((existingLinks || []).map(l => l.planner_task_id));
       const linkedLocalIds = new Set((existingLinks || []).map(l => l.local_task_id));
 
-      let tasksPulled = 0;
-      let tasksPushed = 0;
-      let tasksUpdated = 0;
-      const errors: any[] = [];
+
 
       // Get plan details for label names
       let categoryDescriptions: Record<string, string> = {};
