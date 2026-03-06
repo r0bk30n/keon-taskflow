@@ -577,6 +577,8 @@ export function ConfigurableDashboard({
             <ProgressRing progress={filteredStats.completionRate} size={140} />
           </div>
         );
+      case 'smq-indicators':
+        return <SmqIndicatorsWidget tasks={filteredTasks} />;
       default:
         return <div className="text-keon-500">Widget non reconnu</div>;
     }
