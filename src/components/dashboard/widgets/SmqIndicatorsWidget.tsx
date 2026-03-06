@@ -217,8 +217,11 @@ export function SmqIndicatorsWidget({ tasks }: SmqIndicatorsWidgetProps) {
                 }}
               />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar yAxisId="left" dataKey="tickets" name="Tickets créés" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]}>
-                <LabelList dataKey="tickets" position="top" style={{ fontSize: 9, fill: 'hsl(var(--foreground))' }} />
+              <Bar yAxisId="left" dataKey="ouverts" name="Tickets ouverts" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]}>
+                <LabelList dataKey="ouverts" position="top" style={{ fontSize: 9, fill: 'hsl(var(--foreground))' }} />
+              </Bar>
+              <Bar yAxisId="left" dataKey="fermes" name="Tickets fermés" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]}>
+                <LabelList dataKey="fermes" position="top" style={{ fontSize: 9, fill: 'hsl(var(--foreground))' }} />
               </Bar>
               <Line
                 yAxisId="right"
