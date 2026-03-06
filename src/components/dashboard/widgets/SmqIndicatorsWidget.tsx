@@ -5,7 +5,7 @@ import { fr } from 'date-fns/locale';
 import { TicketCheck, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LabelList } from 'recharts';
 
 type SmqPeriod = 'month' | 'quarter' | 'year' | 'last3' | 'last6' | 'last12';
 type SmqStep = 'monthly' | 'quarterly';
@@ -47,7 +47,7 @@ interface SmqIndicatorsWidgetProps {
 }
 
 export function SmqIndicatorsWidget({ tasks }: SmqIndicatorsWidgetProps) {
-  const [period, setPeriod] = useState<SmqPeriod>('year');
+  const [period, setPeriod] = useState<SmqPeriod>('last12');
   const [step, setStep] = useState<SmqStep>('monthly');
 
   const showStepSelector = period !== 'month';
@@ -56,27 +56,26 @@ export function SmqIndicatorsWidget({ tasks }: SmqIndicatorsWidgetProps) {
     const range = getPeriodRange(period);
     const interval = { start: range.start, end: range.end };
 
-    const openCount = tasks.filter(t => {
-      const created = new Date(t.created_at);
-      return isWithinInterval(created, interval) && t.status !== 'done' && t.status !== 'validated';
-    }).length;
+    // Total tickets created in the period (regardless of current status)
+    const createdInPeriod = tasks.filter(t => isWithinInterval(new Date(t.created_at), interval));
 
-    const closedTasks = tasks.filter(t => {
+    const closedInPeriod = tasks.filter(t => {
       const updated = new Date(t.updated_at);
       return (t.status === 'done' || t.status === 'validated') && isWithinInterval(updated, interval);
     });
 
+    const openCount = createdInPeriod.filter(t => t.status !== 'done' && t.status !== 'validated').length;
+
     let avgDays = 0;
-    if (closedTasks.length > 0) {
-      const totalDays = closedTasks.reduce((sum, t) => sum + differenceInCalendarDays(new Date(t.updated_at), new Date(t.created_at)), 0);
-      avgDays = Math.round((totalDays / closedTasks.length) * 10) / 10;
+    if (closedInPeriod.length > 0) {
+      const totalDays = closedInPeriod.reduce((sum, t) => sum + differenceInCalendarDays(new Date(t.updated_at), new Date(t.created_at)), 0);
+      avgDays = Math.round((totalDays / closedInPeriod.length) * 10) / 10;
     }
 
     // Build chart data by step
     let buckets: { start: Date; end: Date; label: string }[] = [];
 
     if (period === 'month') {
-      // Single month → no breakdown needed, just one bucket
       buckets = [{ start: range.start, end: range.end, label: format(range.start, 'MMM yy', { locale: fr }) }];
     } else if (step === 'monthly') {
       const months = eachMonthOfInterval({ start: range.start, end: range.end });
@@ -97,26 +96,24 @@ export function SmqIndicatorsWidget({ tasks }: SmqIndicatorsWidgetProps) {
     const chartData = buckets.map(bucket => {
       const bucketInterval = { start: bucket.start, end: bucket.end };
 
-      const open = tasks.filter(t => {
-        const created = new Date(t.created_at);
-        return isWithinInterval(created, bucketInterval) && t.status !== 'done' && t.status !== 'validated';
-      }).length;
+      // Count ALL tickets created in this bucket (not just currently open)
+      const created = tasks.filter(t => isWithinInterval(new Date(t.created_at), bucketInterval)).length;
 
       const closed = tasks.filter(t => {
         const updated = new Date(t.updated_at);
         return (t.status === 'done' || t.status === 'validated') && isWithinInterval(updated, bucketInterval);
       });
 
-      let avg = 0;
+      let avg: number | null = null;
       if (closed.length > 0) {
         const total = closed.reduce((s, t) => s + differenceInCalendarDays(new Date(t.updated_at), new Date(t.created_at)), 0);
         avg = Math.round((total / closed.length) * 10) / 10;
       }
 
-      return { name: bucket.label, ouverts: open, duree: avg };
+      return { name: bucket.label, tickets: created, duree: avg };
     });
 
-    return { range, metrics: { openCount, avgDays, closedCount: closedTasks.length }, chartData };
+    return { range, metrics: { openCount, totalCreated: createdInPeriod.length, avgDays, closedCount: closedInPeriod.length }, chartData };
   }, [tasks, period, step]);
 
   const cards = [
@@ -135,6 +132,8 @@ export function SmqIndicatorsWidget({ tasks }: SmqIndicatorsWidgetProps) {
       bgColor: 'bg-blue-50 dark:bg-blue-900/20',
     },
   ];
+
+  const maxDuree = Math.max(...chartData.map(d => d.duree ?? 0), 1);
 
   return (
     <div className="flex flex-col gap-3 h-full px-2 py-1 overflow-auto">
@@ -181,19 +180,49 @@ export function SmqIndicatorsWidget({ tasks }: SmqIndicatorsWidgetProps) {
       </div>
 
       {chartData.length > 1 && (
-        <div className="flex-1 min-h-[180px]">
+        <div className="flex-1 min-h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+            <ComposedChart data={chartData} margin={{ top: 20, right: 40, left: -10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis dataKey="name" tick={{ fontSize: 10 }} className="fill-muted-foreground" />
-              <YAxis tick={{ fontSize: 10 }} className="fill-muted-foreground" />
+              <YAxis
+                yAxisId="left"
+                tick={{ fontSize: 10 }}
+                className="fill-muted-foreground"
+                allowDecimals={false}
+                label={{ value: 'Tickets', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                tick={{ fontSize: 10 }}
+                className="fill-muted-foreground"
+                domain={[0, Math.ceil(maxDuree * 1.2)]}
+                label={{ value: 'Jours', angle: 90, position: 'insideRight', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
+              />
               <Tooltip
-                contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--border))' }}
+                contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))' }}
+                formatter={(value: number, name: string) => {
+                  if (name === 'Durée moy. (j)') return value !== null ? [`${value} j`, name] : ['—', name];
+                  return [value, name];
+                }}
               />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="ouverts" name="Tickets ouverts" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="duree" name="Durée moy. (j)" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
-            </BarChart>
+              <Bar yAxisId="left" dataKey="tickets" name="Tickets créés" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]}>
+                <LabelList dataKey="tickets" position="top" style={{ fontSize: 9, fill: 'hsl(var(--foreground))' }} />
+              </Bar>
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="duree"
+                name="Durée moy. (j)"
+                stroke="hsl(var(--chart-2))"
+                strokeWidth={2}
+                dot={{ r: 3, fill: 'hsl(var(--chart-2))' }}
+                connectNulls
+                label={{ position: 'top', style: { fontSize: 9, fill: 'hsl(var(--chart-2))' }, formatter: (v: number) => v !== null ? `${v}j` : '' }}
+              />
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
       )}
