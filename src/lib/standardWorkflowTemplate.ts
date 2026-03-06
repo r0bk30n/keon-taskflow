@@ -161,6 +161,36 @@ export const ASSIGNMENT_MODE_LABELS: Record<string, string> = {
   manager: 'Par manager',
 };
 
+export const MANAGER_RESOLUTION_LABELS: Record<ManagerResolution, { label: string; description: string }> = {
+  requester_manager: {
+    label: 'Manager du demandeur',
+    description: 'Le manager hiérarchique (N+1) de la personne qui a créé la demande.',
+  },
+  target_department_manager: {
+    label: 'Manager du service cible',
+    description: 'Le responsable du département/service vers lequel la demande est dirigée.',
+  },
+  contextual: {
+    label: 'Contextuel (par étape)',
+    description: 'Manager du demandeur pour la validation, manager du service cible pour l\'affectation d\'exécution.',
+  },
+};
+
+export const FALLBACK_BEHAVIOR_LABELS: Record<FallbackBehavior, { label: string; description: string }> = {
+  wait_manual: {
+    label: 'Attente manuelle',
+    description: 'La tâche reste en statut "À affecter" jusqu\'à affectation manuelle.',
+  },
+  escalate_n2: {
+    label: 'Remonter au N+2',
+    description: 'Si le manager direct est absent, remonter au manager du manager.',
+  },
+  department_head: {
+    label: 'Responsable du département',
+    description: 'Affecter au premier utilisateur avec un rôle manager dans le même département.',
+  },
+};
+
 export const EXECUTOR_TYPE_STANDARD_LABELS: Record<string, string> = {
   specific_user: 'Utilisateur spécifique',
   requester: 'Demandeur',
