@@ -1,11 +1,18 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, Plus, Workflow } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Loader2, Plus, Workflow, Settings, ListOrdered, ArrowRightLeft,
+  Bell, Zap, Eye as EyeIcon, FileEdit, Rocket,
+} from 'lucide-react';
 import { useWorkflowConfig } from '@/hooks/useWorkflowConfig';
 import { WfGeneralSection } from './WfGeneralSection';
 import { WfStepsSection } from './WfStepsSection';
 import { WfTransitionsSection } from './WfTransitionsSection';
 import { WfNotificationsSection } from './WfNotificationsSection';
 import { WfActionsSection } from './WfActionsSection';
+import { WfFlowPreview } from './WfFlowPreview';
 
 interface Props {
   subProcessId: string;
@@ -15,6 +22,7 @@ interface Props {
 
 export function WorkflowConfigTab({ subProcessId, subProcessName, canManage }: Props) {
   const wf = useWorkflowConfig(subProcessId);
+  const [activeTab, setActiveTab] = useState('steps');
 
   if (wf.isLoading) {
     return (
@@ -27,11 +35,13 @@ export function WorkflowConfigTab({ subProcessId, subProcessName, canManage }: P
   if (!wf.workflow) {
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-4">
-        <Workflow className="h-12 w-12 text-muted-foreground/50" />
+        <div className="h-16 w-16 rounded-2xl bg-muted/60 flex items-center justify-center">
+          <Workflow className="h-8 w-8 text-muted-foreground/50" />
+        </div>
         <div className="text-center">
-          <p className="font-medium">Aucun workflow configuré</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Créez un workflow pour définir les étapes, validations et actions de ce sous-processus.
+          <p className="font-medium text-lg">Aucun workflow configuré</p>
+          <p className="text-sm text-muted-foreground mt-1 max-w-md">
+            Créez un workflow pour définir les étapes, tâches, validations et actions automatiques de ce sous-processus.
           </p>
         </div>
         {canManage && (
@@ -44,77 +54,114 @@ export function WorkflowConfigTab({ subProcessId, subProcessName, canManage }: P
     );
   }
 
+  // Counts for badges
+  const stepCount = wf.steps.filter(s => s.step_type !== 'start' && s.step_type !== 'end').length;
+  const transitionCount = wf.transitions.length;
+  const notifCount = wf.notifications.length;
+  const actionCount = wf.actions.length;
+
+  const subTabs = [
+    { id: 'steps', label: 'Étapes', icon: ListOrdered, count: stepCount },
+    { id: 'transitions', label: 'Transitions', icon: ArrowRightLeft, count: transitionCount },
+    { id: 'notifications', label: 'Notifications', icon: Bell, count: notifCount },
+    { id: 'actions', label: 'Actions auto.', icon: Zap, count: actionCount },
+    { id: 'preview', label: 'Aperçu', icon: EyeIcon, count: null },
+  ];
+
   return (
-    <div className="space-y-6">
-      <nav className="flex gap-2 flex-wrap text-sm">
-        {['Paramètres', 'Étapes', 'Transitions', 'Notifications', 'Actions'].map((label, i) => (
-          <a
-            key={label}
-            href={`#wf-section-${i}`}
-            className="px-3 py-1.5 rounded-md border bg-card hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {label}
-          </a>
-        ))}
-      </nav>
+    <div className="space-y-5">
+      {/* General params - compact header card */}
+      <WfGeneralSection
+        workflow={wf.workflow}
+        canManage={canManage}
+        onUpdate={wf.updateWorkflow}
+        onPublish={wf.publishWorkflow}
+      />
 
-      <div id="wf-section-0">
-        <WfGeneralSection
-          workflow={wf.workflow}
-          canManage={canManage}
-          onUpdate={wf.updateWorkflow}
-          onPublish={wf.publishWorkflow}
-        />
-      </div>
+      {/* Sub-tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="w-full justify-start bg-muted/50 p-1 h-auto flex-wrap">
+          {subTabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <TabsTrigger
+                key={tab.id}
+                value={tab.id}
+                className="gap-1.5 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm px-3 py-2"
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {tab.label}
+                {tab.count !== null && tab.count > 0 && (
+                  <Badge variant="secondary" className="h-4 min-w-[16px] px-1 text-[10px] ml-0.5">
+                    {tab.count}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
 
-      <div id="wf-section-1">
-        <WfStepsSection
-          steps={wf.steps}
-          assignmentRules={wf.assignmentRules}
-          canManage={canManage}
-          subProcessId={subProcessId}
-          onAdd={wf.addStep}
-          onUpdate={wf.updateStep}
-          onDelete={wf.deleteStep}
-          onDuplicate={wf.duplicateStep}
-          onReorder={wf.reorderSteps}
-        />
-      </div>
+        <TabsContent value="steps" className="mt-4">
+          <WfStepsSection
+            steps={wf.steps}
+            transitions={wf.transitions}
+            notifications={wf.notifications}
+            actions={wf.actions}
+            assignmentRules={wf.assignmentRules}
+            canManage={canManage}
+            subProcessId={subProcessId}
+            onAdd={wf.addStep}
+            onUpdate={wf.updateStep}
+            onDelete={wf.deleteStep}
+            onDuplicate={wf.duplicateStep}
+            onReorder={wf.reorderSteps}
+          />
+        </TabsContent>
 
-      <div id="wf-section-2">
-        <WfTransitionsSection
-          transitions={wf.transitions}
-          steps={wf.steps}
-          canManage={canManage}
-          onAdd={wf.addTransition}
-          onUpdate={wf.updateTransition}
-          onDelete={wf.deleteTransition}
-        />
-      </div>
+        <TabsContent value="transitions" className="mt-4">
+          <WfTransitionsSection
+            transitions={wf.transitions}
+            steps={wf.steps}
+            canManage={canManage}
+            onAdd={wf.addTransition}
+            onUpdate={wf.updateTransition}
+            onDelete={wf.deleteTransition}
+          />
+        </TabsContent>
 
-      <div id="wf-section-3">
-        <WfNotificationsSection
-          notifications={wf.notifications}
-          steps={wf.steps}
-          canManage={canManage}
-          onAdd={wf.addNotification}
-          onUpdate={wf.updateNotification}
-          onDelete={wf.deleteNotification}
-        />
-      </div>
+        <TabsContent value="notifications" className="mt-4">
+          <WfNotificationsSection
+            notifications={wf.notifications}
+            steps={wf.steps}
+            canManage={canManage}
+            onAdd={wf.addNotification}
+            onUpdate={wf.updateNotification}
+            onDelete={wf.deleteNotification}
+          />
+        </TabsContent>
 
-      <div id="wf-section-4">
-        <WfActionsSection
-          actions={wf.actions}
-          transitions={wf.transitions}
-          steps={wf.steps}
-          canManage={canManage}
-          subProcessId={subProcessId}
-          onAdd={wf.addAction}
-          onUpdate={wf.updateAction}
-          onDelete={wf.deleteAction}
-        />
-      </div>
+        <TabsContent value="actions" className="mt-4">
+          <WfActionsSection
+            actions={wf.actions}
+            transitions={wf.transitions}
+            steps={wf.steps}
+            canManage={canManage}
+            subProcessId={subProcessId}
+            onAdd={wf.addAction}
+            onUpdate={wf.updateAction}
+            onDelete={wf.deleteAction}
+          />
+        </TabsContent>
+
+        <TabsContent value="preview" className="mt-4">
+          <WfFlowPreview
+            steps={wf.steps}
+            transitions={wf.transitions}
+            actions={wf.actions}
+            notifications={wf.notifications}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
