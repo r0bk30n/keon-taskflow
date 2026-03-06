@@ -545,7 +545,13 @@ Deno.serve(async (req) => {
       if (!userId) throw new Error('User not authenticated');
       const { startDate, endDate, includeSubordinates } = params;
       let query = supabase.from('outlook_calendar_events').select('*').gte('start_time', startDate).lte('end_time', endDate).order('start_time');
-      if (!includeSubordinates) query = query.eq('user_id', userId);
+      if (includeSubordinates) {
+        // Get subordinate user IDs to scope the query
+        const subordinateIds = await getSubordinateUserIds(supabase, userId);
+        query = query.in('user_id', [userId, ...subordinateIds]);
+      } else {
+        query = query.eq('user_id', userId);
+      }
       const { data: events, error } = await query;
       if (error) throw error;
       return new Response(JSON.stringify({ events }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -1061,3 +1067,36 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+// Helper: get all subordinate user IDs (recursive) for calendar access scoping
+async function getSubordinateUserIds(supabase: any, userId: string): Promise<string[]> {
+  // Get the profile of the requesting user
+  const { data: myProfile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('user_id', userId)
+    .single();
+
+  if (!myProfile) return [];
+
+  // Recursively find subordinates via manager_id chain
+  const subordinateUserIds: string[] = [];
+  const queue = [myProfile.id];
+
+  while (queue.length > 0) {
+    const managerId = queue.shift()!;
+    const { data: directReports } = await supabase
+      .from('profiles')
+      .select('id, user_id')
+      .eq('manager_id', managerId);
+
+    if (directReports) {
+      for (const report of directReports) {
+        if (report.user_id) subordinateUserIds.push(report.user_id);
+        queue.push(report.id);
+      }
+    }
+  }
+
+  return subordinateUserIds;
+}
