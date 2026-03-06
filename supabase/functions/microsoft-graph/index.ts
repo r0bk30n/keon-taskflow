@@ -1068,6 +1068,36 @@ Deno.serve(async (req) => {
         tasksUpdated,
         errors: errors.length,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+      } catch (syncErr: any) {
+        // Always write sync log even on error
+        console.error('Planner sync error:', syncErr);
+        errors.push({ error: syncErr.message });
+        
+        try {
+          await supabase.from('planner_sync_logs').insert({
+            user_id: userId,
+            plan_mapping_id: planMappingId,
+            direction: 'from_planner',
+            tasks_pushed: tasksPushed,
+            tasks_pulled: tasksPulled,
+            tasks_updated: tasksUpdated,
+            errors,
+            status: 'error',
+          });
+        } catch (logErr) {
+          console.error('Failed to write sync log:', logErr);
+        }
+
+        return new Response(JSON.stringify({
+          success: false,
+          error: syncErr.message,
+          tasksPulled,
+          tasksPushed,
+          tasksUpdated,
+          errors: errors.length,
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
     }
 
     throw new Error(`Unknown action: ${action}`);
