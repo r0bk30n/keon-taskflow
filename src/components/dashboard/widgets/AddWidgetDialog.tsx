@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { WidgetType, WidgetConfig } from '../types';
-import { BarChart2, PieChart, TrendingUp, Table, Activity, Hash, ListChecks } from 'lucide-react';
+import { BarChart2, PieChart, TrendingUp, Table, Activity, Hash, ListChecks, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AddWidgetDialogProps {
