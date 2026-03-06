@@ -1,6 +1,7 @@
 import { memo, useState, useMemo, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { RepeatableTableRenderer } from '@/components/tasks/RepeatableTableRenderer';
+import { MultiEmailInput } from '@/components/ui/MultiEmailInput';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -569,6 +570,16 @@ function renderInput(
           placeholder={placeholder}
           disabled={isReadOnly}
           className={className}
+        />
+      );
+
+    case 'multi_email':
+      return (
+        <MultiEmailInput
+          value={value || ''}
+          onChange={(v) => onChange(field.id, v)}
+          placeholder={placeholder || 'Saisir un email puis Entrée'}
+          disabled={isReadOnly}
         />
       );
 

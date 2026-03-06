@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { RepeatableTableRenderer } from './RepeatableTableRenderer';
+import { MultiEmailInput } from '@/components/ui/MultiEmailInput';
 import { TemplateCustomField, CustomFieldType, LOOKUP_TABLES } from '@/types/customField';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -63,6 +64,7 @@ const FIELD_ICONS: Record<CustomFieldType, React.ElementType> = {
   date: Calendar,
   datetime: Clock,
   email: Mail,
+  multi_email: Mail,
   phone: Phone,
   url: Link,
   checkbox: CheckSquare,
@@ -298,6 +300,16 @@ export function CustomFieldsRenderer({
             placeholder={field.placeholder || 'email@example.com'}
             disabled={disabled}
             className={baseClass}
+          />
+        );
+
+      case 'multi_email':
+        return (
+          <MultiEmailInput
+            value={value}
+            onChange={handleChange}
+            placeholder={field.placeholder || 'Saisir un email puis Entrée'}
+            disabled={disabled}
           />
         );
 
