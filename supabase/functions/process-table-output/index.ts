@@ -47,7 +47,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get task details
+    // Verify caller has access to the task via RLS
+    const { data: taskAccess } = await userClient
+      .from("tasks")
+      .select("id")
+      .eq("id", task_id)
+      .maybeSingle();
+
+    if (!taskAccess) {
+      return new Response(JSON.stringify({ error: "Accès refusé" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Get full task details with admin client
     const { data: task, error: taskError } = await adminClient
       .from("tasks")
       .select("id, type, parent_request_id, source_sub_process_template_id, source_process_template_id")
@@ -154,7 +168,7 @@ Deno.serve(async (req) => {
 
       if (insertError) {
         console.error(`Insert error for ${targetTable}:`, insertError);
-        results.push({ table: targetTable, success: false, error: insertError.message });
+        results.push({ table: targetTable, success: false, error: "Erreur d'insertion" });
       } else {
         console.log(`Successfully inserted into ${targetTable} from task ${task_id}`);
         results.push({ table: targetTable, success: true });

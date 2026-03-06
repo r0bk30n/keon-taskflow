@@ -67,8 +67,8 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : 'Internal error';
-    return new Response(JSON.stringify({ error: msg }), {
+    console.error("get-table-schema error:", error instanceof Error ? error.message : error);
+    return new Response(JSON.stringify({ error: 'Internal error' }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
