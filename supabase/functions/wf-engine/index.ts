@@ -35,8 +35,11 @@ Deno.serve(async (req) => {
     switch (action) {
       case "start_workflow":
         return jsonResponse(await startWorkflow(supabase, body, actorId), corsHeaders);
-      case "fire_event":
-        return jsonResponse(await fireEvent(supabase, body, actorId), corsHeaders);
+      case "fire_event": {
+        const result = await fireEvent(supabase, body, actorId);
+        const status = (result as any).forbidden ? 403 : 200;
+        return new Response(JSON.stringify(result), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
       case "get_instance":
         return jsonResponse(await getInstance(supabase, body), corsHeaders);
       case "get_logs":
@@ -153,6 +156,9 @@ async function fireEvent(supabase: any, body: any, actorId: string | null) {
   if (currentStep.step_type === "validation") {
     const validationResult = await handleValidation(supabase, instance, currentStep, event, actorId, payload);
     if (!validationResult.canProceed) {
+      if ((validationResult as any).forbidden) {
+        return { error: validationResult.message, forbidden: true, instance_id };
+      }
       return { status: "waiting", message: validationResult.message, instance_id };
     }
   }
@@ -213,6 +219,13 @@ async function fireEvent(supabase: any, body: any, actorId: string | null) {
 // ===================== VALIDATION HANDLING =====================
 async function handleValidation(supabase: any, instance: any, step: any, event: string, actorId: string | null, payload: any) {
   if (event === "rejected") {
+    // For rejection, still verify actor is an authorized validator (except for simple mode)
+    if (step.validation_mode !== "simple" && step.validation_mode !== "none") {
+      const isAuthorized = await isAuthorizedValidator(supabase, step, actorId, instance);
+      if (!isAuthorized) {
+        return { canProceed: false, message: "Actor is not an authorized validator for this step", forbidden: true };
+      }
+    }
     return { canProceed: true, message: "rejected" };
   }
   if (event !== "approved") {
@@ -222,19 +235,39 @@ async function handleValidation(supabase: any, instance: any, step: any, event: 
   const mode = step.validation_mode;
 
   if (mode === "simple") {
+    // Simple mode: verify actor is the step assignee or has access to the demand
+    if (step.assignment_rule_id && actorId) {
+      const isAuthorized = await isAuthorizedValidator(supabase, step, actorId, instance);
+      if (!isAuthorized) {
+        return { canProceed: false, message: "Actor is not an authorized validator for this step", forbidden: true };
+      }
+    }
     return { canProceed: true, message: "approved" };
   }
 
   if (mode === "n_of_m") {
-    // Get pool validators
-    const { data: poolValidators } = await supabase
-      .from("wf_step_pool_validators")
-      .select("*")
-      .eq("step_id", step.id);
+    // Verify actor is in the pool
+    const isAuthorized = await isAuthorizedValidator(supabase, step, actorId, instance);
+    if (!isAuthorized) {
+      return { canProceed: false, message: "Actor is not an authorized pool validator for this step", forbidden: true };
+    }
+
+    // Check actor hasn't already approved
+    const { data: existingApproval } = await supabase
+      .from("wf_runtime_logs")
+      .select("id")
+      .eq("instance_id", instance.id)
+      .eq("step_key", step.step_key)
+      .eq("event", "approved")
+      .eq("actor_id", actorId)
+      .maybeSingle();
+
+    if (existingApproval) {
+      return { canProceed: false, message: "Actor has already approved this step" };
+    }
 
     const nRequired = step.n_required || 1;
 
-    // Count approvals in logs
     const { data: approvalLogs } = await supabase
       .from("wf_runtime_logs")
       .select("*")
@@ -242,7 +275,7 @@ async function handleValidation(supabase: any, instance: any, step: any, event: 
       .eq("step_key", step.step_key)
       .eq("event", "approved");
 
-    const approvalCount = (approvalLogs?.length || 0) + 1; // +1 for current
+    const approvalCount = (approvalLogs?.length || 0) + 1;
     if (approvalCount >= nRequired) {
       return { canProceed: true, message: `${approvalCount}/${nRequired} approvals received` };
     }
@@ -250,32 +283,149 @@ async function handleValidation(supabase: any, instance: any, step: any, event: 
   }
 
   if (mode === "sequence") {
-    // Get sequence validators ordered
     const { data: seqValidators } = await supabase
       .from("wf_step_sequence_validators")
-      .select("*")
+      .select("*, assignment_rule:wf_assignment_rules(*)")
       .eq("step_id", step.id)
       .order("order_index");
 
-    // Count approvals
     const { data: approvalLogs } = await supabase
       .from("wf_runtime_logs")
       .select("*")
       .eq("instance_id", instance.id)
       .eq("step_key", step.step_key)
-      .eq("event", "approved");
+      .eq("event", "approved")
+      .order("created_at");
 
-    const approvedCount = (approvalLogs?.length || 0) + 1;
+    const approvedCount = approvalLogs?.length || 0;
     const totalRequired = seqValidators?.length || 1;
 
-    if (approvedCount >= totalRequired) {
+    // Check if it's the actor's turn
+    if (seqValidators && approvedCount < seqValidators.length) {
+      const nextValidator = seqValidators[approvedCount];
+      const resolvedIds = await resolveAssignmentRule(supabase, nextValidator.assignment_rule, instance);
+      if (!resolvedIds.includes(actorId)) {
+        return { canProceed: false, message: `It is not this actor's turn in the sequence`, forbidden: true };
+      }
+    }
+
+    const newApprovedCount = approvedCount + 1;
+    if (newApprovedCount >= totalRequired) {
       return { canProceed: true, message: `All ${totalRequired} sequential validators approved` };
     }
-    return { canProceed: false, message: `${approvedCount}/${totalRequired} sequential approvals — next validator required` };
+    return { canProceed: false, message: `${newApprovedCount}/${totalRequired} sequential approvals — next validator required` };
   }
 
   // none or unknown
   return { canProceed: true, message: "no validation required" };
+}
+
+// ===================== VALIDATOR AUTHORIZATION =====================
+async function isAuthorizedValidator(supabase: any, step: any, actorId: string | null, instance: any): Promise<boolean> {
+  if (!actorId) return false;
+
+  const mode = step.validation_mode;
+
+  if (mode === "simple") {
+    // For simple mode with an assignment rule, resolve the rule
+    if (step.assignment_rule_id) {
+      const { data: rule } = await supabase
+        .from("wf_assignment_rules")
+        .select("*")
+        .eq("id", step.assignment_rule_id)
+        .single();
+      if (rule) {
+        const resolvedIds = await resolveAssignmentRule(supabase, rule, instance);
+        return resolvedIds.includes(actorId);
+      }
+    }
+    return true; // No assignment rule = anyone with task access can approve
+  }
+
+  if (mode === "n_of_m") {
+    const { data: poolValidators } = await supabase
+      .from("wf_step_pool_validators")
+      .select("*, assignment_rule:wf_assignment_rules(*)")
+      .eq("step_id", step.id);
+
+    if (!poolValidators || poolValidators.length === 0) return true;
+
+    for (const pv of poolValidators) {
+      const resolvedIds = await resolveAssignmentRule(supabase, pv.assignment_rule, instance);
+      if (resolvedIds.includes(actorId)) return true;
+    }
+    return false;
+  }
+
+  if (mode === "sequence") {
+    const { data: seqValidators } = await supabase
+      .from("wf_step_sequence_validators")
+      .select("*, assignment_rule:wf_assignment_rules(*)")
+      .eq("step_id", step.id);
+
+    if (!seqValidators || seqValidators.length === 0) return true;
+
+    for (const sv of seqValidators) {
+      const resolvedIds = await resolveAssignmentRule(supabase, sv.assignment_rule, instance);
+      if (resolvedIds.includes(actorId)) return true;
+    }
+    return false;
+  }
+
+  return true;
+}
+
+async function resolveAssignmentRule(supabase: any, rule: any, instance: any): Promise<string[]> {
+  if (!rule) return [];
+
+  const profileIds: string[] = [];
+
+  switch (rule.type) {
+    case "user": {
+      if (rule.target_id) profileIds.push(rule.target_id);
+      break;
+    }
+    case "manager": {
+      // Get the requester's manager
+      const { data: task } = await supabase.from("tasks").select("user_id").eq("id", instance.demand_id).single();
+      if (task?.user_id) {
+        const { data: profile } = await supabase.from("profiles").select("manager_id").eq("user_id", task.user_id).single();
+        if (profile?.manager_id) profileIds.push(profile.manager_id);
+      }
+      break;
+    }
+    case "requester": {
+      const { data: task } = await supabase.from("tasks").select("user_id").eq("id", instance.demand_id).single();
+      if (task?.user_id) {
+        const { data: profile } = await supabase.from("profiles").select("id").eq("user_id", task.user_id).single();
+        if (profile?.id) profileIds.push(profile.id);
+      }
+      break;
+    }
+    case "department": {
+      if (rule.target_id) {
+        const { data: profiles } = await supabase.from("profiles").select("id").eq("department_id", rule.target_id);
+        if (profiles) profileIds.push(...profiles.map((p: any) => p.id));
+      }
+      break;
+    }
+    case "job_title": {
+      if (rule.target_id) {
+        const { data: profiles } = await supabase.from("profiles").select("id").eq("job_title_id", rule.target_id);
+        if (profiles) profileIds.push(...profiles.map((p: any) => p.id));
+      }
+      break;
+    }
+    case "group": {
+      if (rule.target_id) {
+        const { data: members } = await supabase.from("collaborator_group_members").select("user_id").eq("group_id", rule.target_id);
+        if (members) profileIds.push(...members.map((m: any) => m.user_id));
+      }
+      break;
+    }
+  }
+
+  return profileIds;
 }
 
 // ===================== HELPERS =====================
