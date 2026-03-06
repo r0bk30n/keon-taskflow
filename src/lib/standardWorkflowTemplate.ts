@@ -101,7 +101,15 @@ export function generateStandardStructure(options: StandardWorkflowOptions): Gen
 
   // 4. Assignment
   const assignKey = 'std_assignment';
-  steps.push({ step_key: assignKey, name: 'Affectation', step_type: 'assignment', order_index: orderIdx++, state_label: 'À affecter', is_required: true });
+  const assignManagerResolution = options.assignment_mode === 'manager'
+    ? (options.manager_resolution === 'contextual' ? 'target_department_manager' : options.manager_resolution)
+    : undefined;
+  steps.push({
+    step_key: assignKey, name: 'Affectation', step_type: 'assignment',
+    order_index: orderIdx++, state_label: 'À affecter', is_required: true,
+    manager_resolution: assignManagerResolution,
+    fallback_behavior: options.assignment_mode === 'manager' ? options.fallback_behavior : undefined,
+  });
   transitions.push({ from_step_key: lastKey, to_step_key: assignKey, event: options.request_validation ? 'approved' : 'done' });
   lastKey = assignKey;
 
