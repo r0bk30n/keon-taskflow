@@ -115,22 +115,33 @@ export function WfStepDetailPanel({
                   <div key={t.id} className="flex items-center gap-2 p-2 bg-muted/30 rounded-lg text-xs">
                     <ListTodo className="h-3 w-3 text-orange-600 shrink-0" />
                     <span className="font-medium truncate">{t.name}</span>
+                    {t.is_required && (
+                      <Badge variant="outline" className="text-[8px] h-3.5 px-1 border-red-200 text-red-600">Obligatoire</Badge>
+                    )}
                     <Badge variant="outline" className="text-[9px] h-4 ml-auto shrink-0">
                       {COMPLETION_BEHAVIOR_LABELS[t.completion_behavior] || t.completion_behavior}
                     </Badge>
                   </div>
                 ))}
               </div>
-              {(tasksToValidation.length > 0 || tasksDirect.length > 0) && (
-                <div className="mt-2 flex gap-2 text-[10px]">
-                  {tasksDirect.length > 0 && (
-                    <span className="text-muted-foreground">{tasksDirect.length} clôture(s) directe(s)</span>
-                  )}
-                  {tasksToValidation.length > 0 && (
-                    <span className="text-amber-700">{tasksToValidation.length} vers validation</span>
-                  )}
-                </div>
-              )}
+              {/* Summary metrics */}
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {tasksDirect.length > 0 && (
+                  <div className="p-1.5 bg-muted/20 rounded text-[10px] text-center">
+                    <span className="font-semibold">{tasksDirect.length}</span> clôture(s) directe(s)
+                  </div>
+                )}
+                {tasksToValidation.length > 0 && (
+                  <div className="p-1.5 bg-amber-50 rounded text-[10px] text-center text-amber-700">
+                    <span className="font-semibold">{tasksToValidation.length}</span> vers validation
+                  </div>
+                )}
+                {stepTasks.filter(t => t.is_required).length > 0 && (
+                  <div className="p-1.5 bg-red-50 rounded text-[10px] text-center text-red-600">
+                    <span className="font-semibold">{stepTasks.filter(t => t.is_required).length}</span> obligatoire(s)
+                  </div>
+                )}
+              </div>
             </div>
           </>
         )}
@@ -236,8 +247,33 @@ export function WfStepDetailPanel({
           </>
         )}
 
+        {/* Step outcomes summary */}
+        {(stepTransitionsOut.length > 0 || stepTasks.length > 0) && (
+          <>
+            <Separator />
+            <div>
+              <SectionTitle icon={<ArrowRight className="h-3.5 w-3.5" />} label="Issues possibles" />
+              <div className="mt-2 space-y-1 text-[10px]">
+                {stepTransitionsOut.map(t => (
+                  <div key={t.id} className="flex items-center gap-1.5 p-1.5 bg-muted/20 rounded">
+                    <Badge variant="outline" className="text-[9px] h-3.5 px-1">{WF_EVENT_LABELS[t.event] || t.event}</Badge>
+                    <ArrowRight className="h-2.5 w-2.5 text-muted-foreground" />
+                    <span className="font-medium">{getStepName(t.to_step_key)}</span>
+                  </div>
+                ))}
+                {tasksToValidation.length > 0 && (
+                  <div className="flex items-center gap-1.5 p-1.5 bg-amber-50 rounded text-amber-700">
+                    <CheckCircle className="h-2.5 w-2.5" />
+                    <span>{tasksToValidation.length} tâche(s) envoyée(s) en validation</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
         {/* Empty state */}
-        {stepTransitionsIn.length === 0 && stepTransitionsOut.length === 0 && stepNotifications.length === 0 && allStepActions.length === 0 && !assignmentRule && (
+        {stepTransitionsIn.length === 0 && stepTransitionsOut.length === 0 && stepNotifications.length === 0 && allStepActions.length === 0 && !assignmentRule && stepTasks.length === 0 && (
           <div className="text-center py-4 text-xs text-muted-foreground">
             <AlertTriangle className="h-4 w-4 mx-auto mb-1 opacity-50" />
             Aucune configuration rattachée à cette étape
