@@ -665,6 +665,12 @@ Deno.serve(async (req) => {
       }
 
       const { planMappingId } = params;
+      let tasksPulled = 0;
+      let tasksPushed = 0;
+      let tasksUpdated = 0;
+      const errors: any[] = [];
+
+      try {
 
       // Get the mapping
       const { data: mapping, error: mappingError } = await supabase
