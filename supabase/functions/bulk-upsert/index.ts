@@ -88,7 +88,7 @@ serve(async (req) => {
     if (error) {
       console.error("Upsert error:", JSON.stringify(error));
       return new Response(
-        JSON.stringify({ error: "Upsert failed", details: error.message, code: error.code, hint: error.hint }),
+        JSON.stringify({ error: "Upsert failed" }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },

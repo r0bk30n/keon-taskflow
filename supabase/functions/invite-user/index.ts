@@ -1,5 +1,23 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+// Generate a secure random password
+function generateSecurePassword(length: number = 14): string {
+  const uppercase = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lowercase = 'abcdefghjkmnpqrstuvwxyz';
+  const numbers = '23456789';
+  const symbols = '!@#$%&*+-=?';
+  const allChars = uppercase + lowercase + numbers + symbols;
+  let password = '';
+  password += uppercase.charAt(Math.floor(Math.random() * uppercase.length));
+  password += lowercase.charAt(Math.floor(Math.random() * lowercase.length));
+  password += numbers.charAt(Math.floor(Math.random() * numbers.length));
+  password += symbols.charAt(Math.floor(Math.random() * symbols.length));
+  for (let i = 4; i < length; i++) {
+    password += allChars.charAt(Math.floor(Math.random() * allChars.length));
+  }
+  return password.split('').sort(() => Math.random() - 0.5).join('');
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -100,19 +118,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Generate password: [NomUser]TASKMANAGER2027!
-    // Extract name, clean it up (uppercase, letters only)
+    // Generate a secure random password
     const displayName = profile.display_name || userEmail.split('@')[0];
-    const userName = displayName
-      .toUpperCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // Remove accents
-      .replace(/[^A-Z]/g, '') // Keep only letters
-      .substring(0, 20); // Limit length
-    
-    const generatedPassword = `${userName}TASKMANAGER2027!`;
+    const generatedPassword = generateSecurePassword(14);
 
-    console.log(`Creating user ${userEmail} with generated password pattern for: ${userName}`);
+    console.log(`Creating user account for ${userEmail}`);
 
     // Create the user with generated password
     const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -155,7 +165,7 @@ Deno.serve(async (req) => {
         message: `Compte créé pour ${userEmail}`,
         user_id: userData.user.id,
         email: userEmail,
-        generated_password: generatedPassword, // Return password so admin can communicate it
+        generated_password: generatedPassword,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
