@@ -320,6 +320,59 @@ async function handleValidation(supabase: any, instance: any, step: any, event: 
   return { canProceed: true, message: "no validation required" };
 }
 
+// ===================== FALLBACK RULE RESOLUTION =====================
+async function getEffectiveAssignmentRuleId(supabase: any, step: any, instance: any): Promise<string | null> {
+  // 1) Step-level rule takes priority
+  if (step.assignment_rule_id) return step.assignment_rule_id;
+
+  // 2) Fallback: process-level default rule from process_templates.settings
+  try {
+    // Get the workflow to find the sub_process_template_id
+    const { data: wf } = await supabase
+      .from("wf_workflows")
+      .select("sub_process_template_id")
+      .eq("id", step.workflow_id)
+      .single();
+
+    if (wf?.sub_process_template_id) {
+      // Get the process_template_id from the sub_process_template
+      const { data: sp } = await supabase
+        .from("sub_process_templates")
+        .select("process_template_id")
+        .eq("id", wf.sub_process_template_id)
+        .single();
+
+      if (sp?.process_template_id) {
+        const { data: pt } = await supabase
+          .from("process_templates")
+          .select("settings")
+          .eq("id", sp.process_template_id)
+          .single();
+
+        const settings = pt?.settings as Record<string, any> | null;
+        const assignmentConfig = settings?.assignment_config;
+        if (assignmentConfig?.scope === "global" && assignmentConfig?.default_assignment_rule_id) {
+          return assignmentConfig.default_assignment_rule_id;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to resolve fallback assignment rule:", e);
+  }
+
+  return null;
+}
+
+async function resolveEffectiveRule(supabase: any, ruleId: string, instance: any): Promise<string[]> {
+  const { data: rule } = await supabase
+    .from("wf_assignment_rules")
+    .select("*")
+    .eq("id", ruleId)
+    .single();
+  if (!rule) return [];
+  return resolveAssignmentRule(supabase, rule, instance);
+}
+
 // ===================== VALIDATOR AUTHORIZATION =====================
 async function isAuthorizedValidator(supabase: any, step: any, actorId: string | null, instance: any): Promise<boolean> {
   if (!actorId) return false;
@@ -327,19 +380,12 @@ async function isAuthorizedValidator(supabase: any, step: any, actorId: string |
   const mode = step.validation_mode;
 
   if (mode === "simple") {
-    // For simple mode with an assignment rule, resolve the rule
-    if (step.assignment_rule_id) {
-      const { data: rule } = await supabase
-        .from("wf_assignment_rules")
-        .select("*")
-        .eq("id", step.assignment_rule_id)
-        .single();
-      if (rule) {
-        const resolvedIds = await resolveAssignmentRule(supabase, rule, instance);
-        return resolvedIds.includes(actorId);
-      }
+    const effectiveRuleId = await getEffectiveAssignmentRuleId(supabase, step, instance);
+    if (effectiveRuleId) {
+      const resolvedIds = await resolveEffectiveRule(supabase, effectiveRuleId, instance);
+      return resolvedIds.includes(actorId);
     }
-    return true; // No assignment rule = anyone with task access can approve
+    return true; // No rule at all = anyone with task access can approve
   }
 
   if (mode === "n_of_m") {
