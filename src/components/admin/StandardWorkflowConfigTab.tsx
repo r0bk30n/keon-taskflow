@@ -75,6 +75,9 @@ export function StandardWorkflowConfigTab() {
       <div id="std-wf-section-1">
         <WfStepsSection
           steps={wf.steps}
+          transitions={wf.transitions}
+          notifications={wf.notifications}
+          actions={wf.actions}
           assignmentRules={wf.assignmentRules}
           canManage={true}
           subProcessId=""
