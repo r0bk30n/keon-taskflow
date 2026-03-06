@@ -1,11 +1,11 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { supabase } from '@/integrations/supabase/client';
 import {
   CheckCircle2, ShieldCheck, Users, Zap, Bell, ArrowRight,
   Play, Square, Shield, Cog, ListTodo, GitBranch,
@@ -47,6 +47,16 @@ const STEP_COLOR: Record<string, string> = {
 };
 
 export function WfStandardModePanel({ options, canManage, onOptionsChange, onApply, isApplying }: Props) {
+  const [profiles, setProfiles] = useState<Array<{ id: string; display_name: string | null }>>([]);
+  
+  useEffect(() => {
+    const loadProfiles = async () => {
+      const { data } = await supabase.from('profiles').select('id, display_name').order('display_name');
+      if (data) setProfiles(data);
+    };
+    loadProfiles();
+  }, []);
+
   const update = (partial: Partial<StandardWorkflowOptions>) => {
     onOptionsChange({ ...options, ...partial });
   };
@@ -110,29 +120,45 @@ export function WfStandardModePanel({ options, canManage, onOptionsChange, onApp
               </Select>
             </div>
             {/* Executor value - shown for types that need a value */}
-            {['specific_user', 'role', 'field_value'].includes(options.executor_type) && (
+            {options.executor_type === 'specific_user' && (
               <div className="space-y-1.5">
-                <Label className="text-xs">
-                  {options.executor_type === 'specific_user' && 'Identifiant utilisateur'}
-                  {options.executor_type === 'role' && 'Nom du rôle'}
-                  {options.executor_type === 'field_value' && 'Nom du champ formulaire'}
-                </Label>
-                <Input
-                  value={options.executor_value || ''}
-                  onChange={e => update({ executor_value: e.target.value || null })}
-                  placeholder={
-                    options.executor_type === 'specific_user' ? 'ID ou nom du profil'
-                    : options.executor_type === 'role' ? 'Ex: Ingénieur études'
-                    : 'Ex: responsable_projet'
-                  }
-                  className="h-8 text-xs"
-                  disabled={!canManage}
-                />
-                <p className="text-[10px] text-muted-foreground">
-                  {options.executor_type === 'specific_user' && "L'utilisateur qui exécutera les tâches de ce workflow."}
-                  {options.executor_type === 'role' && 'Le rôle ou poste responsable de l\'exécution.'}
-                  {options.executor_type === 'field_value' && 'Le champ du formulaire contenant l\'utilisateur assigné.'}
-                </p>
+                <Label className="text-xs">Utilisateur assigné</Label>
+                <Select value={options.executor_value || ''} onValueChange={v => update({ executor_value: v || null })} disabled={!canManage}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Sélectionner un utilisateur" /></SelectTrigger>
+                  <SelectContent>
+                    {profiles.map(p => (
+                      <SelectItem key={p.id} value={p.id} className="text-xs">{p.display_name || p.id}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground">L'utilisateur qui exécutera les tâches de ce workflow.</p>
+              </div>
+            )}
+            {options.executor_type === 'role' && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Nom du rôle</Label>
+                <Select value={options.executor_value || ''} onValueChange={v => update({ executor_value: v || null })} disabled={!canManage}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Sélectionner un rôle" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin" className="text-xs">Admin</SelectItem>
+                    <SelectItem value="moderator" className="text-xs">Modérateur</SelectItem>
+                    <SelectItem value="user" className="text-xs">Utilisateur</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground">Le rôle ou poste responsable de l'exécution.</p>
+              </div>
+            )}
+            {options.executor_type === 'field_value' && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Nom du champ formulaire</Label>
+                <Select value={options.executor_value || ''} onValueChange={v => update({ executor_value: v || null })} disabled={!canManage}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Sélectionner un champ" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="responsable_projet" className="text-xs">responsable_projet</SelectItem>
+                    <SelectItem value="manager" className="text-xs">manager</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground">Le champ du formulaire contenant l'utilisateur assigné.</p>
               </div>
             )}
           </CardContent>
