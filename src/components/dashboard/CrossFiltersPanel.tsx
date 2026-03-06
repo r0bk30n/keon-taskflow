@@ -139,8 +139,8 @@ function MultiSelectDropdown({
     onChange(updated);
   };
 
-  return (
-    <div className="space-y-1.5">
+   return (
+     <div className="space-y-1.5 flex-1 min-w-[140px]">
       <Label className="text-xs text-keon-600 flex items-center gap-1">
         {icon}
         {label} ({selectedIds.length})
