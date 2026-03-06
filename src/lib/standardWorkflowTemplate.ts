@@ -73,12 +73,21 @@ export function generateStandardStructure(options: StandardWorkflowOptions): Gen
   // 3. Request validation (optional)
   if (options.request_validation) {
     const valKey = 'std_validation_request';
-    steps.push({ step_key: valKey, name: 'Validation de la demande', step_type: 'validation', order_index: orderIdx++, state_label: 'En attente de validation', is_required: true, validation_mode: 'simple' });
+    const valManagerResolution = options.assignment_mode === 'manager'
+      ? (options.manager_resolution === 'contextual' ? 'requester_manager' : options.manager_resolution)
+      : undefined;
+    steps.push({
+      step_key: valKey, name: 'Validation de la demande', step_type: 'validation',
+      order_index: orderIdx++, state_label: 'En attente de validation', is_required: true,
+      validation_mode: 'simple',
+      manager_resolution: valManagerResolution,
+      fallback_behavior: options.assignment_mode === 'manager' ? options.fallback_behavior : undefined,
+    });
     transitions.push({ from_step_key: lastKey, to_step_key: valKey, event: 'done' });
 
     validationConfigs.push({
       name: 'Validation de la demande', validation_key: 'std_val_request', object_type: 'request',
-      source_step_key: valKey, validator_type: 'requester_manager',
+      source_step_key: valKey, validator_type: valManagerResolution || 'requester_manager',
       on_approved_effect: 'advance_step', on_rejected_effect: 'goto_step',
       is_active: true, order_index: 0, validation_mode: 'simple',
     });
