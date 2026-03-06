@@ -139,8 +139,8 @@ function MultiSelectDropdown({
     onChange(updated);
   };
 
-  return (
-    <div className="space-y-1.5">
+   return (
+     <div className="space-y-1.5 flex-1 min-w-[140px]">
       <Label className="text-xs text-keon-600 flex items-center gap-1">
         {icon}
         {label} ({selectedIds.length})
@@ -455,8 +455,8 @@ export function CrossFiltersPanel({ filters, onFiltersChange, onClose, processId
 
   return (
     <div className="bg-gradient-to-r from-white to-keon-50 border-2 border-keon-200 rounded-xl p-4 mb-4 shadow-keon">
-      {/* Header row */}
-      <div className="flex items-center justify-between">
+       {/* Header row */}
+       <div className="flex flex-wrap items-center justify-between gap-2">
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
@@ -470,7 +470,7 @@ export function CrossFiltersPanel({ filters, onFiltersChange, onClose, processId
             </Badge>
           )}
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
           {/* Preset selector */}
           {presets.length > 0 && (
             <Popover>
@@ -594,11 +594,11 @@ export function CrossFiltersPanel({ filters, onFiltersChange, onClose, processId
         </div>
       </div>
 
-      {/* Filters grid - collapsible */}
-      {!collapsed && (
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-3 items-end mt-3">
-        {/* Search */}
-        <div className="space-y-1.5 col-span-2 md:col-span-1">
+       {/* Filters grid - collapsible */}
+       {!collapsed && (
+       <div className="flex flex-wrap gap-3 items-end mt-3">
+         {/* Search */}
+         <div className="space-y-1.5 flex-1 min-w-[200px]">
           <Label className="text-xs text-keon-600 flex items-center gap-1">
             <Search className="h-3 w-3" />
             Recherche
@@ -614,8 +614,8 @@ export function CrossFiltersPanel({ filters, onFiltersChange, onClose, processId
           </div>
         </div>
 
-        {/* Period */}
-        <div className="space-y-1.5">
+         {/* Period */}
+         <div className="space-y-1.5 flex-1 min-w-[140px]">
           <Label className="text-xs text-keon-600 flex items-center gap-1">
             <CalendarIcon className="h-3 w-3" />
             Période
@@ -635,8 +635,8 @@ export function CrossFiltersPanel({ filters, onFiltersChange, onClose, processId
           </Select>
         </div>
 
-        {/* Date range */}
-        <div className="space-y-1.5">
+         {/* Date range */}
+         <div className="space-y-1.5 flex-1 min-w-[160px]">
           <Label className="text-xs text-keon-600">Plage de dates</Label>
           <Popover>
             <PopoverTrigger asChild>
