@@ -665,6 +665,12 @@ Deno.serve(async (req) => {
       }
 
       const { planMappingId } = params;
+      let tasksPulled = 0;
+      let tasksPushed = 0;
+      let tasksUpdated = 0;
+      const errors: any[] = [];
+
+      try {
 
       // Get the mapping
       const { data: mapping, error: mappingError } = await supabase
@@ -718,10 +724,7 @@ Deno.serve(async (req) => {
       const linkedPlannerIds = new Set((existingLinks || []).map(l => l.planner_task_id));
       const linkedLocalIds = new Set((existingLinks || []).map(l => l.local_task_id));
 
-      let tasksPulled = 0;
-      let tasksPushed = 0;
-      let tasksUpdated = 0;
-      const errors: any[] = [];
+
 
       // Get plan details for label names
       let categoryDescriptions: Record<string, string> = {};
@@ -913,6 +916,16 @@ Deno.serve(async (req) => {
               if (dueDate !== localTask.due_date) updates.due_date = dueDate;
             }
 
+            // Sync date_demande from Planner createdDateTime
+            if (plannerTask.createdDateTime && !localTask.date_demande) {
+              updates.date_demande = plannerTask.createdDateTime;
+            }
+
+            // Sync date_lancement from Planner startDateTime
+            if (plannerTask.startDateTime && !localTask.date_lancement) {
+              updates.date_lancement = plannerTask.startDateTime;
+            }
+
             // Update planner labels
             const newLabels = resolveLabels(plannerTask.appliedCategories || null, categoryDescriptions);
             const currentLabels = localTask.planner_labels || [];
@@ -1055,6 +1068,36 @@ Deno.serve(async (req) => {
         tasksUpdated,
         errors: errors.length,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+      } catch (syncErr: any) {
+        // Always write sync log even on error
+        console.error('Planner sync error:', syncErr);
+        errors.push({ error: syncErr.message });
+        
+        try {
+          await supabase.from('planner_sync_logs').insert({
+            user_id: userId,
+            plan_mapping_id: planMappingId,
+            direction: 'from_planner',
+            tasks_pushed: tasksPushed,
+            tasks_pulled: tasksPulled,
+            tasks_updated: tasksUpdated,
+            errors,
+            status: 'error',
+          });
+        } catch (logErr) {
+          console.error('Failed to write sync log:', logErr);
+        }
+
+        return new Response(JSON.stringify({
+          success: false,
+          error: syncErr.message,
+          tasksPulled,
+          tasksPushed,
+          tasksUpdated,
+          errors: errors.length,
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
     }
 
     throw new Error(`Unknown action: ${action}`);
