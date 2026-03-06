@@ -36,7 +36,7 @@ export const DEFAULT_STANDARD_OPTIONS: StandardWorkflowOptions = {
 
 import type { Json } from '@/integrations/supabase/types';
 
-interface GeneratedStep { step_key: string; name: string; step_type: string; order_index: number; state_label: string; is_required: boolean; validation_mode?: string; }
+interface GeneratedStep { step_key: string; name: string; step_type: string; order_index: number; state_label: string; is_required: boolean; validation_mode?: string; manager_resolution?: string; fallback_behavior?: string; }
 interface GeneratedTransition { from_step_key: string; to_step_key: string; event: string; }
 interface GeneratedNotification { step_key: string; event: string; subject_template: string; body_template: string; channels_json: Json; recipients_rules_json: Json; is_active: boolean; }
 interface GeneratedTask { name: string; task_key: string; step_key: string; executor_type: string; executor_value?: string | null; trigger_mode: string; initial_status: string; completion_behavior: string; is_active: boolean; is_required: boolean; order_index: number; assignment_mode: string; }
