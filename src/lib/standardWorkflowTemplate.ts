@@ -5,10 +5,15 @@
 import type { WfStepInsert, WfTransitionInsert, WfNotificationInsert } from '@/types/workflow';
 import type { WfTaskConfigInsert, WfValidationConfigInsert } from '@/types/workflowTaskConfig';
 
+export type ManagerResolution = 'requester_manager' | 'target_department_manager' | 'contextual';
+export type FallbackBehavior = 'wait_manual' | 'escalate_n2' | 'department_head';
+
 export interface StandardWorkflowOptions {
   request_validation: boolean;
   final_validation: boolean;
   assignment_mode: 'auto' | 'manual' | 'role' | 'manager';
+  manager_resolution: ManagerResolution;
+  fallback_behavior: FallbackBehavior;
   executor_type: 'specific_user' | 'requester' | 'requester_manager' | 'role' | 'manual' | 'field_value';
   executor_value: string | null;
   completion_behavior: 'close_task' | 'send_to_validation';
@@ -20,6 +25,8 @@ export const DEFAULT_STANDARD_OPTIONS: StandardWorkflowOptions = {
   request_validation: true,
   final_validation: false,
   assignment_mode: 'manual',
+  manager_resolution: 'contextual',
+  fallback_behavior: 'wait_manual',
   executor_type: 'manual',
   executor_value: null,
   completion_behavior: 'close_task',
