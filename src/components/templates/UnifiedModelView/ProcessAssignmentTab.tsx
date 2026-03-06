@@ -11,10 +11,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Users, User, UserCheck, Building2, Save, Loader2, Info } from 'lucide-react';
+import { Save, Loader2, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProcessWithTasks } from '@/types/template';
 import { toast } from 'sonner';
+import {
+  fetchEnrichedWorkflowAssignmentRules,
+  EnrichedAssignmentRule,
+} from '@/lib/workflowAssignmentRules';
 
 interface ProcessAssignmentTabProps {
   process: ProcessWithTasks;
@@ -22,34 +26,17 @@ interface ProcessAssignmentTabProps {
   canManage: boolean;
 }
 
-interface Profile {
-  id: string;
-  display_name: string | null;
-}
-
-interface CollaboratorGroup {
-  id: string;
-  name: string;
-}
-
 type AssignmentScope = 'global' | 'per_subprocess';
-type AssignmentRule = 'manager' | 'user' | 'group';
-type ManagerSource = 'requester_manager' | 'target_department_manager' | 'specific_user';
 
 interface AssignmentConfig {
   scope: AssignmentScope;
-  rule: AssignmentRule;
-  manager_source: ManagerSource;
-  specific_user_id: string | null;
-  specific_group_id: string | null;
+  /** ID from wf_assignment_rules — the default rule for the process */
+  default_assignment_rule_id: string | null;
 }
 
 const DEFAULT_CONFIG: AssignmentConfig = {
   scope: 'per_subprocess',
-  rule: 'manager',
-  manager_source: 'target_department_manager',
-  specific_user_id: null,
-  specific_group_id: null,
+  default_assignment_rule_id: null,
 };
 
 export function ProcessAssignmentTab({ process, onUpdate, canManage }: ProcessAssignmentTabProps) {
@@ -57,22 +44,19 @@ export function ProcessAssignmentTab({ process, onUpdate, canManage }: ProcessAs
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [config, setConfig] = useState<AssignmentConfig>(DEFAULT_CONFIG);
-  
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [groups, setGroups] = useState<CollaboratorGroup[]>([]);
+  const [rules, setRules] = useState<EnrichedAssignmentRule[]>([]);
 
   useEffect(() => {
-    Promise.all([fetchReferenceData(), loadAssignmentConfig()]);
+    Promise.all([loadRules(), loadAssignmentConfig()]);
   }, [process.id]);
 
-  const fetchReferenceData = async () => {
-    const [profileRes, groupRes] = await Promise.all([
-      supabase.from('profiles').select('id, display_name').eq('status', 'active').order('display_name'),
-      supabase.from('collaborator_groups').select('id, name').order('name'),
-    ]);
-    
-    if (profileRes.data) setProfiles(profileRes.data);
-    if (groupRes.data) setGroups(groupRes.data);
+  const loadRules = async () => {
+    try {
+      const enriched = await fetchEnrichedWorkflowAssignmentRules();
+      setRules(enriched);
+    } catch (e) {
+      console.error('Error loading assignment rules:', e);
+    }
   };
 
   const loadAssignmentConfig = async () => {
@@ -87,13 +71,9 @@ export function ProcessAssignmentTab({ process, onUpdate, canManage }: ProcessAs
       if (error) throw error;
 
       const settings = (data?.settings as Record<string, any>) || {};
-      const assignmentConfig = settings.assignment_config as AssignmentConfig | undefined;
+      const saved = settings.assignment_config as AssignmentConfig | undefined;
 
-      if (assignmentConfig) {
-        setConfig(assignmentConfig);
-      } else {
-        setConfig(DEFAULT_CONFIG);
-      }
+      setConfig(saved ?? DEFAULT_CONFIG);
       setIsDirty(false);
     } catch (error) {
       console.error('Error loading assignment config:', error);
@@ -112,7 +92,6 @@ export function ProcessAssignmentTab({ process, onUpdate, canManage }: ProcessAs
     setIsSaving(true);
 
     try {
-      // First get current settings to merge
       const { data: currentData, error: fetchError } = await supabase
         .from('process_templates')
         .select('settings')
@@ -134,7 +113,7 @@ export function ProcessAssignmentTab({ process, onUpdate, canManage }: ProcessAs
 
       if (error) throw error;
 
-      toast.success('Configuration d\'affectation enregistrée');
+      toast.success("Configuration d'affectation enregistrée");
       setIsDirty(false);
       onUpdate();
     } catch (error: any) {
@@ -145,32 +124,8 @@ export function ProcessAssignmentTab({ process, onUpdate, canManage }: ProcessAs
     }
   };
 
-  const assignmentRules = [
-    {
-      value: 'manager',
-      label: 'Par manager',
-      icon: UserCheck,
-      description: 'Les tâches sont affectées via le manager du service cible',
-    },
-    {
-      value: 'user',
-      label: 'Utilisateur spécifique',
-      icon: User,
-      description: 'Les tâches sont affectées à un utilisateur défini',
-    },
-    {
-      value: 'group',
-      label: 'Groupe de collaborateurs',
-      icon: Users,
-      description: 'Les tâches sont distribuées au sein d\'un groupe',
-    },
-  ];
-
-  const managerSources = [
-    { value: 'requester_manager', label: 'Manager du demandeur' },
-    { value: 'target_department_manager', label: 'Manager du service cible' },
-    { value: 'specific_user', label: 'Utilisateur spécifique' },
-  ];
+  // Group rules by type for readability
+  const groupedRules = groupRulesByType(rules);
 
   if (isLoading) {
     return (
@@ -186,7 +141,7 @@ export function ProcessAssignmentTab({ process, onUpdate, canManage }: ProcessAs
         <div>
           <h3 className="text-base font-semibold">Affectation des tâches</h3>
           <p className="text-sm text-muted-foreground">
-            Définissez les règles d'affectation par défaut
+            Définissez la règle d'affectation par défaut. Les étapes de workflow peuvent la surcharger individuellement.
           </p>
         </div>
         {isDirty && (
@@ -196,11 +151,12 @@ export function ProcessAssignmentTab({ process, onUpdate, canManage }: ProcessAs
         )}
       </div>
 
+      {/* Scope */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Périmètre d'affectation</CardTitle>
           <CardDescription>
-            Définissez si l'affectation est gérée globalement ou par sous-processus
+            Définissez si l'affectation par défaut est gérée globalement ou par sous-processus
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -217,7 +173,7 @@ export function ProcessAssignmentTab({ process, onUpdate, canManage }: ProcessAs
                   Par sous-processus
                 </Label>
                 <p className="text-sm text-muted-foreground">
-                  Chaque sous-processus définit ses propres règles d'affectation
+                  Chaque sous-processus définit ses propres règles dans son workflow
                 </p>
               </div>
             </div>
@@ -228,7 +184,7 @@ export function ProcessAssignmentTab({ process, onUpdate, canManage }: ProcessAs
                   Global (processus)
                 </Label>
                 <p className="text-sm text-muted-foreground">
-                  Une seule règle d'affectation pour tout le processus
+                  Une règle par défaut pour tout le processus (les étapes du workflow peuvent la surcharger)
                 </p>
               </div>
             </div>
@@ -236,147 +192,54 @@ export function ProcessAssignmentTab({ process, onUpdate, canManage }: ProcessAs
         </CardContent>
       </Card>
 
+      {/* Global rule selector */}
       {config.scope === 'global' && (
-        <>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Règle d'affectation</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <RadioGroup
-                value={config.rule}
-                onValueChange={(v) => updateConfig({ rule: v as AssignmentRule })}
-                disabled={!canManage}
-                className="grid grid-cols-1 gap-3"
-              >
-                {assignmentRules.map((rule) => {
-                  const Icon = rule.icon;
-                  const isSelected = config.rule === rule.value;
-                  return (
-                    <div
-                      key={rule.value}
-                      className={`flex items-start space-x-3 p-3 rounded-lg border transition-all ${
-                        isSelected ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'
-                      }`}
-                    >
-                      <RadioGroupItem value={rule.value} id={`rule-${rule.value}`} className="mt-1" />
-                      <Icon className={`h-5 w-5 mt-0.5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
-                      <div>
-                        <Label htmlFor={`rule-${rule.value}`} className="font-medium cursor-pointer">
-                          {rule.label}
-                        </Label>
-                        <p className="text-sm text-muted-foreground">{rule.description}</p>
-                      </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Règle d'affectation par défaut</CardTitle>
+            <CardDescription>
+              Les étapes de workflow qui n'ont pas de règle spécifique utiliseront cette règle
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Select
+              value={config.default_assignment_rule_id || '__none__'}
+              onValueChange={(v) =>
+                updateConfig({ default_assignment_rule_id: v === '__none__' ? null : v })
+              }
+              disabled={!canManage}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner une règle d'affectation" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Aucune règle par défaut</SelectItem>
+                {groupedRules.map((group) => (
+                  <div key={group.label}>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                      {group.label}
                     </div>
-                  );
-                })}
-              </RadioGroup>
-            </CardContent>
-          </Card>
-
-          {config.rule === 'manager' && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Source du manager</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Select
-                  value={config.manager_source}
-                  onValueChange={(v) => updateConfig({ manager_source: v as ManagerSource })}
-                  disabled={!canManage}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {managerSources.map((source) => (
-                      <SelectItem key={source.value} value={source.value}>
-                        {source.label}
+                    {group.items.map((rule) => (
+                      <SelectItem key={rule.id} value={rule.id}>
+                        {rule.display_name}
                       </SelectItem>
                     ))}
-                  </SelectContent>
-                </Select>
-
-                {config.manager_source === 'specific_user' && (
-                  <div className="space-y-2">
-                    <Label>Utilisateur manager</Label>
-                    <Select
-                      value={config.specific_user_id || '__none__'}
-                      onValueChange={(v) => updateConfig({ specific_user_id: v === '__none__' ? null : v })}
-                      disabled={!canManage}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner un utilisateur" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Sélectionner...</SelectItem>
-                        {profiles.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.display_name || 'Sans nom'}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+                ))}
+              </SelectContent>
+            </Select>
 
-          {config.rule === 'user' && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Utilisateur cible</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Select
-                  value={config.specific_user_id || '__none__'}
-                  onValueChange={(v) => updateConfig({ specific_user_id: v === '__none__' ? null : v })}
-                  disabled={!canManage}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un utilisateur" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Sélectionner...</SelectItem>
-                    {profiles.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.display_name || 'Sans nom'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </CardContent>
-            </Card>
-          )}
-
-          {config.rule === 'group' && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Groupe cible</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Select
-                  value={config.specific_group_id || '__none__'}
-                  onValueChange={(v) => updateConfig({ specific_group_id: v === '__none__' ? null : v })}
-                  disabled={!canManage}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un groupe" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Sélectionner...</SelectItem>
-                    {groups.map((g) => (
-                      <SelectItem key={g.id} value={g.id}>
-                        {g.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </CardContent>
-            </Card>
-          )}
-        </>
+            {config.default_assignment_rule_id && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950 p-3 flex gap-2 items-start">
+                <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  Cette règle sera utilisée comme valeur par défaut pour toute étape de workflow
+                  sans règle d'affectation spécifique.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {config.scope === 'per_subprocess' && (
@@ -386,8 +249,8 @@ export function ProcessAssignmentTab({ process, onUpdate, canManage }: ProcessAs
               <Info className="h-10 w-10 text-blue-500 mb-3" />
               <h4 className="font-medium mb-1">Configuration par sous-processus</h4>
               <p className="text-sm text-muted-foreground max-w-sm">
-                Chaque sous-processus définit sa propre règle d'affectation.
-                Accédez à l'onglet "Sous-proc." pour configurer chacun individuellement.
+                Chaque sous-processus définit ses propres règles d'affectation dans la
+                configuration de son workflow (onglet "Workflow" → étapes).
               </p>
             </div>
           </CardContent>
@@ -405,4 +268,38 @@ export function ProcessAssignmentTab({ process, onUpdate, canManage }: ProcessAs
       )}
     </div>
   );
+}
+
+// ---- helpers ----
+
+interface RuleGroup {
+  label: string;
+  items: EnrichedAssignmentRule[];
+}
+
+function groupRulesByType(rules: EnrichedAssignmentRule[]): RuleGroup[] {
+  const typeOrder: Record<string, string> = {
+    manager: 'Manager',
+    requester: 'Demandeur',
+    user: 'Utilisateurs',
+    group: 'Groupes',
+    department: 'Services',
+    job_title: 'Postes',
+  };
+
+  const grouped = new Map<string, EnrichedAssignmentRule[]>();
+  for (const rule of rules) {
+    const key = rule.type;
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key)!.push(rule);
+  }
+
+  const result: RuleGroup[] = [];
+  for (const [type, label] of Object.entries(typeOrder)) {
+    const items = grouped.get(type);
+    if (items && items.length > 0) {
+      result.push({ label, items });
+    }
+  }
+  return result;
 }
