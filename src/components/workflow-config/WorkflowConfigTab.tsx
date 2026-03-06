@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Loader2, Plus, Workflow, ListOrdered, ArrowRightLeft,
   Bell, Zap, Eye as EyeIcon, ListTodo, ShieldCheck,
+  ShieldAlert, Play,
 } from 'lucide-react';
 import { useWorkflowConfig } from '@/hooks/useWorkflowConfig';
 import { useWorkflowTasksAndValidations } from '@/hooks/useWorkflowTasksAndValidations';
@@ -16,6 +17,9 @@ import { WfActionsSection } from './WfActionsSection';
 import { WfTasksSection } from './WfTasksSection';
 import { WfValidationsSection } from './WfValidationsSection';
 import { WfFlowPreview } from './WfFlowPreview';
+import { WfCoherencePanel } from './WfCoherencePanel';
+import { WfSimulation } from './WfSimulation';
+import { runCoherenceChecks } from '@/lib/workflowCoherenceChecks';
 
 interface Props {
   subProcessId: string;
@@ -28,10 +32,16 @@ export function WorkflowConfigTab({ subProcessId, subProcessName, canManage }: P
   const tv = useWorkflowTasksAndValidations(wf.workflow?.id);
   const [activeTab, setActiveTab] = useState('steps');
 
-  // Fetch tasks & validations when workflow is loaded
   useEffect(() => {
     if (wf.workflow?.id) tv.fetchTasksAndValidations();
   }, [wf.workflow?.id]);
+
+  // Coherence error count for badge
+  const coherenceErrors = useMemo(() => {
+    if (!wf.workflow) return 0;
+    const checks = runCoherenceChecks(wf.steps, wf.transitions, wf.actions, wf.notifications, tv.taskConfigs, tv.validationConfigs);
+    return checks.filter(c => c.severity === 'error').length;
+  }, [wf.steps, wf.transitions, wf.actions, wf.notifications, tv.taskConfigs, tv.validationConfigs, wf.workflow]);
 
   if (wf.isLoading) {
     return (
@@ -78,6 +88,8 @@ export function WorkflowConfigTab({ subProcessId, subProcessName, canManage }: P
     { id: 'notifications', label: 'Notifications', icon: Bell, count: notifCount },
     { id: 'actions', label: 'Actions auto.', icon: Zap, count: actionCount },
     { id: 'preview', label: 'Aperçu', icon: EyeIcon, count: null },
+    { id: 'checks', label: 'Contrôles', icon: ShieldAlert, count: coherenceErrors > 0 ? coherenceErrors : null, badgeVariant: coherenceErrors > 0 ? 'destructive' as const : undefined },
+    { id: 'simulation', label: 'Simulation', icon: Play, count: null },
   ];
 
   return (
@@ -87,6 +99,7 @@ export function WorkflowConfigTab({ subProcessId, subProcessName, canManage }: P
         canManage={canManage}
         onUpdate={wf.updateWorkflow}
         onPublish={wf.publishWorkflow}
+        coherenceErrors={coherenceErrors}
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -102,7 +115,10 @@ export function WorkflowConfigTab({ subProcessId, subProcessName, canManage }: P
                 <Icon className="h-3.5 w-3.5" />
                 {tab.label}
                 {tab.count !== null && tab.count > 0 && (
-                  <Badge variant="secondary" className="h-4 min-w-[16px] px-1 text-[10px] ml-0.5">
+                  <Badge
+                    variant={(tab as any).badgeVariant || 'secondary'}
+                    className="h-4 min-w-[16px] px-1 text-[10px] ml-0.5"
+                  >
                     {tab.count}
                   </Badge>
                 )}
@@ -194,6 +210,27 @@ export function WorkflowConfigTab({ subProcessId, subProcessName, canManage }: P
             transitions={wf.transitions}
             actions={wf.actions}
             notifications={wf.notifications}
+            taskConfigs={tv.taskConfigs}
+            validationConfigs={tv.validationConfigs}
+          />
+        </TabsContent>
+
+        <TabsContent value="checks" className="mt-4">
+          <WfCoherencePanel
+            steps={wf.steps}
+            transitions={wf.transitions}
+            actions={wf.actions}
+            notifications={wf.notifications}
+            taskConfigs={tv.taskConfigs}
+            validationConfigs={tv.validationConfigs}
+          />
+        </TabsContent>
+
+        <TabsContent value="simulation" className="mt-4">
+          <WfSimulation
+            steps={wf.steps}
+            transitions={wf.transitions}
+            actions={wf.actions}
             taskConfigs={tv.taskConfigs}
             validationConfigs={tv.validationConfigs}
           />

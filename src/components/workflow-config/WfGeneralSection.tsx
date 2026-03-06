@@ -5,17 +5,19 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Save, Loader2, Rocket, FileEdit, ChevronDown, Settings, Hash } from 'lucide-react';
+import { Save, Loader2, Rocket, FileEdit, ChevronDown, Settings, Hash, Copy, Archive, XCircle, CheckCircle2 } from 'lucide-react';
 import type { WfWorkflow, WfWorkflowUpdate } from '@/types/workflow';
+import { toast } from 'sonner';
 
 interface Props {
   workflow: WfWorkflow;
   canManage: boolean;
   onUpdate: (updates: WfWorkflowUpdate) => Promise<void>;
   onPublish: () => Promise<void>;
+  coherenceErrors?: number;
 }
 
-export function WfGeneralSection({ workflow, canManage, onUpdate, onPublish }: Props) {
+export function WfGeneralSection({ workflow, canManage, onUpdate, onPublish, coherenceErrors = 0 }: Props) {
   const [name, setName] = useState(workflow.name);
   const [description, setDescription] = useState(workflow.description || '');
   const [isSaving, setIsSaving] = useState(false);
@@ -28,10 +30,17 @@ export function WfGeneralSection({ workflow, canManage, onUpdate, onPublish }: P
   };
 
   const handlePublish = async () => {
+    if (coherenceErrors > 0) {
+      toast.error(`Impossible de publier : ${coherenceErrors} erreur(s) de cohérence détectée(s). Consultez l'onglet Contrôles.`);
+      return;
+    }
     setIsSaving(true);
     await onPublish();
     setIsSaving(false);
   };
+
+  const publishedAt = (workflow as any).published_at;
+  const hasUnpublishedChanges = workflow.is_draft || (publishedAt && new Date(workflow.updated_at) > new Date(publishedAt));
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -43,7 +52,7 @@ export function WfGeneralSection({ workflow, canManage, onUpdate, onPublish }: P
                 <Settings className="h-4 w-4 text-primary" />
               </div>
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-semibold text-sm truncate">{workflow.name}</h3>
                   {workflow.is_draft ? (
                     <Badge variant="secondary" className="gap-1 text-[10px] h-5">
@@ -56,6 +65,21 @@ export function WfGeneralSection({ workflow, canManage, onUpdate, onPublish }: P
                       v{workflow.version}
                     </Badge>
                   )}
+                  {hasUnpublishedChanges && !workflow.is_draft && (
+                    <Badge variant="outline" className="text-[10px] h-5 text-amber-600 border-amber-300">
+                      Modifications non publiées
+                    </Badge>
+                  )}
+                  {coherenceErrors > 0 && (
+                    <Badge variant="destructive" className="gap-1 text-[10px] h-5">
+                      <XCircle className="h-3 w-3" /> {coherenceErrors} erreur(s)
+                    </Badge>
+                  )}
+                  {coherenceErrors === 0 && !workflow.is_draft && (
+                    <Badge className="bg-green-50 text-green-600 border-green-200 gap-1 text-[10px] h-5">
+                      <CheckCircle2 className="h-3 w-3" /> Cohérent
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground truncate mt-0.5">
                   {workflow.description || 'Configuration générale du workflow'}
@@ -66,9 +90,10 @@ export function WfGeneralSection({ workflow, canManage, onUpdate, onPublish }: P
               {canManage && workflow.is_draft && (
                 <Button
                   onClick={(e) => { e.stopPropagation(); handlePublish(); }}
-                  disabled={isSaving}
+                  disabled={isSaving || coherenceErrors > 0}
                   size="sm"
                   className="gap-1 h-7 text-xs"
+                  title={coherenceErrors > 0 ? 'Corrigez les erreurs avant de publier' : ''}
                 >
                   <Rocket className="h-3 w-3" />
                   Publier
@@ -97,16 +122,20 @@ export function WfGeneralSection({ workflow, canManage, onUpdate, onPublish }: P
               <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} disabled={!canManage} className="text-sm resize-none" />
             </div>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Hash className="h-3 w-3" />
-                <span className="font-mono">{workflow.id.slice(0, 8)}</span>
-                <span>· Version {workflow.version}</span>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                <span className="flex items-center gap-1"><Hash className="h-3 w-3" /> <span className="font-mono">{workflow.id.slice(0, 8)}</span></span>
+                <span>Version {workflow.version}</span>
+                {publishedAt && (
+                  <span>Publié le {new Date(publishedAt).toLocaleDateString('fr-FR')}</span>
+                )}
               </div>
               {canManage && (
-                <Button onClick={handleSave} disabled={isSaving} size="sm" className="h-8 gap-1 text-xs">
-                  {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                  Enregistrer
-                </Button>
+                <div className="flex gap-2">
+                  <Button onClick={handleSave} disabled={isSaving} size="sm" variant="outline" className="h-8 gap-1 text-xs">
+                    {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                    Enregistrer
+                  </Button>
+                </div>
               )}
             </div>
           </div>
