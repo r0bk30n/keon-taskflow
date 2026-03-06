@@ -572,6 +572,16 @@ function renderInput(
         />
       );
 
+    case 'multi_email':
+      return (
+        <MultiEmailInput
+          value={value || ''}
+          onChange={(v) => onChange(field.id, v)}
+          placeholder={placeholder || 'Saisir un email puis Entrée'}
+          disabled={isReadOnly}
+        />
+      );
+
     case 'textarea':
       return (
         <Textarea

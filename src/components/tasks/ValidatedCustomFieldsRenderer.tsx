@@ -488,6 +488,16 @@ export const ValidatedCustomFieldsRenderer = memo(function ValidatedCustomFields
           />
         );
 
+      case 'multi_email':
+        return (
+          <MultiEmailInput
+            value={value}
+            onChange={handleChange}
+            placeholder={field.placeholder || 'Saisir un email puis Entrée'}
+            disabled={disabled}
+          />
+        );
+
       case 'phone':
         return (
           <Input
