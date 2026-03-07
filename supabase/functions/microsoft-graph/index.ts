@@ -1112,16 +1112,26 @@ Deno.serve(async (req) => {
         errors.push({ error: syncErr.message });
         
         try {
-          await supabase.from('planner_sync_logs').insert({
-            user_id: userId,
-            plan_mapping_id: planMappingId,
-            direction: 'from_planner',
-            tasks_pushed: tasksPushed,
-            tasks_pulled: tasksPulled,
-            tasks_updated: tasksUpdated,
-            errors,
-            status: 'error',
-          });
+          if (syncLogId) {
+            await supabase.from('planner_sync_logs').update({
+              tasks_pushed: tasksPushed,
+              tasks_pulled: tasksPulled,
+              tasks_updated: tasksUpdated,
+              errors,
+              status: 'error',
+            }).eq('id', syncLogId);
+          } else {
+            await supabase.from('planner_sync_logs').insert({
+              user_id: userId,
+              plan_mapping_id: planMappingId,
+              direction: 'from_planner',
+              tasks_pushed: tasksPushed,
+              tasks_pulled: tasksPulled,
+              tasks_updated: tasksUpdated,
+              errors,
+              status: 'error',
+            });
+          }
         } catch (logErr) {
           console.error('Failed to write sync log:', logErr);
         }
