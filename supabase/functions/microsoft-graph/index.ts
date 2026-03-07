@@ -669,6 +669,7 @@ Deno.serve(async (req) => {
       let tasksPushed = 0;
       let tasksUpdated = 0;
       const errors: any[] = [];
+      let syncLogId: string | null = null;
 
       try {
 
@@ -682,21 +683,29 @@ Deno.serve(async (req) => {
 
       if (mappingError || !mapping) throw new Error('Plan mapping not found');
 
-      const rawPlannerTasks = await getPlannerTasks(accessToken, mapping.planner_plan_id);
-      
-      // Enrich tasks with details (description/notes)
-      const plannerTasks: any[] = [];
-      for (const task of rawPlannerTasks) {
-        try {
-          const details = await getPlannerTaskDetails(accessToken, task.id);
-          plannerTasks.push({
-            ...task,
-            _description: details.description || '',
-          });
-        } catch {
-          plannerTasks.push({ ...task, _description: '' });
-        }
+      // Create sync log at start so history updates even if sync is interrupted
+      try {
+        const { data: startedLog } = await supabase
+          .from('planner_sync_logs')
+          .insert({
+            user_id: userId,
+            plan_mapping_id: planMappingId,
+            direction: mapping.sync_direction,
+            tasks_pushed: 0,
+            tasks_pulled: 0,
+            tasks_updated: 0,
+            errors: [],
+            status: 'running',
+          })
+          .select('id')
+          .single();
+
+        syncLogId = startedLog?.id ?? null;
+      } catch (logStartErr) {
+        console.error('Failed to create start sync log:', logStartErr);
       }
+
+      const plannerTasks: any[] = await getPlannerTasks(accessToken, mapping.planner_plan_id);
 
       // Get bucket mappings for subcategory resolution
       const { data: bucketMappings } = await supabase
@@ -724,7 +733,19 @@ Deno.serve(async (req) => {
       const linkedPlannerIds = new Set((existingLinks || []).map(l => l.planner_task_id));
       const linkedLocalIds = new Set((existingLinks || []).map(l => l.local_task_id));
 
+      // Prefetch all linked local tasks once to avoid N+1 queries
+      const localTaskIds = [...new Set((existingLinks || []).map(l => l.local_task_id).filter(Boolean))];
+      const localTasksById = new Map<string, any>();
+      if (localTaskIds.length > 0) {
+        const { data: linkedLocalTasks } = await supabase
+          .from('tasks')
+          .select('*')
+          .in('id', localTaskIds);
 
+        for (const localTask of linkedLocalTasks || []) {
+          localTasksById.set(localTask.id, localTask);
+        }
+      }
 
       // Get plan details for label names
       let categoryDescriptions: Record<string, string> = {};
@@ -812,11 +833,20 @@ Deno.serve(async (req) => {
             const assigneeInfo = await resolveAssigneeToProfile(pt);
             const assigneeId = assigneeInfo.profileId || userProfile?.id;
 
+            // Fetch Planner note details only for tasks that will be imported
+            let plannerDescription: string | null = null;
+            try {
+              const details = await getPlannerTaskDetails(accessToken, pt.id);
+              plannerDescription = details.description || null;
+            } catch {
+              plannerDescription = null;
+            }
+
             const { data: newTask, error: insertErr } = await supabase
               .from('tasks')
               .insert({
                 title: pt.title,
-                description: pt._description || null,
+                description: plannerDescription,
                 status,
                 priority,
                 due_date: pt.dueDateTime ? pt.dueDateTime.substring(0, 10) : null,
@@ -894,13 +924,8 @@ Deno.serve(async (req) => {
         if (!plannerTask) continue;
 
         try {
-          // Get local task
-          const { data: localTask } = await supabase
-            .from('tasks')
-            .select('*')
-            .eq('id', link.local_task_id)
-            .single();
-
+          // Get local task from prefetched map
+          const localTask = localTasksById.get(link.local_task_id);
           if (!localTask) continue;
 
           // Pull updates from Planner
@@ -940,6 +965,7 @@ Deno.serve(async (req) => {
 
             if (Object.keys(updates).length > 0) {
               await supabase.from('tasks').update(updates).eq('id', link.local_task_id);
+              localTasksById.set(link.local_task_id, { ...localTask, ...updates });
               tasksUpdated++;
             }
 
@@ -1049,17 +1075,28 @@ Deno.serve(async (req) => {
       // Update mapping
       await supabase.from('planner_plan_mappings').update({ last_sync_at: new Date().toISOString() }).eq('id', planMappingId);
 
-      // Log sync
-      await supabase.from('planner_sync_logs').insert({
-        user_id: userId,
-        plan_mapping_id: planMappingId,
-        direction: mapping.sync_direction,
-        tasks_pushed: tasksPushed,
-        tasks_pulled: tasksPulled,
-        tasks_updated: tasksUpdated,
-        errors,
-        status: errors.length > 0 ? 'partial' : 'success',
-      });
+      // Finalize sync log
+      if (syncLogId) {
+        await supabase.from('planner_sync_logs').update({
+          direction: mapping.sync_direction,
+          tasks_pushed: tasksPushed,
+          tasks_pulled: tasksPulled,
+          tasks_updated: tasksUpdated,
+          errors,
+          status: errors.length > 0 ? 'partial' : 'success',
+        }).eq('id', syncLogId);
+      } else {
+        await supabase.from('planner_sync_logs').insert({
+          user_id: userId,
+          plan_mapping_id: planMappingId,
+          direction: mapping.sync_direction,
+          tasks_pushed: tasksPushed,
+          tasks_pulled: tasksPulled,
+          tasks_updated: tasksUpdated,
+          errors,
+          status: errors.length > 0 ? 'partial' : 'success',
+        });
+      }
 
       return new Response(JSON.stringify({
         success: true,
@@ -1075,16 +1112,26 @@ Deno.serve(async (req) => {
         errors.push({ error: syncErr.message });
         
         try {
-          await supabase.from('planner_sync_logs').insert({
-            user_id: userId,
-            plan_mapping_id: planMappingId,
-            direction: 'from_planner',
-            tasks_pushed: tasksPushed,
-            tasks_pulled: tasksPulled,
-            tasks_updated: tasksUpdated,
-            errors,
-            status: 'error',
-          });
+          if (syncLogId) {
+            await supabase.from('planner_sync_logs').update({
+              tasks_pushed: tasksPushed,
+              tasks_pulled: tasksPulled,
+              tasks_updated: tasksUpdated,
+              errors,
+              status: 'error',
+            }).eq('id', syncLogId);
+          } else {
+            await supabase.from('planner_sync_logs').insert({
+              user_id: userId,
+              plan_mapping_id: planMappingId,
+              direction: 'from_planner',
+              tasks_pushed: tasksPushed,
+              tasks_pulled: tasksPulled,
+              tasks_updated: tasksUpdated,
+              errors,
+              status: 'error',
+            });
+          }
         } catch (logErr) {
           console.error('Failed to write sync log:', logErr);
         }
