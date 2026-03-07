@@ -868,7 +868,9 @@ Deno.serve(async (req) => {
                 planner_labels: plannerLabels.length > 0 ? plannerLabels : null,
                 date_demande: pt.createdDateTime ? pt.createdDateTime : new Date().toISOString(),
                 date_lancement: pt.startDateTime ? pt.startDateTime : null,
-                date_fermeture: pt.completedDateTime ? pt.completedDateTime : (status === 'done' ? (pt.completedDateTime || new Date().toISOString()) : null),
+                date_fermeture: pt.completedDateTime
+                  ? pt.completedDateTime
+                  : ((status === 'done' || status === 'validated') ? (pt.createdDateTime || null) : null),
               })
               .select()
               .single();
