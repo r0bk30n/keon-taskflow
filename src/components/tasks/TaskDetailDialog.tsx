@@ -604,11 +604,11 @@ export function TaskDetailDialog({ task, open, onClose, onStatusChange }: TaskDe
               <span className="text-muted-foreground">Date d'ouverture:</span>
               <span>{format(new Date(task.date_demande || task.created_at), 'dd MMMM yyyy', { locale: fr })}</span>
             </div>
-            {(task.status === 'done' || task.status === 'validated') && task.updated_at && (
+            {(task.status === 'done' || task.status === 'validated') && (task.date_fermeture || task.updated_at) && (
               <div className="flex items-center gap-2">
                 <CalendarCheck className="h-4 w-4 text-success" />
                 <span className="text-muted-foreground">Date de fermeture:</span>
-                <span className="text-success">{format(new Date(task.updated_at), 'dd MMMM yyyy', { locale: fr })}</span>
+                <span className="text-success">{format(new Date(task.date_fermeture || task.updated_at), 'dd MMMM yyyy', { locale: fr })}</span>
               </div>
             )}
             <div className="flex items-center gap-2">
