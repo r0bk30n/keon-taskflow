@@ -27,7 +27,11 @@ export interface StandardWorkflowOptions {
 
 export const DEFAULT_STANDARD_OPTIONS: StandardWorkflowOptions = {
   request_validation: true,
+  request_validator_type: 'requester_manager',
+  request_validator_value: null,
   final_validation: false,
+  final_validator_type: 'requester',
+  final_validator_value: null,
   assignment_mode: 'manual',
   manager_resolution: 'contextual',
   fallback_behavior: 'wait_manual',
