@@ -868,7 +868,9 @@ Deno.serve(async (req) => {
                 planner_labels: plannerLabels.length > 0 ? plannerLabels : null,
                 date_demande: pt.createdDateTime ? pt.createdDateTime : new Date().toISOString(),
                 date_lancement: pt.startDateTime ? pt.startDateTime : null,
-                date_fermeture: pt.completedDateTime ? pt.completedDateTime : (status === 'done' ? (pt.completedDateTime || new Date().toISOString()) : null),
+                date_fermeture: pt.completedDateTime
+                  ? pt.completedDateTime
+                  : ((status === 'done' || status === 'validated') ? (pt.createdDateTime || null) : null),
               })
               .select()
               .single();
@@ -962,6 +964,12 @@ Deno.serve(async (req) => {
             // Sync date_fermeture from Planner completedDateTime
             if (plannerTask.completedDateTime && !localTask.date_fermeture) {
               updates.date_fermeture = plannerTask.completedDateTime;
+            }
+
+            // Fallback: if Planner task is completed but completedDateTime is missing,
+            // use imported creation date to avoid false closure spikes on sync date
+            if (!plannerTask.completedDateTime && !localTask.date_fermeture && plannerStatus === 'done' && plannerTask.createdDateTime) {
+              updates.date_fermeture = plannerTask.createdDateTime;
             }
 
             // Update planner labels
