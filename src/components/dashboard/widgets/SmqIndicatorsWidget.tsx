@@ -67,11 +67,6 @@ export function SmqIndicatorsWidget({ tasks }: SmqIndicatorsWidgetProps) {
     const getCloseDate = (t: Task): Date | null => parseTaskDate(t.date_fermeture || t.updated_at);
     const isClosed = (t: Task) => t.status === 'done' || t.status === 'validated';
 
-    // Total tickets opened in the period (using Planner date)
-    const createdInPeriod = tasks.filter(t => {
-      const openDate = getOpenDate(t);
-      return openDate ? isWithinInterval(openDate, interval) : false;
-    });
 
     const closedInPeriod = tasks.filter(t => {
       if (!isClosed(t)) return false;
