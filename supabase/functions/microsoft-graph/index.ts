@@ -669,6 +669,7 @@ Deno.serve(async (req) => {
       let tasksPushed = 0;
       let tasksUpdated = 0;
       const errors: any[] = [];
+      let syncLogId: string | null = null;
 
       try {
 
@@ -682,21 +683,29 @@ Deno.serve(async (req) => {
 
       if (mappingError || !mapping) throw new Error('Plan mapping not found');
 
-      const rawPlannerTasks = await getPlannerTasks(accessToken, mapping.planner_plan_id);
-      
-      // Enrich tasks with details (description/notes)
-      const plannerTasks: any[] = [];
-      for (const task of rawPlannerTasks) {
-        try {
-          const details = await getPlannerTaskDetails(accessToken, task.id);
-          plannerTasks.push({
-            ...task,
-            _description: details.description || '',
-          });
-        } catch {
-          plannerTasks.push({ ...task, _description: '' });
-        }
+      // Create sync log at start so history updates even if sync is interrupted
+      try {
+        const { data: startedLog } = await supabase
+          .from('planner_sync_logs')
+          .insert({
+            user_id: userId,
+            plan_mapping_id: planMappingId,
+            direction: mapping.sync_direction,
+            tasks_pushed: 0,
+            tasks_pulled: 0,
+            tasks_updated: 0,
+            errors: [],
+            status: 'running',
+          })
+          .select('id')
+          .single();
+
+        syncLogId = startedLog?.id ?? null;
+      } catch (logStartErr) {
+        console.error('Failed to create start sync log:', logStartErr);
       }
+
+      const plannerTasks: any[] = await getPlannerTasks(accessToken, mapping.planner_plan_id);
 
       // Get bucket mappings for subcategory resolution
       const { data: bucketMappings } = await supabase
@@ -724,7 +733,19 @@ Deno.serve(async (req) => {
       const linkedPlannerIds = new Set((existingLinks || []).map(l => l.planner_task_id));
       const linkedLocalIds = new Set((existingLinks || []).map(l => l.local_task_id));
 
+      // Prefetch all linked local tasks once to avoid N+1 queries
+      const localTaskIds = [...new Set((existingLinks || []).map(l => l.local_task_id).filter(Boolean))];
+      const localTasksById = new Map<string, any>();
+      if (localTaskIds.length > 0) {
+        const { data: linkedLocalTasks } = await supabase
+          .from('tasks')
+          .select('*')
+          .in('id', localTaskIds);
 
+        for (const localTask of linkedLocalTasks || []) {
+          localTasksById.set(localTask.id, localTask);
+        }
+      }
 
       // Get plan details for label names
       let categoryDescriptions: Record<string, string> = {};
