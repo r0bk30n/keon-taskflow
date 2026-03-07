@@ -965,6 +965,7 @@ Deno.serve(async (req) => {
 
             if (Object.keys(updates).length > 0) {
               await supabase.from('tasks').update(updates).eq('id', link.local_task_id);
+              localTasksById.set(link.local_task_id, { ...localTask, ...updates });
               tasksUpdated++;
             }
 
