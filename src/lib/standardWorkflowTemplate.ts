@@ -10,7 +10,11 @@ export type FallbackBehavior = 'wait_manual' | 'escalate_n2' | 'department_head'
 
 export interface StandardWorkflowOptions {
   request_validation: boolean;
+  request_validator_type: 'requester_manager' | 'specific_user' | 'requester' | 'role' | 'department';
+  request_validator_value: string | null;
   final_validation: boolean;
+  final_validator_type: 'requester' | 'requester_manager' | 'specific_user' | 'role' | 'department';
+  final_validator_value: string | null;
   assignment_mode: 'auto' | 'manual' | 'role' | 'manager';
   manager_resolution: ManagerResolution;
   fallback_behavior: FallbackBehavior;
