@@ -167,11 +167,11 @@ export function TaskCard({ task, onStatusChange, onDelete, compact = false, task
               </span>
             </div>
             {/* Date de fermeture */}
-            {(task.status === 'done' || task.status === 'validated') && task.updated_at && (
+            {(task.status === 'done' || task.status === 'validated') && (task.date_fermeture || task.updated_at) && (
               <div className="flex items-center gap-1 text-success">
                 <CalendarCheck className="w-3.5 h-3.5" />
                 <span>
-                  {new Date(task.updated_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit' })}
+                  {new Date(task.date_fermeture || task.updated_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit' })}
                 </span>
               </div>
             )}

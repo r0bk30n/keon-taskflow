@@ -868,6 +868,7 @@ Deno.serve(async (req) => {
                 planner_labels: plannerLabels.length > 0 ? plannerLabels : null,
                 date_demande: pt.createdDateTime ? pt.createdDateTime : new Date().toISOString(),
                 date_lancement: pt.startDateTime ? pt.startDateTime : null,
+                date_fermeture: pt.completedDateTime ? pt.completedDateTime : (status === 'done' ? (pt.completedDateTime || new Date().toISOString()) : null),
               })
               .select()
               .single();
@@ -956,6 +957,11 @@ Deno.serve(async (req) => {
             // Sync date_lancement from Planner startDateTime
             if (plannerTask.startDateTime && !localTask.date_lancement) {
               updates.date_lancement = plannerTask.startDateTime;
+            }
+
+            // Sync date_fermeture from Planner completedDateTime
+            if (plannerTask.completedDateTime && !localTask.date_fermeture) {
+              updates.date_fermeture = plannerTask.completedDateTime;
             }
 
             // Update planner labels
