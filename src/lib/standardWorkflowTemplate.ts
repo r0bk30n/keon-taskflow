@@ -145,7 +145,7 @@ export function generateStandardStructure(options: StandardWorkflowOptions): Gen
 
     validationConfigs.push({
       name: 'Validation finale', validation_key: 'std_val_final', object_type: 'task',
-      source_step_key: finalValKey, validator_type: 'requester',
+      source_step_key: finalValKey, validator_type: options.final_validator_type,
       on_approved_effect: 'advance_step', on_rejected_effect: 'goto_step',
       on_rejected_target_step_key: execKey, is_active: true, order_index: 1, validation_mode: 'simple',
     });
