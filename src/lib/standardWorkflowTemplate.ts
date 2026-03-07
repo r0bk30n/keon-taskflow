@@ -95,7 +95,7 @@ export function generateStandardStructure(options: StandardWorkflowOptions): Gen
 
     validationConfigs.push({
       name: 'Validation de la demande', validation_key: 'std_val_request', object_type: 'request',
-      source_step_key: valKey, validator_type: valManagerResolution || 'requester_manager',
+      source_step_key: valKey, validator_type: options.request_validator_type,
       on_approved_effect: 'advance_step', on_rejected_effect: 'goto_step',
       is_active: true, order_index: 0, validation_mode: 'simple',
     });
