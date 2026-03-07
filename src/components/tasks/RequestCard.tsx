@@ -500,7 +500,26 @@ export function RequestCard({ request, onClick, progressData, onRequestUpdated }
           </div>
 
           {/* Dates + Cancel button */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-3 shrink-0 flex-wrap">
+            {/* Date d'ouverture */}
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs bg-muted/50 text-muted-foreground">
+              <CalendarClock className="h-3 w-3" />
+              <span className="font-medium">
+                {format(new Date(request.date_demande || request.created_at), 'dd MMM yy', { locale: fr })}
+              </span>
+            </div>
+
+            {/* Date de fermeture */}
+            {(request.status === 'done' || request.status === 'validated') && request.updated_at && (
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs bg-success/10 text-success border border-success/20">
+                <CalendarCheck className="h-3 w-3" />
+                <span className="font-medium">
+                  {format(new Date(request.updated_at), 'dd MMM yy', { locale: fr })}
+                </span>
+              </div>
+            )}
+
+            {/* Échéance */}
             {request.due_date && (
               <div className={cn(
                 "flex items-center gap-1.5 px-2 py-1 rounded-full text-xs",
