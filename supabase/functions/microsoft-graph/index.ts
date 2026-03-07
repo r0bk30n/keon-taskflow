@@ -1082,27 +1082,35 @@ Deno.serve(async (req) => {
       // Update mapping
       await supabase.from('planner_plan_mappings').update({ last_sync_at: new Date().toISOString() }).eq('id', planMappingId);
 
-      // Finalize sync log
-      if (syncLogId) {
-        await supabase.from('planner_sync_logs').update({
-          direction: mapping.sync_direction,
-          tasks_pushed: tasksPushed,
-          tasks_pulled: tasksPulled,
-          tasks_updated: tasksUpdated,
-          errors,
-          status: errors.length > 0 ? 'partial' : 'success',
-        }).eq('id', syncLogId);
-      } else {
-        await supabase.from('planner_sync_logs').insert({
-          user_id: userId,
-          plan_mapping_id: planMappingId,
-          direction: mapping.sync_direction,
-          tasks_pushed: tasksPushed,
-          tasks_pulled: tasksPulled,
-          tasks_updated: tasksUpdated,
-          errors,
-          status: errors.length > 0 ? 'partial' : 'success',
-        });
+      // Finalize sync log - ensure it's always written
+      const finalLogData = {
+        user_id: userId,
+        plan_mapping_id: planMappingId,
+        direction: mapping.sync_direction,
+        tasks_pushed: tasksPushed,
+        tasks_pulled: tasksPulled,
+        tasks_updated: tasksUpdated,
+        errors,
+        status: errors.length > 0 ? 'partial' : 'success',
+      };
+
+      try {
+        if (syncLogId) {
+          const { error: updateErr } = await supabase.from('planner_sync_logs').update(finalLogData).eq('id', syncLogId);
+          if (updateErr) {
+            console.error('Failed to update sync log, inserting new:', updateErr);
+            await supabase.from('planner_sync_logs').insert(finalLogData);
+          }
+        } else {
+          const { error: insertErr } = await supabase.from('planner_sync_logs').insert(finalLogData);
+          if (insertErr) console.error('Failed to insert final sync log:', insertErr);
+        }
+      } catch (logFinalErr) {
+        console.error('Sync log finalization error:', logFinalErr);
+        // Last resort: try one more time
+        try {
+          await supabase.from('planner_sync_logs').insert(finalLogData);
+        } catch (_) { /* give up */ }
       }
 
       return new Response(JSON.stringify({
