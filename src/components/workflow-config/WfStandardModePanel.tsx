@@ -18,6 +18,7 @@ import {
   COMPLETION_BEHAVIOR_OPTIONS,
   MANAGER_RESOLUTION_LABELS,
   FALLBACK_BEHAVIOR_LABELS,
+  VALIDATOR_TYPE_STANDARD_LABELS,
 } from '@/lib/standardWorkflowTemplate';
 import type { StandardWorkflowOptions } from '@/lib/standardWorkflowTemplate';
 import { EXECUTOR_TYPE_LABELS } from '@/types/workflowTaskConfig';
