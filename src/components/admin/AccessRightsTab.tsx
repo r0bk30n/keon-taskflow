@@ -102,6 +102,15 @@ const FEATURE_GROUPS: Array<{
     ],
   },
   {
+    label: "Projets IT",
+    items: [
+      { key: "can_view_it_projects", label: "Voir" },
+      { key: "can_create_it_projects", label: "Créer" },
+      { key: "can_edit_it_projects", label: "Modifier" },
+      { key: "can_delete_it_projects", label: "Supprimer" },
+    ],
+  },
+  {
     label: "Fournisseurs",
     items: [
       { key: "can_view_suppliers", label: "Voir" },
@@ -127,12 +136,17 @@ const DEFAULT_PERMISSIONS: Record<string, boolean> = {
   can_create_be_projects: false,
   can_edit_be_projects: false,
   can_delete_be_projects: false,
+  can_view_it_projects: true,
+  can_create_it_projects: false,
+  can_edit_it_projects: false,
+  can_delete_it_projects: false,
   can_view_suppliers: true,
   can_create_suppliers: false,
   can_edit_suppliers: false,
   can_delete_suppliers: false,
   can_access_dashboard: true,
   can_access_requests: true,
+  can_access_tasks: true,
   can_access_templates: false,
   can_access_workload: true,
   can_access_calendar: true,
@@ -140,6 +154,8 @@ const DEFAULT_PERMISSIONS: Record<string, boolean> = {
   can_access_team: true,
   can_access_suppliers: false,
   can_access_process_tracking: false,
+  can_access_settings: false,
+  can_access_analytics: false,
 };
 
 // ─── Small UI helpers ─────────────────────────────────────────────────────────
