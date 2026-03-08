@@ -78,33 +78,49 @@ export default function ITProjectImportFDR() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
   const [filterHorizon, setFilterHorizon] = useState('all');
+  const [debugInfo, setDebugInfo] = useState<any>(null);
 
   const fetchFDR = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setDebugInfo(null);
     try {
       const response = await fetch(
-        `${FDR_URL}/rest/v1/tasks_future?select=*&is_example=eq.false&order=created_at.desc`,
+        `${FDR_URL}/rest/v1/tasks_future?select=*&order=created_at.desc&limit=100`,
         {
           method: 'GET',
           headers: {
             'apikey': FDR_ANON_KEY,
             'Authorization': `Bearer ${FDR_ANON_KEY}`,
             'Content-Type': 'application/json',
-            'Prefer': 'return=representation'
           }
         }
       );
       
+      const data = await response.json();
+      
+      // Logs détaillés
+      console.log('Status:', response.status);
+      console.log('Data type:', typeof data);
+      console.log('Is array:', Array.isArray(data));
+      console.log('Length:', data?.length);
+      console.log('First item:', JSON.stringify(data?.[0]));
+      
+      // Stockage des infos pour affichage
+      setDebugInfo({
+        status: response.status,
+        isArray: Array.isArray(data),
+        length: data?.length || 0,
+        rawData: data
+      });
+      
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('FDR fetch error:', response.status, errorText);
-        throw new Error(`Erreur ${response.status}: ${errorText}`);
+        const errorMsg = `HTTP ${response.status}`;
+        console.error('FDR fetch error:', errorMsg);
+        throw new Error(errorMsg);
       }
       
-      const data: FDRTask[] = await response.json();
-      console.log('FDR data received:', data.length, 'actions');
-      setRows(data);
+      setRows(data || []);
     } catch (e: any) {
       const errorMsg = e.message || 'Erreur de chargement';
       console.error('FDR Error:', errorMsg);
@@ -276,6 +292,26 @@ export default function ITProjectImportFDR() {
             </Badge>
           </div>
         </div>
+
+        {/* Debug Info */}
+        {debugInfo && (
+          <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg">
+            <h3 className="text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">Infos de diagnostic</h3>
+            <div className="space-y-2 text-xs text-slate-600 dark:text-slate-400 font-mono">
+              <p>Statut HTTP: <span className="font-bold text-slate-900 dark:text-slate-100">{debugInfo.status}</span></p>
+              <p>Est un tableau: <span className="font-bold text-slate-900 dark:text-slate-100">{String(debugInfo.isArray)}</span></p>
+              <p>Nombre d'éléments: <span className="font-bold text-slate-900 dark:text-slate-100">{debugInfo.length}</span></p>
+            </div>
+            {debugInfo.length === 0 && (
+              <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded">
+                <p className="text-xs font-semibold text-amber-800 dark:text-amber-200 mb-2">Réponse brute (vide):</p>
+                <pre className="text-xs overflow-auto max-h-64 text-amber-700 dark:text-amber-300">
+                  {JSON.stringify(debugInfo.rawData, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Table */}
         <div className="flex-1 overflow-auto px-6 pb-6 pt-4">
