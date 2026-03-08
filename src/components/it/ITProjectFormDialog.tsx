@@ -29,7 +29,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
   const [priorite, setPriorite] = useState<ITProjectPriority>('normale');
   const [statut, setStatut] = useState<ITProjectStatus>('backlog');
   const [phaseCourante, setPhaseCourante] = useState<ITProjectPhase>('cadrage');
-  const [dateDebut, setDateDebut] = useState('');
+  
   const [dateFinPrevue, setDateFinPrevue] = useState('');
   const [budgetPrevisionnel, setBudgetPrevisionnel] = useState('');
   const [teamsChannelUrl, setTeamsChannelUrl] = useState('');
@@ -44,7 +44,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
       setPriorite((project.priorite as ITProjectPriority) || 'normale');
       setStatut(project.statut || 'backlog');
       setPhaseCourante((project.phase_courante as ITProjectPhase) || 'cadrage');
-      setDateDebut(project.date_debut || '');
+      
       setDateFinPrevue(project.date_fin_prevue || '');
       setBudgetPrevisionnel(project.budget_previsionnel?.toString() || '');
       setTeamsChannelUrl(project.teams_channel_url || '');
@@ -62,7 +62,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
     setPriorite('normale');
     setStatut('backlog');
     setPhaseCourante('cadrage');
-    setDateDebut('');
+    
     setDateFinPrevue('');
     setBudgetPrevisionnel('');
     setTeamsChannelUrl('');
@@ -81,7 +81,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
       priorite,
       statut,
       phase_courante: phaseCourante,
-      date_debut: dateDebut || null,
+      
       date_fin_prevue: dateFinPrevue || null,
       budget_previsionnel: budgetPrevisionnel ? parseFloat(budgetPrevisionnel) : null,
       teams_channel_url: teamsChannelUrl || null,
@@ -208,15 +208,6 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
           {/* Planning tab */}
           <TabsContent value="planning" className="space-y-4 pt-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="date-debut">Date de début</Label>
-                <Input
-                  id="date-debut"
-                  type="date"
-                  value={dateDebut}
-                  onChange={e => setDateDebut(e.target.value)}
-                />
-              </div>
               <div className="space-y-2">
                 <Label htmlFor="date-fin">Date de fin prévue</Label>
                 <Input
