@@ -413,6 +413,7 @@ export function BERequestDialog({
     setPriority('medium');
     setDueDate('');
     setBeProjectId(null);
+    setItProjectId(null);
     setCodeAffaire('');
     setNumCmdeDivalto('');
     setNumDevisDivalto('');
