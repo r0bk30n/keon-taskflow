@@ -286,9 +286,13 @@ export default function ITProjectImportFDR() {
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center h-64 text-center">
-              <p className="text-destructive font-medium mb-2">Erreur de connexion</p>
-              <p className="text-sm text-muted-foreground mb-4">{error}</p>
-              <Button variant="outline" onClick={fetchFDR}>Réessayer</Button>
+              <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg max-w-md">
+                <p className="text-destructive font-bold mb-2">Erreur de connexion à la FDR</p>
+                <p className="text-sm text-destructive/80 font-mono break-words">{error}</p>
+              </div>
+              <Button variant="outline" onClick={fetchFDR} className="gap-2">
+                <ArrowLeft className="h-4 w-4" /> Réessayer
+              </Button>
             </div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-center">
