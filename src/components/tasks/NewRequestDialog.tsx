@@ -811,6 +811,7 @@ export function NewRequestDialog({ open, onClose, onAdd, onTasksCreated, initial
     setSelectedSubProcessIds([]);
     setHasMultipleSubProcesses(false);
     setBeProjectId(null);
+    setItProjectId(null);
     setProcessImposedValues(false);
     setCustomFieldValues({});
     setFieldErrors({});
