@@ -154,7 +154,7 @@ export function SmqIndicatorsWidget({ tasks }: SmqIndicatorsWidgetProps) {
           .map(t => {
             const closeDate = getCloseDate(t);
             const openDate = getOpenDateForDuration(t);
-            return closeDate && openDate ? differenceInCalendarDays(closeDate, openDate) : null;
+            return closeDate && openDate ? getDurationDays(closeDate, openDate) : null;
           })
           .filter((v): v is number => v !== null);
 
