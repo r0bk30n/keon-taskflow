@@ -126,7 +126,7 @@ export function SmqIndicatorsWidget({ tasks }: SmqIndicatorsWidgetProps) {
 
       // Tickets opened in this bucket (using Planner date)
       const created = tasks.filter(t => {
-        const openDate = getOpenDate(t);
+        const openDate = getOpenDateStrict(t);
         return openDate ? isWithinInterval(openDate, bucketInterval) : false;
       }).length;
 
