@@ -39,6 +39,7 @@ export default function ITProjectHubTasks() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
 
   const filteredTasks = useMemo(() => {
     return tasks.filter(t => {
