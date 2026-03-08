@@ -627,6 +627,7 @@ export function NewRequestDialog({ open, onClose, onAdd, onTasksCreated, initial
           source_sub_process_template_id: linkedSubProcessId,
           be_project_id: beProjectId,
           it_project_id: itProjectId,
+          it_project_phase: itProjectPhase,
           // Request validation fields
           request_validation_enabled: hasRequestValidation,
           request_validation_status: requestValidationStatus,
