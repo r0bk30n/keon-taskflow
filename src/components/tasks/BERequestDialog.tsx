@@ -307,7 +307,8 @@ export function BERequestDialog({
           requester_id: currentUser?.id || null,
           target_department_id: targetDepartmentId,
           source_process_template_id: beProcessId,
-          be_project_id: beProjectId,
+           be_project_id: beProjectId,
+           it_project_id: itProjectId,
         })
         .select()
         .single();
