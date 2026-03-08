@@ -1028,6 +1028,19 @@ export function NewRequestDialog({ open, onClose, onAdd, onTasksCreated, initial
                     </div>
                   )}
 
+                  {/* IT Project Selection */}
+                  <div className="space-y-2.5">
+                    <Label className="text-sm font-semibold flex items-center gap-2 text-foreground">
+                      <div className="p-1.5 rounded-lg bg-violet-500/10">
+                        <Monitor className="h-4 w-4 text-violet-600" />
+                      </div>
+                      Projet IT associé
+                    </Label>
+                    <ITProjectSelect
+                      value={itProjectId}
+                      onChange={setItProjectId}
+                    />
+
                   {/* Process Info Banner */}
                   {(linkedProcessId || linkedSubProcessId) && !hasMultipleSubProcesses && (
                     <div className="rounded-2xl border-2 border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-accent/5 p-5 relative overflow-hidden">
