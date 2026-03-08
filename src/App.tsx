@@ -43,6 +43,8 @@ import ITProjectHubOverview from "./pages/it/ITProjectHubOverview";
 import ITProjectHubTasks from "./pages/it/ITProjectHubTasks";
 import ITProjectHubTimeline from "./pages/it/ITProjectHubTimeline";
 import ITProjectHubSync from "./pages/it/ITProjectHubSync";
+import ITProjectHubDiscussions from "./pages/it/ITProjectHubDiscussions";
+import ITProjectHubFiles from "./pages/it/ITProjectHubFiles";
 
 const queryClient = new QueryClient();
 
