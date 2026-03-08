@@ -203,17 +203,6 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Avancement global ({progress}%)</Label>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={progress}
-                onChange={e => setProgress(e.target.value)}
-                className="w-full accent-violet-600"
-              />
-            </div>
           </TabsContent>
 
           {/* Planning tab */}
