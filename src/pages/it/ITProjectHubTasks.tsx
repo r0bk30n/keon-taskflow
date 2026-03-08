@@ -205,6 +205,11 @@ export default function ITProjectHubTasks() {
             </CardContent>
           </Card>
         </div>
+        <ITLinkExistingTasksDialog
+          open={linkDialogOpen}
+          onOpenChange={setLinkDialogOpen}
+          projectId={project.id}
+        />
       </div>
     </Layout>
   );
