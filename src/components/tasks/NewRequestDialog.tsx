@@ -1040,6 +1040,7 @@ export function NewRequestDialog({ open, onClose, onAdd, onTasksCreated, initial
                       value={itProjectId}
                       onChange={setItProjectId}
                     />
+                  </div>
 
                   {/* Process Info Banner */}
                   {(linkedProcessId || linkedSubProcessId) && !hasMultipleSubProcesses && (
