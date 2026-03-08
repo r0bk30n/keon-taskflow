@@ -78,6 +78,7 @@ export default function ITProjectImportFDR() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
   const [filterHorizon, setFilterHorizon] = useState('all');
+  const [debugInfo, setDebugInfo] = useState<any>(null);
 
   const fetchFDR = useCallback(async () => {
     setLoading(true);
