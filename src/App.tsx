@@ -39,6 +39,7 @@ import BEProjectHubQuestionnaire from "./pages/be/BEProjectHubQuestionnaire";
 
 // IT Project Hub pages
 import ITProjects from "./pages/it/ITProjects";
+import ITProjectImportFDR from "./pages/it/ITProjectImportFDR";
 import ITProjectHubOverview from "./pages/it/ITProjectHubOverview";
 import ITProjectHubTasks from "./pages/it/ITProjectHubTasks";
 import ITProjectHubTimeline from "./pages/it/ITProjectHubTimeline";
@@ -237,6 +238,7 @@ const App = () => (
             />
               {/* IT Projects routes */}
               <Route path="/it/projects" element={<ProtectedRoute><ITProjects /></ProtectedRoute>} />
+              <Route path="/it/projects/import-fdr" element={<ProtectedRoute><ITProjectImportFDR /></ProtectedRoute>} />
               <Route path="/it/projects/:code/overview" element={<ProtectedRoute><ITProjectHubOverview /></ProtectedRoute>} />
               <Route path="/it/projects/:code/tasks" element={<ProtectedRoute><ITProjectHubTasks /></ProtectedRoute>} />
               <Route path="/it/projects/:code/timeline" element={<ProtectedRoute><ITProjectHubTimeline /></ProtectedRoute>} />

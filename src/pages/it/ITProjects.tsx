@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Plus, Search, Monitor, Calendar, Users, TrendingUp, ArrowRight, MessageSquareText, Link2, LayoutGrid, List } from 'lucide-react';
+import { Plus, Search, Monitor, Calendar, Users, TrendingUp, ArrowRight, MessageSquareText, Link2, LayoutGrid, List, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -46,9 +46,14 @@ export default function ITProjects() {
                 Suivi des projets digitaux — Code Projet Digital NSK_IT-XXXXX
               </p>
             </div>
-            <Button onClick={() => setShowCreate(true)} className="gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 shadow-lg shadow-violet-500/25">
-              <Plus className="h-4 w-4" /> Nouveau projet IT
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => navigate('/it/projects/import-fdr')} className="gap-2">
+                <Download className="h-4 w-4" /> Importer depuis FDR
+              </Button>
+              <Button onClick={() => setShowCreate(true)} className="gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 shadow-lg shadow-violet-500/25">
+                <Plus className="h-4 w-4" /> Nouveau projet IT
+              </Button>
+            </div>
           </div>
 
           {/* Stats */}
