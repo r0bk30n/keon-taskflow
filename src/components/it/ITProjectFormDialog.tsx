@@ -8,7 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ITProject, ITProjectStatus, ITProjectType, ITProjectPriority, ITProjectPhase, IT_PROJECT_PHASES } from '@/types/itProject';
 import { useITProjects } from '@/hooks/useITProjects';
+import { supabase } from '@/integrations/supabase/client';
 import { Monitor, Users, Calendar, Euro, Link2, MessageSquareText, Loader2 } from 'lucide-react';
+
+const NONE = '__none__';
 
 interface ITProjectFormDialogProps {
   open: boolean;
@@ -34,7 +37,29 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
   const [budgetPrevisionnel, setBudgetPrevisionnel] = useState('');
   const [teamsChannelUrl, setTeamsChannelUrl] = useState('');
   const [loopWorkspaceUrl, setLoopWorkspaceUrl] = useState('');
-  
+
+  // Équipe
+  const [entiteId, setEntiteId] = useState(NONE);
+  const [chefProjetMetierId, setChefProjetMetierId] = useState(NONE);
+  const [chefProjetItId, setChefProjetItId] = useState(NONE);
+
+  // Lookup data
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+  const [allProfiles, setAllProfiles] = useState<{ id: string; display_name: string; department_id: string | null }[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    supabase.from('departments').select('id, name').order('name').then(({ data }) => {
+      setDepartments(data || []);
+    });
+    supabase.from('profiles').select('id, display_name, department_id').order('display_name').then(({ data }) => {
+      setAllProfiles(data || []);
+    });
+  }, [open]);
+
+  const filteredMetierProfiles = entiteId !== NONE
+    ? allProfiles.filter(p => p.department_id === entiteId)
+    : allProfiles;
 
   useEffect(() => {
     if (project) {
@@ -44,12 +69,13 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
       setPriorite((project.priorite as ITProjectPriority) || 'normale');
       setStatut(project.statut || 'backlog');
       setPhaseCourante((project.phase_courante as ITProjectPhase) || 'cadrage');
-      
       setDateFinPrevue(project.date_fin_prevue || '');
       setBudgetPrevisionnel(project.budget_previsionnel?.toString() || '');
       setTeamsChannelUrl(project.teams_channel_url || '');
       setLoopWorkspaceUrl(project.loop_workspace_url || '');
-      
+      setEntiteId(project.entite_id || NONE);
+      setChefProjetMetierId(project.chef_projet_metier_id || NONE);
+      setChefProjetItId(project.chef_projet_it_id || NONE);
     } else {
       resetForm();
     }
@@ -62,12 +88,13 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
     setPriorite('normale');
     setStatut('backlog');
     setPhaseCourante('cadrage');
-    
     setDateFinPrevue('');
     setBudgetPrevisionnel('');
     setTeamsChannelUrl('');
     setLoopWorkspaceUrl('');
-    
+    setEntiteId(NONE);
+    setChefProjetMetierId(NONE);
+    setChefProjetItId(NONE);
   };
 
   const handleSubmit = async () => {
@@ -81,12 +108,13 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
       priorite,
       statut,
       phase_courante: phaseCourante,
-      
       date_fin_prevue: dateFinPrevue || null,
       budget_previsionnel: budgetPrevisionnel ? parseFloat(budgetPrevisionnel) : null,
       teams_channel_url: teamsChannelUrl || null,
       loop_workspace_url: loopWorkspaceUrl || null,
-      
+      entite_id: entiteId !== NONE ? entiteId : null,
+      chef_projet_metier_id: chefProjetMetierId !== NONE ? chefProjetMetierId : null,
+      chef_projet_it_id: chefProjetItId !== NONE ? chefProjetItId : null,
     };
 
     if (isEdit && project) {
@@ -111,9 +139,12 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
         </DialogHeader>
 
         <Tabs defaultValue="general" className="mt-2">
-          <TabsList className="grid grid-cols-3 w-full">
+          <TabsList className="grid grid-cols-4 w-full">
             <TabsTrigger value="general" className="text-xs gap-1">
               <Monitor className="h-3.5 w-3.5" /> Général
+            </TabsTrigger>
+            <TabsTrigger value="equipe" className="text-xs gap-1">
+              <Users className="h-3.5 w-3.5" /> Équipe
             </TabsTrigger>
             <TabsTrigger value="planning" className="text-xs gap-1">
               <Calendar className="h-3.5 w-3.5" /> Planning
@@ -127,25 +158,12 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
           <TabsContent value="general" className="space-y-4 pt-4">
             <div className="space-y-2">
               <Label htmlFor="nom">Nom du projet *</Label>
-              <Input
-                id="nom"
-                placeholder="Ex: Refonte portail client, Migration ERP..."
-                value={nomProjet}
-                onChange={e => setNomProjet(e.target.value)}
-              />
+              <Input id="nom" placeholder="Ex: Refonte portail client, Migration ERP..." value={nomProjet} onChange={e => setNomProjet(e.target.value)} />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="desc">Description</Label>
-              <Textarea
-                id="desc"
-                placeholder="Objectifs, contexte, périmètre..."
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                rows={3}
-              />
+              <Textarea id="desc" placeholder="Objectifs, contexte, périmètre..." value={description} onChange={e => setDescription(e.target.value)} rows={3} />
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Type de projet</Label>
@@ -174,7 +192,6 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
                 </Select>
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Statut</Label>
@@ -202,7 +219,49 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
                 </Select>
               </div>
             </div>
+          </TabsContent>
 
+          {/* Équipe tab */}
+          <TabsContent value="equipe" className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">🏢 Entité KEON</Label>
+              <Select value={entiteId} onValueChange={setEntiteId}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner une entité" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>— Aucune —</SelectItem>
+                  {departments.map(d => (
+                    <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">👤 Chef de projet Métier</Label>
+              <Select value={chefProjetMetierId} onValueChange={setChefProjetMetierId}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner un chef de projet métier" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>— Aucun —</SelectItem>
+                  {filteredMetierProfiles.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.display_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {entiteId !== NONE && (
+                <p className="text-xs text-muted-foreground">Filtré sur l'entité sélectionnée</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">💻 Chef de projet IT/Digital</Label>
+              <Select value={chefProjetItId} onValueChange={setChefProjetItId}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner un chef de projet IT" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>— Aucun —</SelectItem>
+                  {allProfiles.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.display_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </TabsContent>
 
           {/* Planning tab */}
@@ -210,26 +269,14 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="date-fin">Date de fin prévue</Label>
-                <Input
-                  id="date-fin"
-                  type="date"
-                  value={dateFinPrevue}
-                  onChange={e => setDateFinPrevue(e.target.value)}
-                />
+                <Input id="date-fin" type="date" value={dateFinPrevue} onChange={e => setDateFinPrevue(e.target.value)} />
               </div>
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="budget" className="flex items-center gap-1.5">
                 <Euro className="h-3.5 w-3.5" /> Budget prévisionnel (€)
               </Label>
-              <Input
-                id="budget"
-                type="number"
-                placeholder="Ex: 50000"
-                value={budgetPrevisionnel}
-                onChange={e => setBudgetPrevisionnel(e.target.value)}
-              />
+              <Input id="budget" type="number" placeholder="Ex: 50000" value={budgetPrevisionnel} onChange={e => setBudgetPrevisionnel(e.target.value)} />
             </div>
           </TabsContent>
 
@@ -237,48 +284,24 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
           <TabsContent value="microsoft" className="space-y-4 pt-4">
             <div className="space-y-2">
               <Label htmlFor="loop-url" className="flex items-center gap-1.5">
-                <Link2 className="h-3.5 w-3.5 text-violet-600" />
-                URL du workspace Loop
+                <Link2 className="h-3.5 w-3.5 text-violet-600" /> URL du workspace Loop
               </Label>
-              <Input
-                id="loop-url"
-                placeholder="https://loop.microsoft.com/p/..."
-                value={loopWorkspaceUrl}
-                onChange={e => setLoopWorkspaceUrl(e.target.value)}
-                className="font-mono text-xs"
-              />
-              <p className="text-xs text-muted-foreground">
-                Loop → Workspace → Partager → Copier le lien
-              </p>
+              <Input id="loop-url" placeholder="https://loop.microsoft.com/p/..." value={loopWorkspaceUrl} onChange={e => setLoopWorkspaceUrl(e.target.value)} className="font-mono text-xs" />
+              <p className="text-xs text-muted-foreground">Loop → Workspace → Partager → Copier le lien</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="teams-url" className="flex items-center gap-1.5">
-                <MessageSquareText className="h-3.5 w-3.5 text-blue-600" />
-                URL du canal Teams
+                <MessageSquareText className="h-3.5 w-3.5 text-blue-600" /> URL du canal Teams
               </Label>
-              <Input
-                id="teams-url"
-                placeholder="https://teams.microsoft.com/l/channel/..."
-                value={teamsChannelUrl}
-                onChange={e => setTeamsChannelUrl(e.target.value)}
-                className="font-mono text-xs"
-              />
-              <p className="text-xs text-muted-foreground">
-                Teams → Clic droit sur le canal → Obtenir le lien
-              </p>
+              <Input id="teams-url" placeholder="https://teams.microsoft.com/l/channel/..." value={teamsChannelUrl} onChange={e => setTeamsChannelUrl(e.target.value)} className="font-mono text-xs" />
+              <p className="text-xs text-muted-foreground">Teams → Clic droit sur le canal → Obtenir le lien</p>
             </div>
           </TabsContent>
         </Tabs>
 
         <div className="flex justify-end gap-2 pt-4 border-t">
-          <Button variant="outline" onClick={onClose} disabled={isSaving}>
-            Annuler
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!nomProjet.trim() || isSaving}
-            className="gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700"
-          >
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>Annuler</Button>
+          <Button onClick={handleSubmit} disabled={!nomProjet.trim() || isSaving} className="gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700">
             {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
             {isEdit ? 'Enregistrer' : 'Créer le projet'}
           </Button>
