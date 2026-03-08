@@ -109,11 +109,17 @@ export default function ITProjectHubTasks() {
           {/* Tasks Table */}
           <Card className="border-border/50">
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <ListTodo className="h-5 w-5 text-muted-foreground" />
-                Tâches & Demandes
-                <Badge variant="secondary" className="ml-2">{filteredTasks.length}</Badge>
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <ListTodo className="h-5 w-5 text-muted-foreground" />
+                  Tâches & Demandes
+                  <Badge variant="secondary" className="ml-2">{filteredTasks.length}</Badge>
+                </CardTitle>
+                <Button variant="outline" size="sm" onClick={() => setLinkDialogOpen(true)}>
+                  <Link2 className="h-4 w-4 mr-1.5" />
+                  Associer des tâches existantes
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="pt-0">
               {filteredTasks.length === 0 ? (
