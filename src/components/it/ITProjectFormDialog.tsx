@@ -62,7 +62,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
     setPriorite('normale');
     setStatut('backlog');
     setPhaseCourante('cadrage');
-    setDateDebut('');
+    
     setDateFinPrevue('');
     setBudgetPrevisionnel('');
     setTeamsChannelUrl('');
