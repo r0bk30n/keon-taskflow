@@ -29,7 +29,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
   const [priorite, setPriorite] = useState<ITProjectPriority>('normale');
   const [statut, setStatut] = useState<ITProjectStatus>('backlog');
   const [phaseCourante, setPhaseCourante] = useState<ITProjectPhase>('cadrage');
-  const [dateDebut, setDateDebut] = useState('');
+  
   const [dateFinPrevue, setDateFinPrevue] = useState('');
   const [budgetPrevisionnel, setBudgetPrevisionnel] = useState('');
   const [teamsChannelUrl, setTeamsChannelUrl] = useState('');
