@@ -63,20 +63,18 @@ export function SmqIndicatorsWidget({ tasks }: SmqIndicatorsWidgetProps) {
       return Number.isNaN(parsed.getTime()) ? null : parsed;
     };
 
-    // IMPORTANT: for Planner-synced tasks, do not fallback to created_at when date_demande is missing
-    // because created_at can reflect sync/import timestamp and inflate monthly "opened" metrics.
-    const getOpenDate = (t: Task): Date | null => {
+    // Strict open date: for counting opened tickets per bucket (no created_at fallback for Planner tasks)
+    const getOpenDateStrict = (t: Task): Date | null => {
       const explicitOpenDate = parseTaskDate(t.date_demande);
       if (explicitOpenDate) return explicitOpenDate;
-
-      // Keep fallback only for non-Planner tasks
-      if (!t.source_process_template_id) {
-        return parseTaskDate(t.created_at);
-      }
-
+      if (!t.source_process_template_id) return parseTaskDate(t.created_at);
       return null;
     };
-    const getCloseDate = (t: Task): Date | null => parseTaskDate(t.date_fermeture || t.updated_at);
+    // Loose open date: for duration calculation (always fallback to created_at)
+    const getOpenDateForDuration = (t: Task): Date | null => {
+      return parseTaskDate(t.date_demande) || parseTaskDate(t.created_at);
+    };
+    const getCloseDate = (t: Task): Date | null => parseTaskDate(t.date_fermeture);
     const isClosed = (t: Task) => t.status === 'done' || t.status === 'validated';
 
 
@@ -91,7 +89,7 @@ export function SmqIndicatorsWidget({ tasks }: SmqIndicatorsWidgetProps) {
       const validDurations = closedInPeriod
         .map(t => {
           const closeDate = getCloseDate(t);
-          const openDate = getOpenDate(t);
+          const openDate = getOpenDateForDuration(t);
           return closeDate && openDate ? differenceInCalendarDays(closeDate, openDate) : null;
         })
         .filter((v): v is number => v !== null);
@@ -128,7 +126,7 @@ export function SmqIndicatorsWidget({ tasks }: SmqIndicatorsWidgetProps) {
 
       // Tickets opened in this bucket (using Planner date)
       const created = tasks.filter(t => {
-        const openDate = getOpenDate(t);
+        const openDate = getOpenDateStrict(t);
         return openDate ? isWithinInterval(openDate, bucketInterval) : false;
       }).length;
 
@@ -144,7 +142,7 @@ export function SmqIndicatorsWidget({ tasks }: SmqIndicatorsWidgetProps) {
         const durations = closedBucket
           .map(t => {
             const closeDate = getCloseDate(t);
-            const openDate = getOpenDate(t);
+            const openDate = getOpenDateForDuration(t);
             return closeDate && openDate ? differenceInCalendarDays(closeDate, openDate) : null;
           })
           .filter((v): v is number => v !== null);
