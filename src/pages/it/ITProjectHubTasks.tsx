@@ -9,11 +9,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Search, ListTodo, Filter } from 'lucide-react';
+import { Search, ListTodo, Link2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Task, TaskStatus } from '@/types/task';
+import { ITLinkExistingTasksDialog } from '@/components/it/ITLinkExistingTasksDialog';
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   'to_assign': { label: 'À assigner', className: 'bg-slate-500/10 text-slate-600 border-slate-500/20' },
