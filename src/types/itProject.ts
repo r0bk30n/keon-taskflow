@@ -43,6 +43,9 @@ export interface ITProject {
   responsable_it_id?: string | null;
   chef_projet_id?: string | null;
   sponsor_id?: string | null;
+  entite_id?: string | null;
+  chef_projet_metier_id?: string | null;
+  chef_projet_it_id?: string | null;
   membres_ids?: string[];
 
   // Dates
@@ -72,6 +75,9 @@ export interface ITProject {
   responsable_it?: { id: string; display_name: string; avatar_url?: string | null } | null;
   chef_projet?: { id: string; display_name: string; avatar_url?: string | null } | null;
   sponsor?: { id: string; display_name: string; avatar_url?: string | null } | null;
+  entite?: { id: string; name: string } | null;
+  chef_projet_metier?: { id: string; display_name: string; avatar_url?: string | null } | null;
+  chef_projet_it?: { id: string; display_name: string; avatar_url?: string | null } | null;
 }
 
 export interface ITProjectMilestone {

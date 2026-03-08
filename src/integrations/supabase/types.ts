@@ -1453,6 +1453,8 @@ export type Database = {
           budget_consomme: number | null
           budget_previsionnel: number | null
           chef_projet_id: string | null
+          chef_projet_it_id: string | null
+          chef_projet_metier_id: string | null
           code_projet_digital: string
           created_at: string
           created_by: string | null
@@ -1460,6 +1462,7 @@ export type Database = {
           date_fin_prevue: string | null
           date_fin_reelle: string | null
           description: string | null
+          entite_id: string | null
           id: string
           loop_workspace_id: string | null
           loop_workspace_url: string | null
@@ -1480,6 +1483,8 @@ export type Database = {
           budget_consomme?: number | null
           budget_previsionnel?: number | null
           chef_projet_id?: string | null
+          chef_projet_it_id?: string | null
+          chef_projet_metier_id?: string | null
           code_projet_digital: string
           created_at?: string
           created_by?: string | null
@@ -1487,6 +1492,7 @@ export type Database = {
           date_fin_prevue?: string | null
           date_fin_reelle?: string | null
           description?: string | null
+          entite_id?: string | null
           id?: string
           loop_workspace_id?: string | null
           loop_workspace_url?: string | null
@@ -1507,6 +1513,8 @@ export type Database = {
           budget_consomme?: number | null
           budget_previsionnel?: number | null
           chef_projet_id?: string | null
+          chef_projet_it_id?: string | null
+          chef_projet_metier_id?: string | null
           code_projet_digital?: string
           created_at?: string
           created_by?: string | null
@@ -1514,6 +1522,7 @@ export type Database = {
           date_fin_prevue?: string | null
           date_fin_reelle?: string | null
           description?: string | null
+          entite_id?: string | null
           id?: string
           loop_workspace_id?: string | null
           loop_workspace_url?: string | null
@@ -1539,10 +1548,31 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "it_projects_chef_projet_it_id_fkey"
+            columns: ["chef_projet_it_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "it_projects_chef_projet_metier_id_fkey"
+            columns: ["chef_projet_metier_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "it_projects_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "it_projects_entite_id_fkey"
+            columns: ["entite_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
             referencedColumns: ["id"]
           },
           {
