@@ -76,6 +76,13 @@ export function SmqIndicatorsWidget({ tasks }: SmqIndicatorsWidgetProps) {
     };
     const getCloseDate = (t: Task): Date | null => parseTaskDate(t.date_fermeture);
     const isClosed = (t: Task) => t.status === 'done' || t.status === 'validated';
+    const isImportedHistoricalClosure = (t: Task): boolean => {
+      if (!t.source_process_template_id || t.date_demande) return false;
+      const closeDate = getCloseDate(t);
+      const createdDate = parseTaskDate(t.created_at);
+      if (!closeDate || !createdDate) return false;
+      return closeDate.toDateString() === createdDate.toDateString();
+    };
 
 
     const closedInPeriod = tasks.filter(t => {
