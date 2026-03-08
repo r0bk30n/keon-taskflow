@@ -67,7 +67,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
     setBudgetPrevisionnel('');
     setTeamsChannelUrl('');
     setLoopWorkspaceUrl('');
-    setProgress('0');
+    
   };
 
   const handleSubmit = async () => {
