@@ -44,7 +44,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
       setPriorite((project.priorite as ITProjectPriority) || 'normale');
       setStatut(project.statut || 'backlog');
       setPhaseCourante((project.phase_courante as ITProjectPhase) || 'cadrage');
-      setDateDebut(project.date_debut || '');
+      
       setDateFinPrevue(project.date_fin_prevue || '');
       setBudgetPrevisionnel(project.budget_previsionnel?.toString() || '');
       setTeamsChannelUrl(project.teams_channel_url || '');
