@@ -51,13 +51,6 @@ export default function ITProjectHubOverview() {
   const typeConfig = project.type_projet ? IT_PROJECT_TYPE_CONFIG[project.type_projet] : null;
   const currentPhaseIndex = IT_PROJECT_PHASES.findIndex(p => p.value === project.phase_courante);
 
-  // Task breakdown by status
-  const tasksByStatus = {
-    todo: tasks.filter(t => ['todo', 'pending', 'new'].includes(t.status)).length,
-    in_progress: tasks.filter(t => ['in_progress', 'review'].includes(t.status)).length,
-    done: tasks.filter(t => ['done', 'validated', 'closed'].includes(t.status)).length,
-  };
-
   return (
     <Layout>
       <div className="flex flex-col h-full">
@@ -72,7 +65,7 @@ export default function ITProjectHubOverview() {
             {/* Column 1 & 2: Main content */}
             <div className="lg:col-span-2 space-y-6">
 
-              {/* Phase Progress */}
+              {/* Phase Stepper Dashboard */}
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -81,37 +74,104 @@ export default function ITProjectHubOverview() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center gap-1">
+                  <div className="space-y-0">
                     {IT_PROJECT_PHASES.map((phase, idx) => {
-                      const isDone = idx < currentPhaseIndex;
-                      const isCurrent = idx === currentPhaseIndex;
+                      const milestone = milestones.find(m => m.phase === phase.value);
+                      const phaseTasks = tasks.filter(t => t.it_project_phase === phase.value);
+                      const totalPhase = phaseTasks.length;
+                      const donePhase = phaseTasks.filter(t => ['done', 'validated', 'closed'].includes(t.status)).length;
+                      const phaseProgress = totalPhase > 0 ? Math.round((donePhase / totalPhase) * 100) : 0;
+                      const isCurrent = phase.value === project.phase_courante;
+                      const isDone = currentPhaseIndex >= 0 && idx < currentPhaseIndex;
+                      const todayDate = new Date(); todayDate.setHours(0, 0, 0, 0);
+                      const hasOverdue = phaseTasks.some(t => {
+                        if (!t.due_date) return false;
+                        if (['done', 'validated', 'closed', 'cancelled'].includes(t.status)) return false;
+                        return new Date(t.due_date) < todayDate;
+                      });
+
+                      let indicator = '⬜';
+                      if (totalPhase > 0 && donePhase === totalPhase) indicator = '✅';
+                      else if (hasOverdue) indicator = '⚠️';
+                      else if (donePhase > 0 || isCurrent) indicator = '🔵';
+
+                      const milestoneStatusMap: Record<string, { text: string; variant: 'default' | 'info' | 'success' | 'destructive' }> = {
+                        a_venir: { text: 'À venir', variant: 'default' },
+                        en_cours: { text: 'En cours', variant: 'info' },
+                        termine: { text: 'Terminé', variant: 'success' },
+                        retarde: { text: 'En retard', variant: 'destructive' },
+                      };
+                      const mStatus = milestone ? milestoneStatusMap[milestone.statut] || milestoneStatusMap.a_venir : null;
+
                       return (
-                        <div key={phase.value} className="flex items-center flex-1">
-                          <div className={cn(
-                            'flex-1 flex flex-col items-center gap-1',
-                          )}>
+                        <div key={phase.value} className="flex gap-3">
+                          <div className="flex flex-col items-center">
                             <div className={cn(
-                              'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all',
+                              'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 flex-shrink-0 z-10',
                               isDone && 'bg-violet-600 border-violet-600 text-white',
                               isCurrent && 'bg-white border-violet-600 text-violet-600 ring-2 ring-violet-200',
                               !isDone && !isCurrent && 'bg-muted border-border text-muted-foreground'
                             )}>
                               {isDone ? <CheckCircle2 className="h-4 w-4" /> : phase.order}
                             </div>
-                            <span className={cn(
-                              'text-[9px] text-center leading-tight',
-                              isCurrent && 'text-violet-600 font-semibold',
-                              !isDone && !isCurrent && 'text-muted-foreground'
-                            )}>
-                              {phase.label.split(' /')[0]}
-                            </span>
+                            {idx < IT_PROJECT_PHASES.length - 1 && (
+                              <div className={cn(
+                                'w-0.5 flex-1 min-h-[24px]',
+                                idx < currentPhaseIndex ? 'bg-violet-600' : 'bg-border'
+                              )} />
+                            )}
                           </div>
-                          {idx < IT_PROJECT_PHASES.length - 1 && (
-                            <div className={cn(
-                              'h-0.5 flex-grow mb-5',
-                              idx < currentPhaseIndex ? 'bg-violet-600' : 'bg-border'
-                            )} />
-                          )}
+
+                          <div className={cn(
+                            'flex-1 pb-5 rounded-lg',
+                            isCurrent && 'bg-violet-50/50 dark:bg-violet-950/20 -mx-2 px-3 py-2 border border-violet-200/50'
+                          )}>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm">{indicator}</span>
+                              <span className={cn(
+                                'text-sm font-medium',
+                                isCurrent && 'text-violet-700 dark:text-violet-400'
+                              )}>
+                                {phase.label}
+                              </span>
+                              {mStatus && (
+                                <Badge variant={mStatus.variant} className="text-[10px] px-1.5 py-0">
+                                  {mStatus.text}
+                                </Badge>
+                              )}
+                            </div>
+
+                            {milestone && (
+                              <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                                <Flag className="h-3 w-3" />
+                                {milestone.titre}
+                                {milestone.date_prevue && (
+                                  <span className="ml-1">
+                                    — {format(new Date(milestone.date_prevue), 'dd MMM yyyy', { locale: fr })}
+                                  </span>
+                                )}
+                              </p>
+                            )}
+
+                            {totalPhase > 0 ? (
+                              <div className="mt-2 space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <Progress value={phaseProgress} className="h-1.5 flex-1 bg-muted" />
+                                  <span className="text-[10px] font-medium text-muted-foreground w-16 text-right">
+                                    {donePhase}/{totalPhase} ({phaseProgress}%)
+                                  </span>
+                                </div>
+                                {hasOverdue && (
+                                  <p className="text-[10px] text-destructive flex items-center gap-1">
+                                    <AlertTriangle className="h-3 w-3" />
+                                    Tâches en retard
+                                  </p>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-[10px] text-muted-foreground mt-1">Aucune tâche</p>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -128,7 +188,6 @@ export default function ITProjectHubOverview() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Progress bar */}
                   <div>
                     <div className="flex justify-between mb-1.5">
                       <span className="text-sm text-muted-foreground">Avancement global</span>
@@ -137,23 +196,21 @@ export default function ITProjectHubOverview() {
                     <Progress value={stats.progress} className="h-3 bg-muted" />
                   </div>
 
-                  {/* Task breakdown */}
                   <div className="grid grid-cols-3 gap-3">
                     <div className="text-center p-3 rounded-xl bg-slate-50 dark:bg-slate-950/30 border">
-                      <p className="text-xl font-bold">{tasksByStatus.todo}</p>
+                      <p className="text-xl font-bold">{stats.openTasks}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">À faire</p>
                     </div>
                     <div className="text-center p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-100">
-                      <p className="text-xl font-bold text-blue-600">{tasksByStatus.in_progress}</p>
+                      <p className="text-xl font-bold text-blue-600">{stats.totalTasks - stats.openTasks - stats.doneTasks}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">En cours</p>
                     </div>
                     <div className="text-center p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100">
-                      <p className="text-xl font-bold text-emerald-600">{tasksByStatus.done}</p>
+                      <p className="text-xl font-bold text-emerald-600">{stats.doneTasks}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">Terminées</p>
                     </div>
                   </div>
 
-                  {/* Budget if set */}
                   {project.budget_previsionnel && (
                     <div className="pt-2 border-t">
                       <div className="flex justify-between mb-1.5">
@@ -175,37 +232,6 @@ export default function ITProjectHubOverview() {
                   )}
                 </CardContent>
               </Card>
-
-              {/* Milestones */}
-              {milestones.length > 0 && (
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                      <Flag className="h-4 w-4 text-violet-600" />
-                      Jalons
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {milestones.slice(0, 5).map(m => (
-                      <div key={m.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
-                        <div className={cn(
-                          'w-2 h-2 rounded-full flex-shrink-0',
-                          m.statut === 'termine' && 'bg-emerald-500',
-                          m.statut === 'en_cours' && 'bg-blue-500',
-                          m.statut === 'retarde' && 'bg-red-500',
-                          m.statut === 'a_venir' && 'bg-slate-300',
-                        )} />
-                        <span className="text-sm flex-1">{m.titre}</span>
-                        {m.date_prevue && (
-                          <span className="text-xs text-muted-foreground">
-                            {format(new Date(m.date_prevue), 'dd MMM', { locale: fr })}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              )}
             </div>
 
             {/* Column 3: Sidebar */}
