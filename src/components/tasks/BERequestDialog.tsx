@@ -99,6 +99,7 @@ export function BERequestDialog({
   const [dueDate, setDueDate] = useState('');
   const [beProjectId, setBeProjectId] = useState<string | null>(null);
   const [itProjectId, setItProjectId] = useState<string | null>(null);
+  const [itProjectPhase, setItProjectPhase] = useState<string | null>(null);
 
   // Form state - Détails BE
   const [codeAffaire, setCodeAffaire] = useState('');
