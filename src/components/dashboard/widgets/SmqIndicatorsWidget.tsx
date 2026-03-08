@@ -63,12 +63,16 @@ export function SmqIndicatorsWidget({ tasks }: SmqIndicatorsWidgetProps) {
       return Number.isNaN(parsed.getTime()) ? null : parsed;
     };
 
-    // For open date: use date_demande first, then created_at for non-Planner tasks
-    const getOpenDate = (t: Task): Date | null => {
+    // Strict open date: for counting opened tickets per bucket (no created_at fallback for Planner tasks)
+    const getOpenDateStrict = (t: Task): Date | null => {
       const explicitOpenDate = parseTaskDate(t.date_demande);
       if (explicitOpenDate) return explicitOpenDate;
-      // Fallback to created_at for all tasks to ensure duration can be calculated
-      return parseTaskDate(t.created_at);
+      if (!t.source_process_template_id) return parseTaskDate(t.created_at);
+      return null;
+    };
+    // Loose open date: for duration calculation (always fallback to created_at)
+    const getOpenDateForDuration = (t: Task): Date | null => {
+      return parseTaskDate(t.date_demande) || parseTaskDate(t.created_at);
     };
     const getCloseDate = (t: Task): Date | null => parseTaskDate(t.date_fermeture);
     const isClosed = (t: Task) => t.status === 'done' || t.status === 'validated';
