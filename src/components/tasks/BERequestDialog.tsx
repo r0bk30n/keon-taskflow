@@ -545,8 +545,14 @@ export function BERequestDialog({
                     <Monitor className="h-3.5 w-3.5 text-violet-600" />
                     Projet IT associé
                   </Label>
-                  <ITProjectSelect value={itProjectId} onChange={setItProjectId} />
+                  <ITProjectSelect value={itProjectId} onChange={(v) => { setItProjectId(v); if (!v) setItProjectPhase(null); }} />
                 </div>
+                {itProjectId && (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1.5">Phase du projet IT</Label>
+                    <ITProjectPhaseSelect value={itProjectPhase} onChange={setItProjectPhase} />
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label>Priorité</Label>
