@@ -86,7 +86,7 @@ export function SmqIndicatorsWidget({ tasks }: SmqIndicatorsWidgetProps) {
 
 
     const closedInPeriod = tasks.filter(t => {
-      if (!isClosed(t)) return false;
+      if (!isClosed(t) || isImportedHistoricalClosure(t)) return false;
       const closeDate = getCloseDate(t);
       return closeDate ? isWithinInterval(closeDate, interval) : false;
     });
