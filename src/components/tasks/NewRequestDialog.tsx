@@ -125,6 +125,7 @@ export function NewRequestDialog({ open, onClose, onAdd, onTasksCreated, initial
   const [materialLines, setMaterialLines] = useState<MaterialLine[]>([]);
   const [commonFieldsConfig, setCommonFieldsConfig] = useState<CommonFieldsConfig | null>(null);
   const [articleFilterConfig, setArticleFilterConfig] = useState<ArticleFilterConfig | undefined>();
+  const [subprocessSelectionMode, setSubprocessSelectionMode] = useState<'multiple' | 'single'>('multiple');
 
   // Fetch custom fields for the process
   const { fields: processFields, isLoading: loadingProcessFields } = useCustomFields({
