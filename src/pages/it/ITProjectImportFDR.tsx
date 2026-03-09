@@ -180,6 +180,11 @@ export default function ITProjectImportFDR() {
         date_debut: row.start_date || null,
         date_fin_prevue: row.end_date || null,
         phase_courante: 'cadrage',
+        pilier: (row as any).pilier_id || null,
+        fdr_priorite: row.priority || null,
+        fdr_type: row.type || null,
+        fdr_description: row.description || null,
+        fdr_commentaires: (row as any).comments || null,
       } as any);
 
       if (!error) {

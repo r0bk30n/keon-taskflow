@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useITProjects } from '@/hooks/useITProjects';
-import { ITProject, ITProjectStatus, IT_PROJECT_STATUS_CONFIG, IT_PROJECT_TYPE_CONFIG, IT_PROJECT_PHASES } from '@/types/itProject';
+import { ITProject, ITProjectStatus, ITProjectPilier, IT_PROJECT_STATUS_CONFIG, IT_PROJECT_TYPE_CONFIG, IT_PROJECT_PHASES, IT_PROJECT_PILIER_CONFIG } from '@/types/itProject';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import {
   Plus, Monitor, Search, Download, Save, RotateCcw, Filter,
-  FolderKanban, AlertTriangle, TrendingUp, ArrowUpDown, ChevronRight
+  FolderKanban, AlertTriangle, TrendingUp, ArrowUpDown, ChevronRight, Target
 } from 'lucide-react';
 import { format, subMonths, startOfMonth, startOfYear, isAfter } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -35,6 +35,7 @@ interface Filters {
   responsableItId: string;
   statut: string;
   progress: ProgressFilter;
+  pilier: string;
 }
 
 const DEFAULT_FILTERS: Filters = {
@@ -43,6 +44,7 @@ const DEFAULT_FILTERS: Filters = {
   responsableItId: NONE,
   statut: 'all',
   progress: 'all',
+  pilier: 'all',
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -55,6 +57,14 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const TYPE_COLORS = ['#8b5cf6', '#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#94a3b8'];
+
+const PILIER_COLORS: Record<string, string> = {
+  P1: '#3b82f6',
+  P2: '#8b5cf6',
+  P3: '#f59e0b',
+  P4: '#ef4444',
+  P5: '#10b981',
+};
 
 type SortKey = 'code_projet_digital' | 'nom_projet' | 'type_projet' | 'statut' | 'phase_courante' | 'progress' | 'date_fin_prevue';
 
@@ -116,6 +126,7 @@ export default function ITProjects() {
       if (filters.entiteId !== NONE && (p as any).entite?.company_id !== filters.entiteId) return false;
       if (filters.responsableItId !== NONE && p.chef_projet_it_id !== filters.responsableItId) return false;
       if (filters.statut !== 'all' && p.statut !== filters.statut) return false;
+      if (filters.pilier !== 'all' && p.pilier !== filters.pilier) return false;
       // Progress
       const prog = p.progress || 0;
       switch (filters.progress) {
@@ -178,6 +189,17 @@ export default function ITProjects() {
     filtered.forEach(p => { const t = p.type_projet || 'autre'; counts[t] = (counts[t] || 0) + 1; });
     return Object.entries(IT_PROJECT_TYPE_CONFIG).map(([key, cfg]) => ({
       name: cfg.label, value: counts[key] || 0,
+    })).filter(d => d.value > 0);
+  }, [filtered]);
+
+  // Chart: par pilier
+  const pilierChartData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filtered.forEach(p => { if (p.pilier) counts[p.pilier] = (counts[p.pilier] || 0) + 1; });
+    return (Object.entries(IT_PROJECT_PILIER_CONFIG) as [string, typeof IT_PROJECT_PILIER_CONFIG['P1']][]).map(([key, cfg]) => ({
+      name: `${key} — ${cfg.label}`,
+      value: counts[key] || 0,
+      fill: PILIER_COLORS[key] || '#94a3b8',
     })).filter(d => d.value > 0);
   }, [filtered]);
 
@@ -258,6 +280,15 @@ export default function ITProjects() {
                   ))}
                 </SelectContent>
               </Select>
+              <Select value={filters.pilier} onValueChange={v => setFilter('pilier', v)}>
+                <SelectTrigger className="h-8 text-xs w-[130px]"><SelectValue placeholder="Pilier" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous piliers</SelectItem>
+                  {(Object.entries(IT_PROJECT_PILIER_CONFIG) as [string, typeof IT_PROJECT_PILIER_CONFIG['P1']][]).map(([k, cfg]) => (
+                    <SelectItem key={k} value={k}>{k} — {cfg.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Select value={filters.progress} onValueChange={v => setFilter('progress', v as ProgressFilter)}>
                 <SelectTrigger className="h-8 text-xs w-[130px]"><SelectValue placeholder="Avancement" /></SelectTrigger>
                 <SelectContent>
@@ -313,7 +344,7 @@ export default function ITProjects() {
               </div>
 
               {/* Charts row */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
                 {/* Par statut */}
                 <Card>
                   <CardHeader className="pb-2">
@@ -356,6 +387,34 @@ export default function ITProjects() {
                           <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))' }} />
                         </PieChart>
                       </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Par pilier (Donut) */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+                      <Target className="h-4 w-4 text-violet-600" /> Par pilier
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[200px]">
+                      {pilierChartData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie data={pilierChartData} cx="50%" cy="50%" innerRadius={45} outerRadius={75} dataKey="value" paddingAngle={2}
+                              label={({ name, percent }) => percent > 0.05 ? `${name.split(' — ')[0]} (${Math.round(percent * 100)}%)` : ''}>
+                              {pilierChartData.map((entry, i) => (
+                                <Cell key={i} fill={entry.fill} />
+                              ))}
+                            </Pie>
+                            <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))' }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-xs text-muted-foreground">Aucun pilier renseigné</div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -412,6 +471,7 @@ export default function ITProjects() {
                               </span>
                             </th>
                           ))}
+                          <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">Pilier</th>
                           <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">Chef IT</th>
                           <th className="w-8" />
                         </tr>
@@ -420,6 +480,7 @@ export default function ITProjects() {
                         {sorted.map(p => {
                           const sc = IT_PROJECT_STATUS_CONFIG[p.statut] || IT_PROJECT_STATUS_CONFIG.backlog;
                           const tc = p.type_projet ? IT_PROJECT_TYPE_CONFIG[p.type_projet] : null;
+                          const pc = p.pilier ? IT_PROJECT_PILIER_CONFIG[p.pilier as ITProjectPilier] : null;
                           const today = new Date(); today.setHours(0, 0, 0, 0);
                           const isLate = p.date_fin_prevue && !['deploye', 'cloture'].includes(p.statut) && new Date(p.date_fin_prevue) < today;
                           return (
@@ -447,6 +508,13 @@ export default function ITProjects() {
                                 {p.date_fin_prevue ? format(new Date(p.date_fin_prevue), 'dd/MM/yy') : '—'}
                                 {isLate && <AlertTriangle className="inline h-3 w-3 ml-1" />}
                               </td>
+                              <td className="px-3 py-2.5">
+                                {pc ? (
+                                  <Badge className={cn(pc.className, 'border text-[10px]')}>{p.pilier}</Badge>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                )}
+                              </td>
                               <td className="px-3 py-2.5 text-xs text-muted-foreground truncate max-w-[120px]">
                                 {p.chef_projet_it?.display_name || '—'}
                               </td>
@@ -458,7 +526,7 @@ export default function ITProjects() {
                         })}
                         {sorted.length === 0 && (
                           <tr>
-                            <td colSpan={9} className="text-center py-12 text-muted-foreground">
+                            <td colSpan={10} className="text-center py-12 text-muted-foreground">
                               Aucun projet ne correspond aux filtres
                             </td>
                           </tr>
