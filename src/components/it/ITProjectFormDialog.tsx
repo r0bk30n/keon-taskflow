@@ -88,7 +88,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
       setBudgetPrevisionnel(project.budget_previsionnel?.toString() || '');
       setTeamsChannelUrl(project.teams_channel_url || '');
       setLoopWorkspaceUrl(project.loop_workspace_url || '');
-      setEntiteId(project.entite_id || NONE);
+      setCompanyId(project.company_id || NONE);
       setChefProjetMetierId(project.chef_projet_metier_id || NONE);
       setChefProjetItId(project.chef_projet_it_id || NONE);
       setGroupeServiceId(project.groupe_service_id || NONE);
