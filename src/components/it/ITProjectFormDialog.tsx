@@ -40,7 +40,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
   const [loopWorkspaceUrl, setLoopWorkspaceUrl] = useState('');
 
   // Équipe
-  const [entiteId, setEntiteId] = useState(NONE);
+  const [companyId, setCompanyId] = useState(NONE);
   const [chefProjetMetierId, setChefProjetMetierId] = useState(NONE);
   const [chefProjetItId, setChefProjetItId] = useState(NONE);
   const [groupeServiceId, setGroupeServiceId] = useState(NONE);
@@ -54,11 +54,16 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
   const [fdrCommentaires, setFdrCommentaires] = useState('');
 
   // Lookup data
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
   const [allProfiles, setAllProfiles] = useState<{ id: string; display_name: string; department_id: string | null }[]>([]);
+  const [companySearch, setCompanySearch] = useState('');
 
   useEffect(() => {
     if (!open) return;
+    supabase.from('companies').select('id, name').order('name').then(({ data }) => {
+      setCompanies(data || []);
+    });
     supabase.from('departments').select('id, name').order('name').then(({ data }) => {
       setDepartments(data || []);
     });
@@ -67,9 +72,9 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
     });
   }, [open]);
 
-  const filteredMetierProfiles = entiteId !== NONE
-    ? allProfiles.filter(p => p.department_id === entiteId)
-    : allProfiles;
+  const filteredCompanies = companySearch
+    ? companies.filter(c => c.name.toLowerCase().includes(companySearch.toLowerCase()))
+    : companies;
 
   useEffect(() => {
     if (project) {
@@ -83,7 +88,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
       setBudgetPrevisionnel(project.budget_previsionnel?.toString() || '');
       setTeamsChannelUrl(project.teams_channel_url || '');
       setLoopWorkspaceUrl(project.loop_workspace_url || '');
-      setEntiteId(project.entite_id || NONE);
+      setCompanyId(project.company_id || NONE);
       setChefProjetMetierId(project.chef_projet_metier_id || NONE);
       setChefProjetItId(project.chef_projet_it_id || NONE);
       setGroupeServiceId(project.groupe_service_id || NONE);
@@ -109,7 +114,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
     setBudgetPrevisionnel('');
     setTeamsChannelUrl('');
     setLoopWorkspaceUrl('');
-    setEntiteId(NONE);
+    setCompanyId(NONE);
     setChefProjetMetierId(NONE);
     setChefProjetItId(NONE);
     setGroupeServiceId(NONE);
@@ -136,7 +141,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
       budget_previsionnel: budgetPrevisionnel ? parseFloat(budgetPrevisionnel) : null,
       teams_channel_url: teamsChannelUrl || null,
       loop_workspace_url: loopWorkspaceUrl || null,
-      entite_id: entiteId !== NONE ? entiteId : null,
+      company_id: companyId !== NONE ? companyId : null,
       chef_projet_metier_id: chefProjetMetierId !== NONE ? chefProjetMetierId : null,
       chef_projet_it_id: chefProjetItId !== NONE ? chefProjetItId : null,
       groupe_service_id: groupeServiceId !== NONE ? groupeServiceId : null,
@@ -258,13 +263,21 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
           {/* Équipe tab */}
           <TabsContent value="equipe" className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label className="flex items-center gap-1.5">🏢 Entité KEON</Label>
-              <Select value={entiteId} onValueChange={setEntiteId}>
-                <SelectTrigger><SelectValue placeholder="Sélectionner une entité" /></SelectTrigger>
+              <Label className="flex items-center gap-1.5">🏢 Société</Label>
+              <Select value={companyId} onValueChange={setCompanyId}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner une société" /></SelectTrigger>
                 <SelectContent>
+                  <div className="px-2 pb-2">
+                    <Input
+                      placeholder="Rechercher société..."
+                      value={companySearch}
+                      onChange={e => setCompanySearch(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                  </div>
                   <SelectItem value={NONE}>— Aucune —</SelectItem>
-                  {departments.map(d => (
-                    <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                  {filteredCompanies.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -275,14 +288,11 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
                 <SelectTrigger><SelectValue placeholder="Sélectionner un chef de projet métier" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NONE}>— Aucun —</SelectItem>
-                  {filteredMetierProfiles.map(p => (
+                  {allProfiles.map(p => (
                     <SelectItem key={p.id} value={p.id}>{p.display_name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {entiteId !== NONE && (
-                <p className="text-xs text-muted-foreground">Filtré sur l'entité sélectionnée</p>
-              )}
             </div>
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5">💻 Chef de projet IT/Digital</Label>
