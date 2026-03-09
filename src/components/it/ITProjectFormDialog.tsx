@@ -142,6 +142,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
       groupe_service_id: groupeServiceId !== NONE ? groupeServiceId : null,
       directeur_id: directeurId !== NONE ? directeurId : null,
       pilier: pilier !== NONE ? pilier : null,
+      statut_fdr: statutFdr !== '__none__' ? statutFdr : null,
       fdr_priorite: fdrPriorite || null,
       fdr_description: fdrDescription || null,
       fdr_commentaires: fdrCommentaires || null,
