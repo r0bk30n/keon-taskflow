@@ -1,17 +1,21 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useITProjects } from '@/hooks/useITProjects';
-import { ITProject, ITProjectStatus, ITProjectPilier, IT_PROJECT_STATUS_CONFIG, IT_PROJECT_TYPE_CONFIG, IT_PROJECT_PHASES, IT_PROJECT_PILIER_CONFIG, STATUT_FDR_CONFIG, StatutFDR } from '@/types/itProject';
+import { ITProject, ITProjectStatus, ITProjectPilier, IT_PROJECT_STATUS_CONFIG, IT_PROJECT_TYPE_CONFIG, IT_PROJECT_PHASES, IT_PROJECT_PILIER_CONFIG, STATUT_FDR_CONFIG, StatutFDR, ITProjectPhase } from '@/types/itProject';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import {
   Plus, Monitor, Search, Download, Save, RotateCcw, Filter,
-  FolderKanban, AlertTriangle, TrendingUp, ArrowUpDown, ChevronRight, Target
+  FolderKanban, AlertTriangle, TrendingUp, ArrowUpDown, ChevronRight, Target,
+  FolderOpen, Bookmark
 } from 'lucide-react';
 import { format, subMonths, startOfMonth, startOfYear, isAfter } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -22,9 +26,11 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from 'recharts';
+import { toast } from 'sonner';
 
 const NONE = '__none__';
 const LS_KEY = 'it_project_filters';
+const LS_CONTEXTS_KEY = 'it_project_filter_contexts';
 
 type PeriodFilter = 'all' | 'month' | 'last3' | 'last6' | 'year';
 type ProgressFilter = 'all' | 'lt25' | '25-50' | '50-75' | 'gt75' | '100';
@@ -36,6 +42,15 @@ interface Filters {
   statut: string;
   progress: ProgressFilter;
   pilier: string;
+  search: string;
+  statutFdr: string;
+  phase: string;
+}
+
+interface FilterContext {
+  name: string;
+  filters: Filters;
+  isDefault?: boolean;
 }
 
 const DEFAULT_FILTERS: Filters = {
@@ -45,7 +60,33 @@ const DEFAULT_FILTERS: Filters = {
   statut: 'all',
   progress: 'all',
   pilier: 'all',
+  search: '',
+  statutFdr: 'all',
+  phase: 'all',
 };
+
+const STANDARD_CONTEXT: FilterContext = {
+  name: 'Standard',
+  isDefault: true,
+  filters: {
+    ...DEFAULT_FILTERS,
+    statut: 'en_cours',
+    statutFdr: 'fdr_2027',
+  },
+};
+
+// Helper to load contexts from localStorage
+function loadContexts(): FilterContext[] {
+  try {
+    const stored = localStorage.getItem(LS_CONTEXTS_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return [STANDARD_CONTEXT];
+}
+
+function saveContexts(contexts: FilterContext[]) {
+  localStorage.setItem(LS_CONTEXTS_KEY, JSON.stringify(contexts));
+}
 
 const STATUS_COLORS: Record<string, string> = {
   backlog: '#94a3b8',
@@ -72,17 +113,26 @@ export default function ITProjects() {
   const navigate = useNavigate();
   const { projects, isLoading } = useITProjects();
   const [showCreate, setShowCreate] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [contextName, setContextName] = useState('');
 
   // Lookup data
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [profiles, setProfiles] = useState<{ id: string; display_name: string }[]>([]);
 
-  // Filters
+  // Filter contexts
+  const [contexts, setContexts] = useState<FilterContext[]>(loadContexts);
+
+  // Filters — initialize from localStorage or standard context
   const [filters, setFilters] = useState<Filters>(() => {
     try {
       const stored = localStorage.getItem(LS_KEY);
-      return stored ? { ...DEFAULT_FILTERS, ...JSON.parse(stored) } : DEFAULT_FILTERS;
-    } catch { return DEFAULT_FILTERS; }
+      if (stored) return { ...DEFAULT_FILTERS, ...JSON.parse(stored) };
+    } catch {}
+    // Apply standard context on first load
+    const ctxs = loadContexts();
+    const standard = ctxs.find(c => c.isDefault);
+    return standard ? { ...DEFAULT_FILTERS, ...standard.filters } : DEFAULT_FILTERS;
   });
 
   // Sort
@@ -95,11 +145,36 @@ export default function ITProjects() {
   }, []);
 
   const setFilter = <K extends keyof Filters>(key: K, value: Filters[K]) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    setFilters(prev => {
+      const next = { ...prev, [key]: value };
+      localStorage.setItem(LS_KEY, JSON.stringify(next));
+      return next;
+    });
   };
 
-  const saveFilters = () => {
-    localStorage.setItem(LS_KEY, JSON.stringify(filters));
+  const handleSaveContext = () => {
+    if (!contextName.trim()) return;
+    const newCtx: FilterContext = { name: contextName.trim(), filters: { ...filters } };
+    const updated = [...contexts.filter(c => c.name !== newCtx.name), newCtx];
+    setContexts(updated);
+    saveContexts(updated);
+    setShowSaveDialog(false);
+    setContextName('');
+    toast.success(`Contexte "${newCtx.name}" sauvegardé`);
+  };
+
+  const loadContext = (ctx: FilterContext) => {
+    const merged = { ...DEFAULT_FILTERS, ...ctx.filters };
+    setFilters(merged);
+    localStorage.setItem(LS_KEY, JSON.stringify(merged));
+    toast.success(`Contexte "${ctx.name}" chargé`);
+  };
+
+  const deleteContext = (name: string) => {
+    const updated = contexts.filter(c => c.name !== name);
+    setContexts(updated);
+    saveContexts(updated);
+    toast.success(`Contexte "${name}" supprimé`);
   };
 
   const resetFilters = () => {
@@ -110,7 +185,19 @@ export default function ITProjects() {
   // Apply filters
   const filtered = useMemo(() => {
     const now = new Date();
+    const q = filters.search?.toLowerCase() || '';
     return projects.filter(p => {
+      // Search multi-columns
+      if (q) {
+        const haystack = [
+          p.nom_projet,
+          p.code_projet_digital,
+          p.description,
+          p.fdr_commentaires,
+          p.pilier,
+        ].filter(Boolean).join(' ').toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
       // Period
       if (filters.period !== 'all' && p.created_at) {
         let cutoff: Date;
@@ -127,6 +214,8 @@ export default function ITProjects() {
       if (filters.responsableItId !== NONE && p.chef_projet_it_id !== filters.responsableItId) return false;
       if (filters.statut !== 'all' && p.statut !== filters.statut) return false;
       if (filters.pilier !== 'all' && p.pilier !== filters.pilier) return false;
+      if (filters.statutFdr !== 'all' && (p.statut_fdr || '') !== filters.statutFdr) return false;
+      if (filters.phase !== 'all' && (p.phase_courante || '') !== filters.phase) return false;
       // Progress
       const prog = p.progress || 0;
       switch (filters.progress) {
@@ -245,6 +334,16 @@ export default function ITProjects() {
               <Filter className="h-4 w-4" /> FILTRES
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher projet..."
+                  value={filters.search}
+                  onChange={e => setFilter('search', e.target.value)}
+                  className="h-8 text-xs w-[200px] pl-8"
+                />
+              </div>
               <Select value={filters.period} onValueChange={v => setFilter('period', v as PeriodFilter)}>
                 <SelectTrigger className="h-8 text-xs w-[140px]"><SelectValue placeholder="Période" /></SelectTrigger>
                 <SelectContent>
@@ -280,6 +379,24 @@ export default function ITProjects() {
                   ))}
                 </SelectContent>
               </Select>
+              <Select value={filters.statutFdr} onValueChange={v => setFilter('statutFdr', v)}>
+                <SelectTrigger className="h-8 text-xs w-[170px]"><SelectValue placeholder="Statut FDR" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous statuts FDR</SelectItem>
+                  {(Object.entries(STATUT_FDR_CONFIG) as [StatutFDR, typeof STATUT_FDR_CONFIG['non_soumis']][]).map(([k, cfg]) => (
+                    <SelectItem key={k} value={k}>{cfg.icon} {cfg.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filters.phase} onValueChange={v => setFilter('phase', v)}>
+                <SelectTrigger className="h-8 text-xs w-[150px]"><SelectValue placeholder="Phase" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes phases</SelectItem>
+                  {IT_PROJECT_PHASES.map(ph => (
+                    <SelectItem key={ph.value} value={ph.value}>{ph.label.split(' /')[0]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Select value={filters.pilier} onValueChange={v => setFilter('pilier', v)}>
                 <SelectTrigger className="h-8 text-xs w-[130px]"><SelectValue placeholder="Pilier" /></SelectTrigger>
                 <SelectContent>
@@ -300,10 +417,36 @@ export default function ITProjects() {
                   <SelectItem value="100">100%</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={saveFilters}>
+            </div>
+            {/* Context actions */}
+            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/50">
+              <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={() => setShowSaveDialog(true)}>
                 <Save className="h-3 w-3" /> Enregistrer
               </Button>
-              <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs" onClick={resetFilters}>
+              {/* Load context dropdown */}
+              <Select value="__load__" onValueChange={name => {
+                const ctx = contexts.find(c => c.name === name);
+                if (ctx) loadContext(ctx);
+              }}>
+                <SelectTrigger className="h-7 text-xs w-[160px]">
+                  <span className="flex items-center gap-1"><FolderOpen className="h-3 w-3" /> Charger contexte</span>
+                </SelectTrigger>
+                <SelectContent>
+                  {contexts.length === 0 ? (
+                    <SelectItem value="__load__" disabled>Aucun contexte</SelectItem>
+                  ) : (
+                    contexts.map(ctx => (
+                      <SelectItem key={ctx.name} value={ctx.name}>
+                        <span className="flex items-center gap-1.5">
+                          {ctx.isDefault && <Bookmark className="h-3 w-3 text-amber-500" />}
+                          {ctx.name}
+                        </span>
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={resetFilters}>
                 <RotateCcw className="h-3 w-3" /> Réinitialiser
               </Button>
             </div>
@@ -551,6 +694,54 @@ export default function ITProjects() {
       </div>
 
       <ITProjectFormDialog open={showCreate} onClose={() => setShowCreate(false)} />
+
+      {/* Save context dialog */}
+      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              <Save className="h-4 w-4" /> Enregistrer le contexte de filtres
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <div className="space-y-2">
+              <Label className="text-xs">Nom du contexte</Label>
+              <Input
+                placeholder="Ex: Projets FDR 2027 actifs"
+                value={contextName}
+                onChange={e => setContextName(e.target.value)}
+                className="h-8 text-xs"
+                onKeyDown={e => e.key === 'Enter' && handleSaveContext()}
+              />
+            </div>
+            {contexts.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-[10px] text-muted-foreground font-medium">Contextes existants :</p>
+                <div className="flex flex-wrap gap-1">
+                  {contexts.map(ctx => (
+                    <Badge key={ctx.name} variant="outline" className="text-[10px] gap-1">
+                      {ctx.isDefault && <Bookmark className="h-2.5 w-2.5 text-amber-500" />}
+                      {ctx.name}
+                      {!ctx.isDefault && (
+                        <button
+                          onClick={() => deleteContext(ctx.name)}
+                          className="ml-1 text-destructive hover:text-destructive/80"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" size="sm" onClick={() => setShowSaveDialog(false)}>Annuler</Button>
+              <Button size="sm" onClick={handleSaveContext} disabled={!contextName.trim()}>Enregistrer</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
