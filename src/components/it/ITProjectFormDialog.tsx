@@ -89,6 +89,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
       setGroupeServiceId(project.groupe_service_id || NONE);
       setDirecteurId(project.directeur_id || NONE);
       setPilier(project.pilier || NONE);
+      setStatutFdr(project.statut_fdr || '__none__');
       setFdrPriorite(project.fdr_priorite || '');
       setFdrDescription(project.fdr_description || '');
       setFdrCommentaires(project.fdr_commentaires || '');
