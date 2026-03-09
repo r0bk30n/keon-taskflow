@@ -585,6 +585,20 @@ export default function ITProjectHubOverview() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Phase assign dialog */}
+      {phaseAssignTarget && (
+        <ITPhaseAssignDialog
+          open={!!phaseAssignTarget}
+          onOpenChange={(open) => { if (!open) setPhaseAssignTarget(null); }}
+          phase={phaseAssignTarget}
+          projectTasks={tasks}
+          onDone={() => {
+            queryClient.invalidateQueries({ queryKey: ['it-project-tasks'] });
+            refetch();
+          }}
+        />
+      )}
     </Layout>
   );
 }
