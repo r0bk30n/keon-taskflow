@@ -24,9 +24,11 @@ import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import {
   IT_PROJECT_TYPE_CONFIG, IT_PROJECT_PHASES, IT_PROJECT_STATUS_CONFIG,
-  STATUT_FDR_CONFIG, FDR_ETAPES, StatutFDR, ITProjectFDRValidation
+  STATUT_FDR_CONFIG, FDR_ETAPES, StatutFDR, ITProjectFDRValidation,
+  IT_PHASE_BADGE_CONFIG, ITProjectPhase
 } from '@/types/itProject';
 import { ITProjectFormDialog } from '@/components/it/ITProjectFormDialog';
+import { ITPhaseAssignDialog } from '@/components/it/ITPhaseAssignDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
