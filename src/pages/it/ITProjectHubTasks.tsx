@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -17,10 +18,12 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Task, TaskStatus } from '@/types/task';
+import { IT_PROJECT_PHASES, IT_PHASE_BADGE_CONFIG, ITProjectPhase } from '@/types/itProject';
 import { ITLinkExistingTasksDialog } from '@/components/it/ITLinkExistingTasksDialog';
 import { TaskDetailDialog } from '@/components/tasks/TaskDetailDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   'to_assign': { label: 'À assigner', className: 'bg-slate-500/10 text-slate-600 border-slate-500/20' },
@@ -35,9 +38,9 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   'refused': { label: 'Refusé', className: 'bg-red-500/10 text-red-600 border-red-500/20' },
 };
 
+const NONE_PHASE = '__none__';
 type StatusFilter = 'all' | 'open' | 'done' | 'cancelled';
 
-// Determine item kind
 function getItemKind(task: Task): 'request' | 'task' {
   if (task.type === 'request') return 'request';
   if (!task.parent_request_id && (task as any).source_process_template_id) return 'request';
@@ -63,12 +66,10 @@ export default function ITProjectHubTasks() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [collapsedRequests, setCollapsedRequests] = useState<Set<string>>(new Set());
 
-  // Load project tasks + child tasks of requests
   const loadTasks = useCallback(async () => {
     if (!project?.id) return;
     setItemsLoading(true);
     try {
-      // 1. Get all tasks directly linked to the project
       const { data: projectTasks, error: e1 } = await supabase
         .from('tasks')
         .select(`*, assignee:profiles!tasks_assignee_id_fkey(id,display_name,avatar_url), requester:profiles!tasks_requester_id_fkey(id,display_name,avatar_url)`)
@@ -78,7 +79,6 @@ export default function ITProjectHubTasks() {
 
       const tasks = (projectTasks || []) as Task[];
 
-      // 2. Find request IDs (parent_request_id IS NULL) to load their children
       const requestIds = tasks
         .filter(t => !t.parent_request_id && (t.type === 'request' || (t as any).source_process_template_id))
         .map(t => t.id);
@@ -94,7 +94,6 @@ export default function ITProjectHubTasks() {
         childTasks = (children || []) as Task[];
       }
 
-      // 3. Merge, dedup by id
       const allMap = new Map<string, Task>();
       tasks.forEach(t => allMap.set(t.id, t));
       childTasks.forEach(t => { if (!allMap.has(t.id)) allMap.set(t.id, t); });
@@ -109,7 +108,6 @@ export default function ITProjectHubTasks() {
 
   useEffect(() => { loadTasks(); }, [loadTasks]);
 
-  // Build hierarchy
   const { topLevel, childrenMap, counters } = useMemo(() => {
     const q = searchQuery.toLowerCase();
     const matchesSearch = (t: Task) => {
@@ -126,8 +124,6 @@ export default function ITProjectHubTasks() {
 
     const childrenMap = new Map<string, Task[]>();
     const topLevel: Task[] = [];
-
-    // Separate parents and children
     const withParent: Task[] = [];
     const withoutParent: Task[] = [];
     allItems.forEach(t => {
@@ -135,14 +131,12 @@ export default function ITProjectHubTasks() {
       else withoutParent.push(t);
     });
 
-    // Group children by parent
     withParent.forEach(t => {
       const pid = t.parent_request_id!;
       if (!childrenMap.has(pid)) childrenMap.set(pid, []);
       childrenMap.get(pid)!.push(t);
     });
 
-    // Filter top-level items, but include if any child matches
     withoutParent.forEach(t => {
       const children = childrenMap.get(t.id) || [];
       const parentMatches = matchesSearch(t) && matchesStatus(t);
@@ -150,13 +144,11 @@ export default function ITProjectHubTasks() {
       if (parentMatches || anyChildMatches) topLevel.push(t);
     });
 
-    // Also filter children
     for (const [pid, children] of childrenMap.entries()) {
       const filtered = children.filter(c => matchesSearch(c) && matchesStatus(c));
       childrenMap.set(pid, filtered);
     }
 
-    // Counters (unfiltered)
     let requestCount = 0, taskCount = 0, overdueCount = 0;
     allItems.forEach(t => {
       if (getItemKind(t) === 'request') requestCount++;
@@ -172,8 +164,7 @@ export default function ITProjectHubTasks() {
   const toggleCollapse = (id: string) => {
     setCollapsedRequests(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   };
@@ -181,6 +172,13 @@ export default function ITProjectHubTasks() {
   const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
     await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId);
     loadTasks();
+    queryClient.invalidateQueries({ queryKey: ['it-project-tasks'] });
+  };
+
+  const handlePhaseChange = async (taskId: string, phase: string | null) => {
+    const { error } = await supabase.from('tasks').update({ it_project_phase: phase }).eq('id', taskId);
+    if (error) { toast.error('Erreur: ' + error.message); return; }
+    setAllItems(prev => prev.map(t => t.id === taskId ? { ...t, it_project_phase: phase } : t));
     queryClient.invalidateQueries({ queryKey: ['it-project-tasks'] });
   };
 
@@ -299,34 +297,30 @@ export default function ITProjectHubTasks() {
 
                     return (
                       <div key={item.id}>
-                        {/* Parent row */}
                         <TaskRow
                           task={item}
                           kind={kind}
-                          indent={0}
                           hasChildren={hasChildren}
                           isCollapsed={isCollapsed}
                           onToggleCollapse={() => toggleCollapse(item.id)}
                           onSelect={() => setSelectedTask(item)}
+                          onPhaseChange={handlePhaseChange}
                         />
-
-                        {/* Children rows */}
                         {hasChildren && !isCollapsed && (
                           <div className="relative ml-4">
                             <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-violet-300/50 dark:bg-violet-700/40" />
-                            {children.map((child, idx) => (
+                            {children.map((child) => (
                               <div key={child.id} className="relative">
-                                {/* Connector line */}
                                 <div className="absolute left-3 top-4 w-3 h-0.5 bg-violet-300/50 dark:bg-violet-700/40" />
                                 <div className="ml-6">
                                   <TaskRow
                                     task={child}
                                     kind="task"
-                                    indent={1}
                                     hasChildren={false}
                                     isCollapsed={false}
                                     onToggleCollapse={() => {}}
                                     onSelect={() => setSelectedTask(child)}
+                                    onPhaseChange={handlePhaseChange}
                                   />
                                 </div>
                               </div>
@@ -344,11 +338,10 @@ export default function ITProjectHubTasks() {
 
         <ITLinkExistingTasksDialog
           open={linkDialogOpen}
-          onOpenChange={setLinkDialogOpen}
+          onOpenChange={(open) => { setLinkDialogOpen(open); if (!open) loadTasks(); }}
           projectId={project.id}
         />
 
-        {/* Task Detail Dialog */}
         <TaskDetailDialog
           task={selectedTask}
           open={!!selectedTask}
@@ -364,28 +357,29 @@ export default function ITProjectHubTasks() {
 interface TaskRowProps {
   task: Task;
   kind: 'request' | 'task';
-  indent: number;
   hasChildren: boolean;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   onSelect: () => void;
+  onPhaseChange: (taskId: string, phase: string | null) => void;
 }
 
-function TaskRow({ task, kind, indent, hasChildren, isCollapsed, onToggleCollapse, onSelect }: TaskRowProps) {
+function TaskRow({ task, kind, hasChildren, isCollapsed, onToggleCollapse, onSelect, onPhaseChange }: TaskRowProps) {
   const number = kind === 'request' ? task.request_number : task.task_number;
   const statusConf = STATUS_LABELS[task.status] || { label: task.status, className: 'bg-muted text-muted-foreground' };
   const assignee = (task as any).assignee;
   const overdue = isOverdue(task);
+  const phaseConf = task.it_project_phase ? IT_PHASE_BADGE_CONFIG[task.it_project_phase as ITProjectPhase] : null;
 
   return (
     <div
       className={cn(
-        'group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors hover:bg-muted/40 cursor-pointer',
+        'group flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors hover:bg-muted/40 cursor-pointer',
         overdue && 'bg-destructive/5',
       )}
       onClick={onSelect}
     >
-      {/* Collapse toggle for parents with children */}
+      {/* Collapse toggle */}
       <div className="w-5 flex-shrink-0">
         {hasChildren && (
           <button
@@ -409,7 +403,7 @@ function TaskRow({ task, kind, indent, hasChildren, isCollapsed, onToggleCollaps
       )}
 
       {/* Number */}
-      <span className="font-mono text-xs text-muted-foreground flex-shrink-0 w-[110px] truncate">
+      <span className="font-mono text-xs text-muted-foreground flex-shrink-0 w-[100px] truncate">
         {number || '—'}
       </span>
 
@@ -426,12 +420,35 @@ function TaskRow({ task, kind, indent, hasChildren, isCollapsed, onToggleCollaps
         </Tooltip>
       </div>
 
+      {/* Phase select */}
+      <div className="flex-shrink-0 w-[130px]" onClick={e => e.stopPropagation()}>
+        <Select
+          value={task.it_project_phase || NONE_PHASE}
+          onValueChange={v => onPhaseChange(task.id, v === NONE_PHASE ? null : v)}
+        >
+          <SelectTrigger className={cn(
+            'h-6 text-[10px] px-2 border',
+            phaseConf ? phaseConf.className : 'text-muted-foreground'
+          )}>
+            <SelectValue placeholder="Phase..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NONE_PHASE}>— Aucune —</SelectItem>
+            {IT_PROJECT_PHASES.map(p => (
+              <SelectItem key={p.value} value={p.value}>
+                {IT_PHASE_BADGE_CONFIG[p.value]?.label || p.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* Status badge */}
       <Badge className={cn(statusConf.className, 'border text-[10px] flex-shrink-0')}>
         {statusConf.label}
       </Badge>
 
-      {/* Overdue indicator */}
+      {/* Overdue */}
       {overdue && (
         <Tooltip>
           <TooltipTrigger>
@@ -442,14 +459,12 @@ function TaskRow({ task, kind, indent, hasChildren, isCollapsed, onToggleCollaps
       )}
 
       {/* Assignee */}
-      <div className="w-[130px] flex-shrink-0">
+      <div className="w-[120px] flex-shrink-0">
         {assignee ? (
           <div className="flex items-center gap-1.5">
             <Avatar className="h-5 w-5">
               <AvatarImage src={assignee.avatar_url} />
-              <AvatarFallback className="text-[9px]">
-                {assignee.display_name?.charAt(0)}
-              </AvatarFallback>
+              <AvatarFallback className="text-[9px]">{assignee.display_name?.charAt(0)}</AvatarFallback>
             </Avatar>
             <span className="text-xs truncate">{assignee.display_name}</span>
           </div>
@@ -459,7 +474,7 @@ function TaskRow({ task, kind, indent, hasChildren, isCollapsed, onToggleCollaps
       </div>
 
       {/* Due date */}
-      <div className="w-[80px] flex-shrink-0 text-right">
+      <div className="w-[70px] flex-shrink-0 text-right">
         {task.due_date ? (
           <span className={cn('text-xs', overdue && 'text-destructive font-medium')}>
             {format(new Date(task.due_date), 'dd/MM/yy', { locale: fr })}

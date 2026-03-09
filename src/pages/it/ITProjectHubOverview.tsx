@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { ITProjectHubHeader } from '@/components/it/ITProjectHubHeader';
@@ -24,11 +24,14 @@ import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import {
   IT_PROJECT_TYPE_CONFIG, IT_PROJECT_PHASES, IT_PROJECT_STATUS_CONFIG,
-  STATUT_FDR_CONFIG, FDR_ETAPES, StatutFDR, ITProjectFDRValidation
+  STATUT_FDR_CONFIG, FDR_ETAPES, StatutFDR, ITProjectFDRValidation,
+  IT_PHASE_BADGE_CONFIG, ITProjectPhase
 } from '@/types/itProject';
 import { ITProjectFormDialog } from '@/components/it/ITProjectFormDialog';
+import { ITPhaseAssignDialog } from '@/components/it/ITPhaseAssignDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 export default function ITProjectHubOverview() {
@@ -44,6 +47,8 @@ export default function ITProjectHubOverview() {
   const [etapeForm, setEtapeForm] = useState({ statut: 'a_faire', date_validation: '', valideur_id: '', commentaire: '' });
   const [allProfiles, setAllProfiles] = useState<{ id: string; display_name: string }[]>([]);
   const [savingFdrStatut, setSavingFdrStatut] = useState(false);
+  const [phaseAssignTarget, setPhaseAssignTarget] = useState<ITProjectPhase | null>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     supabase.from('profiles').select('id, display_name').order('display_name').then(({ data }) => setAllProfiles(data || []));
@@ -293,11 +298,29 @@ export default function ITProjectHubOverview() {
                               )}>
                                 {phase.label}
                               </span>
+                              {totalPhase > 0 && (
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                  {totalPhase} tâche{totalPhase > 1 ? 's' : ''}
+                                </Badge>
+                              )}
+                              {donePhase > 0 && (
+                                <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 border text-[10px] px-1.5 py-0">
+                                  {donePhase} ✅
+                                </Badge>
+                              )}
                               {mStatus && (
                                 <Badge variant={mStatus.variant} className="text-[10px] px-1.5 py-0">
                                   {mStatus.text}
                                 </Badge>
                               )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-5 px-1.5 text-[10px] text-muted-foreground hover:text-foreground ml-auto"
+                                onClick={() => setPhaseAssignTarget(phase.value)}
+                              >
+                                + Ajouter
+                              </Button>
                             </div>
 
                             {milestone && (
@@ -313,7 +336,7 @@ export default function ITProjectHubOverview() {
                             )}
 
                             {totalPhase > 0 ? (
-                              <div className="mt-2 space-y-1">
+                              <div className="mt-2 space-y-1.5">
                                 <div className="flex items-center gap-2">
                                   <Progress value={phaseProgress} className="h-1.5 flex-1 bg-muted" />
                                   <span className="text-[10px] font-medium text-muted-foreground w-16 text-right">
@@ -326,6 +349,31 @@ export default function ITProjectHubOverview() {
                                     Tâches en retard
                                   </p>
                                 )}
+                                {/* Task list for this phase */}
+                                <div className="space-y-0.5 mt-1">
+                                  {phaseTasks.slice(0, 5).map(t => {
+                                    const isRequest = t.type === 'request' || (!t.parent_request_id && (t as any).source_process_template_id);
+                                    const stConf: Record<string, string> = {
+                                      'to_assign': 'bg-slate-500/10 text-slate-600',
+                                      'todo': 'bg-blue-500/10 text-blue-600',
+                                      'in-progress': 'bg-amber-500/10 text-amber-600',
+                                      'done': 'bg-emerald-500/10 text-emerald-600',
+                                      'validated': 'bg-green-500/10 text-green-600',
+                                    };
+                                    return (
+                                      <div key={t.id} className="flex items-center gap-1.5 text-[11px] py-0.5">
+                                        <span>{isRequest ? '📥' : '✅'}</span>
+                                        <span className="truncate flex-1">{t.title}</span>
+                                        <Badge className={cn(stConf[t.status] || 'bg-muted', 'text-[9px] px-1 py-0 border-0')}>
+                                          {t.status === 'done' ? 'Terminé' : t.status === 'in-progress' ? 'En cours' : t.status === 'todo' ? 'À faire' : t.status}
+                                        </Badge>
+                                      </div>
+                                    );
+                                  })}
+                                  {phaseTasks.length > 5 && (
+                                    <p className="text-[10px] text-muted-foreground">+{phaseTasks.length - 5} autres...</p>
+                                  )}
+                                </div>
                               </div>
                             ) : (
                               <p className="text-[10px] text-muted-foreground mt-1">Aucune tâche</p>
@@ -537,6 +585,20 @@ export default function ITProjectHubOverview() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Phase assign dialog */}
+      {phaseAssignTarget && (
+        <ITPhaseAssignDialog
+          open={!!phaseAssignTarget}
+          onOpenChange={(open) => { if (!open) setPhaseAssignTarget(null); }}
+          phase={phaseAssignTarget}
+          projectTasks={tasks}
+          onDone={() => {
+            queryClient.invalidateQueries({ queryKey: ['it-project-tasks'] });
+            refetch();
+          }}
+        />
+      )}
     </Layout>
   );
 }
