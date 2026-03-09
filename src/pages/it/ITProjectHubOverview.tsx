@@ -31,6 +31,7 @@ import { ITProjectFormDialog } from '@/components/it/ITProjectFormDialog';
 import { ITPhaseAssignDialog } from '@/components/it/ITPhaseAssignDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 export default function ITProjectHubOverview() {
