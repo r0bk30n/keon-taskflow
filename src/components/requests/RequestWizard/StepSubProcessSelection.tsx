@@ -17,6 +17,7 @@ interface StepSubProcessSelectionProps {
   processName: string | null;
   selectedSubProcesses: string[];
   onSelectionChange: (selected: string[], available: SubProcessSelection[]) => void;
+  selectionMode?: 'multiple' | 'single';
 }
 
 const DEBUG_REACT_185 =
@@ -34,6 +35,7 @@ export function StepSubProcessSelection({
   processName,
   selectedSubProcesses,
   onSelectionChange,
+  selectionMode = 'multiple',
 }: StepSubProcessSelectionProps) {
   const [subProcesses, setSubProcesses] = useState<SubProcessSelection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -109,6 +111,19 @@ export function StepSubProcessSelection({
     (subProcessId: string, isMandatory?: boolean) => {
       if (isMandatory) return; // Can't deselect mandatory
 
+      if (selectionMode === 'single') {
+        // In single mode, select only this one (plus mandatory ones)
+        const mandatoryIds = subProcesses.filter(sp => sp.isMandatory).map(sp => sp.id);
+        const isCurrentlySelected = selectedSubProcesses.includes(subProcessId);
+        const nextSelection = isCurrentlySelected
+          ? mandatoryIds // deselect: keep only mandatory
+          : [...mandatoryIds, subProcessId]; // select: mandatory + this one
+        if (!sameStringSet(nextSelection, selectedSubProcesses)) {
+          onSelectionChange(nextSelection, subProcesses);
+        }
+        return;
+      }
+
       const nextSelection = selectedSubProcesses.includes(subProcessId)
         ? selectedSubProcesses.filter((id) => id !== subProcessId)
         : [...selectedSubProcesses, subProcessId];
@@ -118,7 +133,7 @@ export function StepSubProcessSelection({
 
       onSelectionChange(nextSelection, subProcesses);
     },
-    [onSelectionChange, selectedSubProcesses, subProcesses],
+    [onSelectionChange, selectedSubProcesses, subProcesses, selectionMode],
   );
 
   const getAssignmentLabel = (type?: string) => {
@@ -138,7 +153,11 @@ export function StepSubProcessSelection({
     <div className="space-y-6">
       <div className="text-center mb-6">
         <h2 className="text-2xl font-semibold mb-2">Quelles tâches souhaitez-vous déclencher ?</h2>
-        <p className="text-muted-foreground">Sélectionnez les sous-processus à inclure dans votre demande</p>
+        <p className="text-muted-foreground">
+          {selectionMode === 'single'
+            ? `Sélectionnez 1 sous-processus parmi ${subProcesses.filter(sp => !sp.isMandatory).length} disponible(s)`
+            : 'Sélectionnez les sous-processus à inclure dans votre demande'}
+        </p>
         {processName && (
           <Badge variant="secondary" className="mt-3 gap-2">
             <GitBranch className="h-3 w-3" />
@@ -182,7 +201,8 @@ export function StepSubProcessSelection({
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
                       <input
-                        type="checkbox"
+                        type={selectionMode === 'single' ? 'radio' : 'checkbox'}
+                        name={selectionMode === 'single' ? 'subprocess-selection' : undefined}
                         checked={isSelected}
                         disabled={sp.isMandatory}
                         className="mt-1 h-4 w-4"

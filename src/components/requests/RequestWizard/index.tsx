@@ -32,6 +32,7 @@ export function RequestWizardDialog({ open, onClose, onSuccess, initialProcessId
   const [targetPersonName, setTargetPersonName] = useState<string>();
   const [articleFilterConfig, setArticleFilterConfig] = useState<{ ref_prefix?: string | null; exclude_des?: string | null } | undefined>();
   const [commonFieldsConfig, setCommonFieldsConfig] = useState<any>(undefined);
+  const [subprocessSelectionMode, setSubprocessSelectionMode] = useState<'multiple' | 'single'>('multiple');
 
   // Check if any selected sub-process has material lines enabled
   const hasMaterialSubProcess = useMemo(() => {
@@ -125,6 +126,8 @@ export function RequestWizardDialog({ open, onClose, onSuccess, initialProcessId
           const settings = (ptData as any)?.settings;
           if (settings?.common_fields_config) {
             setCommonFieldsConfig(settings.common_fields_config);
+            // Load subprocess selection mode
+            setSubprocessSelectionMode(settings.subprocess_selection_mode || 'multiple');
             // Apply default values for non-editable fields
             const priorityCfg = settings.common_fields_config.priority;
             if (priorityCfg && !priorityCfg.editable && priorityCfg.default_value) {
@@ -426,6 +429,7 @@ export function RequestWizardDialog({ open, onClose, onSuccess, initialProcessId
             processName={data.processName}
             selectedSubProcesses={data.selectedSubProcesses}
             onSelectionChange={handleSubProcessSelectionChange}
+            selectionMode={subprocessSelectionMode}
           />
         );
       case "details":

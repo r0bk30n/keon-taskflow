@@ -125,6 +125,7 @@ export function NewRequestDialog({ open, onClose, onAdd, onTasksCreated, initial
   const [materialLines, setMaterialLines] = useState<MaterialLine[]>([]);
   const [commonFieldsConfig, setCommonFieldsConfig] = useState<CommonFieldsConfig | null>(null);
   const [articleFilterConfig, setArticleFilterConfig] = useState<ArticleFilterConfig | undefined>();
+  const [subprocessSelectionMode, setSubprocessSelectionMode] = useState<'multiple' | 'single'>('multiple');
 
   // Fetch custom fields for the process
   const { fields: processFields, isLoading: loadingProcessFields } = useCustomFields({
@@ -383,6 +384,8 @@ export function NewRequestDialog({ open, onClose, onAdd, onTasksCreated, initial
       .single()
       .then(({ data: ptData }) => {
         const settings = (ptData as any)?.settings;
+        // Load subprocess selection mode
+        setSubprocessSelectionMode(settings?.subprocess_selection_mode || 'multiple');
         if (settings?.common_fields_config) {
           const cfg = { ...DEFAULT_COMMON_FIELDS_CONFIG, ...settings.common_fields_config } as CommonFieldsConfig;
           setCommonFieldsConfig(cfg);
@@ -445,13 +448,23 @@ export function NewRequestDialog({ open, onClose, onAdd, onTasksCreated, initial
   };
 
   const toggleSubProcess = (subProcessId: string) => {
-    setSelectedSubProcessIds(prev => {
-      if (prev.includes(subProcessId)) {
-        return prev.filter(id => id !== subProcessId);
-      } else {
-        return [...prev, subProcessId];
-      }
-    });
+    if (subprocessSelectionMode === 'single') {
+      setSelectedSubProcessIds(prev => {
+        if (prev.includes(subProcessId)) {
+          return []; // deselect
+        } else {
+          return [subProcessId]; // select only this one
+        }
+      });
+    } else {
+      setSelectedSubProcessIds(prev => {
+        if (prev.includes(subProcessId)) {
+          return prev.filter(id => id !== subProcessId);
+        } else {
+          return [...prev, subProcessId];
+        }
+      });
+    }
   };
 
   // Memoized visible custom fields
@@ -1237,7 +1250,9 @@ export function NewRequestDialog({ open, onClose, onAdd, onTasksCreated, initial
                           <Info className="h-5 w-5 text-info" />
                         </div>
                         <p className="text-sm text-muted-foreground leading-relaxed">
-                          Sélectionnez les tâches à réaliser pour cette demande. Chaque tâche cochée déclenchera la création des actions correspondantes.
+                          {subprocessSelectionMode === 'single'
+                            ? `Sélectionnez 1 tâche parmi ${availableSubProcesses.length} disponible(s). Chaque tâche cochée déclenchera la création des actions correspondantes.`
+                            : 'Sélectionnez les tâches à réaliser pour cette demande. Chaque tâche cochée déclenchera la création des actions correspondantes.'}
                         </p>
                       </div>
                     </div>
@@ -1261,6 +1276,7 @@ export function NewRequestDialog({ open, onClose, onAdd, onTasksCreated, initial
                                   isSelected={isSelected}
                                   hasCustomFields={hasCustomFields}
                                   onToggle={() => toggleSubProcess(subProcess.id)}
+                                  selectionMode={subprocessSelectionMode}
                                 />
                               );
                             })}
