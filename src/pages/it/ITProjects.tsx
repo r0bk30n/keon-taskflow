@@ -517,6 +517,13 @@ export default function ITProjects() {
                                   <span className="text-xs text-muted-foreground">—</span>
                                 )}
                               </td>
+                              <td className="px-3 py-2.5">
+                                {fdrCfg ? (
+                                  <Badge className={cn(fdrCfg.className, 'border text-[10px]')}>{fdrCfg.icon} {fdrCfg.label}</Badge>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                )}
+                              </td>
                               <td className="px-3 py-2.5 text-xs text-muted-foreground truncate max-w-[120px]">
                                 {p.chef_projet_it?.display_name || '—'}
                               </td>
