@@ -62,6 +62,11 @@ export function ITProjectHubHeader({ project, stats, onEditProject }: ITProjectH
                     {project.pilier} — {pilierConfig.label}
                   </Badge>
                 )}
+                {fdrConfig && (
+                  <Badge className={cn(fdrConfig.className, 'border')}>
+                    {fdrConfig.icon} {fdrConfig.label}
+                  </Badge>
+                )}
               </div>
 
               <p className="text-sm text-muted-foreground">

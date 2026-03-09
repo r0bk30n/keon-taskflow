@@ -341,6 +341,23 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
           {/* FDR / Contexte tab */}
           <TabsContent value="fdr" className="space-y-4 pt-4">
             <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">📋 Statut Feuille de Route</Label>
+              <Select value={statutFdr} onValueChange={setStatutFdr}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner un statut FDR" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Aucun —</SelectItem>
+                  {(Object.entries(STATUT_FDR_CONFIG) as [StatutFDR, typeof STATUT_FDR_CONFIG['non_soumis']][]).map(([key, cfg]) => (
+                    <SelectItem key={key} value={key}>
+                      <span className="flex items-center gap-2">
+                        <span>{cfg.icon}</span>
+                        <span>{cfg.label}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label className="flex items-center gap-1.5">🎯 Pilier stratégique</Label>
               <Select value={pilier} onValueChange={setPilier}>
                 <SelectTrigger><SelectValue placeholder="Sélectionner un pilier" /></SelectTrigger>

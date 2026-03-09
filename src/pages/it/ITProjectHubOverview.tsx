@@ -4,20 +4,32 @@ import { Layout } from '@/components/layout/Layout';
 import { ITProjectHubHeader } from '@/components/it/ITProjectHubHeader';
 import { useITProject, useITProjectTasks, useITProjectStats, useITProjectMilestones } from '@/hooks/useITProjectHub';
 import { useITProjectSync } from '@/hooks/useITProjectSync';
+import { useITProjectFDR } from '@/hooks/useITProjectFDR';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Monitor, Calendar, Users, TrendingUp, Target, Euro,
   CheckCircle2, Clock, AlertTriangle, MessageSquareText,
-  Link2, Pencil, Flag, ExternalLink
+  Link2, Pencil, Flag, ExternalLink, Shield, Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { IT_PROJECT_TYPE_CONFIG, IT_PROJECT_PHASES, IT_PROJECT_STATUS_CONFIG } from '@/types/itProject';
+import {
+  IT_PROJECT_TYPE_CONFIG, IT_PROJECT_PHASES, IT_PROJECT_STATUS_CONFIG,
+  STATUT_FDR_CONFIG, FDR_ETAPES, StatutFDR, ITProjectFDRValidation
+} from '@/types/itProject';
 import { ITProjectFormDialog } from '@/components/it/ITProjectFormDialog';
+import { supabase } from '@/integrations/supabase/client';
+import { useEffect } from 'react';
+import { toast } from 'sonner';
 
 export default function ITProjectHubOverview() {
   const { code } = useParams<{ code: string }>();
@@ -26,7 +38,16 @@ export default function ITProjectHubOverview() {
   const { data: milestones = [] } = useITProjectMilestones(project?.id);
   const stats = useITProjectStats(tasks, project);
   const { openTeams, openLoop, hasTeams, hasLoop } = useITProjectSync(project);
+  const { etapes, isLoading: fdrLoading, initFDRValidation, updateEtape, etapeCourante } = useITProjectFDR(project?.id);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingEtape, setEditingEtape] = useState<ITProjectFDRValidation | null>(null);
+  const [etapeForm, setEtapeForm] = useState({ statut: 'a_faire', date_validation: '', valideur_id: '', commentaire: '' });
+  const [allProfiles, setAllProfiles] = useState<{ id: string; display_name: string }[]>([]);
+  const [savingFdrStatut, setSavingFdrStatut] = useState(false);
+
+  useEffect(() => {
+    supabase.from('profiles').select('id, display_name').order('display_name').then(({ data }) => setAllProfiles(data || []));
+  }, []);
 
   if (isLoading) {
     return (
@@ -50,6 +71,46 @@ export default function ITProjectHubOverview() {
 
   const typeConfig = project.type_projet ? IT_PROJECT_TYPE_CONFIG[project.type_projet] : null;
   const currentPhaseIndex = IT_PROJECT_PHASES.findIndex(p => p.value === project.phase_courante);
+  const statutFdr = (project.statut_fdr as StatutFDR) || null;
+  const fdrConfig = statutFdr ? STATUT_FDR_CONFIG[statutFdr] : null;
+
+  const handleFdrStatutChange = async (value: string) => {
+    setSavingFdrStatut(true);
+    const { error } = await supabase.from('it_projects').update({ statut_fdr: value }).eq('id', project.id);
+    setSavingFdrStatut(false);
+    if (error) { toast.error('Erreur lors de la mise à jour'); return; }
+    toast.success('Statut FDR mis à jour');
+    refetch();
+  };
+
+  const openEtapeDialog = (etape: ITProjectFDRValidation) => {
+    setEditingEtape(etape);
+    setEtapeForm({
+      statut: etape.statut,
+      date_validation: etape.date_validation || '',
+      valideur_id: etape.valideur_id || '',
+      commentaire: etape.commentaire || '',
+    });
+  };
+
+  const saveEtape = async () => {
+    if (!editingEtape) return;
+    await updateEtape(editingEtape.id, {
+      statut: etapeForm.statut as any,
+      date_validation: etapeForm.date_validation || null,
+      valideur_id: etapeForm.valideur_id || null,
+      commentaire: etapeForm.commentaire || null,
+    });
+    toast.success('Étape mise à jour');
+    setEditingEtape(null);
+  };
+
+  const ETAPE_COLORS: Record<string, string> = {
+    a_faire: 'bg-muted border-border text-muted-foreground',
+    en_cours: 'bg-blue-100 border-blue-400 text-blue-700',
+    valide: 'bg-emerald-100 border-emerald-400 text-emerald-700',
+    rejete: 'bg-red-100 border-red-400 text-red-700',
+  };
 
   return (
     <Layout>
@@ -64,6 +125,104 @@ export default function ITProjectHubOverview() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Column 1 & 2: Main content */}
             <div className="lg:col-span-2 space-y-6">
+
+              {/* PHASE 0 — FEUILLE DE ROUTE DIGITALE */}
+              <Card className="border-violet-200/50 bg-violet-50/30 dark:bg-violet-950/10">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-violet-600" />
+                    Phase 0 — Gouvernance FDR
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Banner statut */}
+                  {statutFdr === 'fdr_2027' && (
+                    <div className="rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-800 px-4 py-2 text-sm font-medium">
+                      ✅ Projet validé et intégré à la Feuille de Route 2027
+                    </div>
+                  )}
+                  {statutFdr === 'fdr_2030' && (
+                    <div className="rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-800 px-4 py-2 text-sm font-medium">
+                      ✅ Projet validé et intégré à la Feuille de Route 2030
+                    </div>
+                  )}
+                  {statutFdr === 'abandonne' && (
+                    <div className="rounded-lg bg-red-100 border border-red-300 text-red-800 px-4 py-2 text-sm font-medium">
+                      ❌ Projet abandonné
+                    </div>
+                  )}
+                  {statutFdr === 'stand_by' && (
+                    <div className="rounded-lg bg-amber-100 border border-amber-300 text-amber-800 px-4 py-2 text-sm font-medium">
+                      ⏸️ Projet mis en stand-by
+                    </div>
+                  )}
+
+                  {/* Statut FDR inline select */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-medium text-muted-foreground">Statut FDR :</span>
+                    <Select value={statutFdr || 'non_soumis'} onValueChange={handleFdrStatutChange} disabled={savingFdrStatut}>
+                      <SelectTrigger className="h-8 text-xs w-[260px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(Object.entries(STATUT_FDR_CONFIG) as [StatutFDR, typeof STATUT_FDR_CONFIG['non_soumis']][]).map(([key, cfg]) => (
+                          <SelectItem key={key} value={key}>
+                            <span className="flex items-center gap-2">
+                              <span>{cfg.icon}</span>
+                              <span>{cfg.label}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {fdrConfig && (
+                      <Badge className={cn(fdrConfig.className, 'border text-[10px]')}>
+                        {fdrConfig.icon} {fdrConfig.label}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Stepper horizontal */}
+                  {etapes.length > 0 ? (
+                    <div className="flex items-start justify-between gap-2">
+                      {etapes.map((etape, idx) => {
+                        const fdrEtape = FDR_ETAPES.find(e => e.numero === etape.etape);
+                        return (
+                          <div key={etape.id} className="flex-1 flex flex-col items-center">
+                            <button
+                              onClick={() => openEtapeDialog(etape)}
+                              className={cn(
+                                'w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all hover:scale-110 cursor-pointer',
+                                ETAPE_COLORS[etape.statut]
+                              )}
+                            >
+                              {etape.statut === 'valide' ? '✓' : etape.statut === 'rejete' ? '✗' : etape.etape}
+                            </button>
+                            {idx < etapes.length - 1 && (
+                              <div className={cn('h-0.5 w-full mt-5 -mb-5', etape.statut === 'valide' ? 'bg-emerald-400' : 'bg-border')} />
+                            )}
+                            <p className="text-[10px] font-medium text-center mt-2 leading-tight max-w-[90px]">
+                              {fdrEtape?.icon} {fdrEtape?.label || etape.etape_label}
+                            </p>
+                            {etape.date_validation && (
+                              <p className="text-[9px] text-muted-foreground mt-0.5">
+                                {format(new Date(etape.date_validation), 'dd/MM/yy')}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-xs text-muted-foreground mb-2">Aucune étape de validation FDR initialisée</p>
+                      <Button size="sm" variant="outline" onClick={initFDRValidation} className="gap-2">
+                        <Shield className="h-3.5 w-3.5" /> Initialiser les 4 étapes
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               {/* Phase Stepper Dashboard */}
               <Card>
@@ -328,6 +487,56 @@ export default function ITProjectHubOverview() {
         onClose={() => setShowEditDialog(false)}
         onSaved={refetch}
       />
+
+      {/* Dialog modification étape FDR */}
+      <Dialog open={!!editingEtape} onOpenChange={() => setEditingEtape(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">
+              {editingEtape && FDR_ETAPES.find(e => e.numero === editingEtape.etape)?.icon}{' '}
+              Étape {editingEtape?.etape} — {editingEtape?.etape_label}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label className="text-xs">Statut</Label>
+              <Select value={etapeForm.statut} onValueChange={v => setEtapeForm(f => ({ ...f, statut: v }))}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="a_faire">⬜ À faire</SelectItem>
+                  <SelectItem value="en_cours">🔵 En cours</SelectItem>
+                  <SelectItem value="valide">✅ Validé</SelectItem>
+                  <SelectItem value="rejete">❌ Rejeté</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">Date de validation</Label>
+              <Input type="date" className="h-8 text-xs" value={etapeForm.date_validation} onChange={e => setEtapeForm(f => ({ ...f, date_validation: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">Valideur</Label>
+              <Select value={etapeForm.valideur_id || '__none__'} onValueChange={v => setEtapeForm(f => ({ ...f, valideur_id: v === '__none__' ? '' : v }))}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Aucun —</SelectItem>
+                  {allProfiles.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.display_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">Commentaire</Label>
+              <Textarea className="text-xs" rows={2} value={etapeForm.commentaire} onChange={e => setEtapeForm(f => ({ ...f, commentaire: e.target.value }))} />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" size="sm" onClick={() => setEditingEtape(null)}>Annuler</Button>
+              <Button size="sm" onClick={saveEtape}>Enregistrer</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
