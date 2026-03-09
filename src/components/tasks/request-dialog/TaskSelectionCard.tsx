@@ -23,6 +23,7 @@ export function TaskSelectionCard({
   isSelected,
   hasCustomFields,
   onToggle,
+  selectionMode = 'multiple',
 }: TaskSelectionCardProps) {
   return (
     <div
