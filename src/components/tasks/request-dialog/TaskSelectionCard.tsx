@@ -13,6 +13,7 @@ interface TaskSelectionCardProps {
   isSelected: boolean;
   hasCustomFields: boolean;
   onToggle: () => void;
+  selectionMode?: 'multiple' | 'single';
 }
 
 export function TaskSelectionCard({
