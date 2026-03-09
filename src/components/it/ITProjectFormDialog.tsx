@@ -141,7 +141,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
       budget_previsionnel: budgetPrevisionnel ? parseFloat(budgetPrevisionnel) : null,
       teams_channel_url: teamsChannelUrl || null,
       loop_workspace_url: loopWorkspaceUrl || null,
-      entite_id: entiteId !== NONE ? entiteId : null,
+      company_id: companyId !== NONE ? companyId : null,
       chef_projet_metier_id: chefProjetMetierId !== NONE ? chefProjetMetierId : null,
       chef_projet_it_id: chefProjetItId !== NONE ? chefProjetItId : null,
       groupe_service_id: groupeServiceId !== NONE ? groupeServiceId : null,
