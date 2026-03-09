@@ -102,6 +102,13 @@ export function ProcessSettingsTab({ process, onUpdate, canManage }: ProcessSett
         .order('nom_projet');
       if (data) setBeProjects(data);
     })();
+    (async () => {
+      const { data } = await supabase
+        .from('it_projects')
+        .select('id, nom_projet, code_projet_digital')
+        .order('nom_projet');
+      if (data) setItProjects(data);
+    })();
   }, []);
 
   const handleSave = async () => {
