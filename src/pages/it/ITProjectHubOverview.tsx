@@ -47,6 +47,8 @@ export default function ITProjectHubOverview() {
   const [etapeForm, setEtapeForm] = useState({ statut: 'a_faire', date_validation: '', valideur_id: '', commentaire: '' });
   const [allProfiles, setAllProfiles] = useState<{ id: string; display_name: string }[]>([]);
   const [savingFdrStatut, setSavingFdrStatut] = useState(false);
+  const [phaseAssignTarget, setPhaseAssignTarget] = useState<ITProjectPhase | null>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     supabase.from('profiles').select('id, display_name').order('display_name').then(({ data }) => setAllProfiles(data || []));
