@@ -6,10 +6,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ITProject, ITProjectStatus, ITProjectType, ITProjectPriority, ITProjectPhase, IT_PROJECT_PHASES } from '@/types/itProject';
+import { Badge } from '@/components/ui/badge';
+import { ITProject, ITProjectStatus, ITProjectType, ITProjectPriority, ITProjectPhase, ITProjectPilier, IT_PROJECT_PHASES, IT_PROJECT_PILIER_CONFIG } from '@/types/itProject';
 import { useITProjects } from '@/hooks/useITProjects';
 import { supabase } from '@/integrations/supabase/client';
-import { Monitor, Users, Calendar, Euro, Link2, MessageSquareText, Loader2 } from 'lucide-react';
+import { Monitor, Users, Calendar, Euro, Link2, MessageSquareText, Loader2, Target } from 'lucide-react';
 
 const NONE = '__none__';
 
@@ -42,6 +43,14 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
   const [entiteId, setEntiteId] = useState(NONE);
   const [chefProjetMetierId, setChefProjetMetierId] = useState(NONE);
   const [chefProjetItId, setChefProjetItId] = useState(NONE);
+  const [groupeServiceId, setGroupeServiceId] = useState(NONE);
+  const [directeurId, setDirecteurId] = useState(NONE);
+
+  // FDR / Contexte
+  const [pilier, setPilier] = useState(NONE);
+  const [fdrPriorite, setFdrPriorite] = useState('');
+  const [fdrDescription, setFdrDescription] = useState('');
+  const [fdrCommentaires, setFdrCommentaires] = useState('');
 
   // Lookup data
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
@@ -76,6 +85,12 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
       setEntiteId(project.entite_id || NONE);
       setChefProjetMetierId(project.chef_projet_metier_id || NONE);
       setChefProjetItId(project.chef_projet_it_id || NONE);
+      setGroupeServiceId(project.groupe_service_id || NONE);
+      setDirecteurId(project.directeur_id || NONE);
+      setPilier(project.pilier || NONE);
+      setFdrPriorite(project.fdr_priorite || '');
+      setFdrDescription(project.fdr_description || '');
+      setFdrCommentaires(project.fdr_commentaires || '');
     } else {
       resetForm();
     }
@@ -95,6 +110,12 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
     setEntiteId(NONE);
     setChefProjetMetierId(NONE);
     setChefProjetItId(NONE);
+    setGroupeServiceId(NONE);
+    setDirecteurId(NONE);
+    setPilier(NONE);
+    setFdrPriorite('');
+    setFdrDescription('');
+    setFdrCommentaires('');
   };
 
   const handleSubmit = async () => {
@@ -115,6 +136,12 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
       entite_id: entiteId !== NONE ? entiteId : null,
       chef_projet_metier_id: chefProjetMetierId !== NONE ? chefProjetMetierId : null,
       chef_projet_it_id: chefProjetItId !== NONE ? chefProjetItId : null,
+      groupe_service_id: groupeServiceId !== NONE ? groupeServiceId : null,
+      directeur_id: directeurId !== NONE ? directeurId : null,
+      pilier: pilier !== NONE ? pilier : null,
+      fdr_priorite: fdrPriorite || null,
+      fdr_description: fdrDescription || null,
+      fdr_commentaires: fdrCommentaires || null,
     };
 
     if (isEdit && project) {
@@ -139,7 +166,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
         </DialogHeader>
 
         <Tabs defaultValue="general" className="mt-2">
-          <TabsList className="grid grid-cols-4 w-full">
+          <TabsList className="grid grid-cols-5 w-full">
             <TabsTrigger value="general" className="text-xs gap-1">
               <Monitor className="h-3.5 w-3.5" /> Général
             </TabsTrigger>
@@ -148,6 +175,9 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
             </TabsTrigger>
             <TabsTrigger value="planning" className="text-xs gap-1">
               <Calendar className="h-3.5 w-3.5" /> Planning
+            </TabsTrigger>
+            <TabsTrigger value="fdr" className="text-xs gap-1">
+              <Target className="h-3.5 w-3.5" /> FDR / Contexte
             </TabsTrigger>
             <TabsTrigger value="microsoft" className="text-xs gap-1">
               <Link2 className="h-3.5 w-3.5" /> Microsoft 365
@@ -262,6 +292,30 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">🏬 Groupe de service</Label>
+              <Select value={groupeServiceId} onValueChange={setGroupeServiceId}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner un groupe de service" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>— Aucun —</SelectItem>
+                  {departments.map(d => (
+                    <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">👔 Directeur</Label>
+              <Select value={directeurId} onValueChange={setDirecteurId}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner un directeur" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>— Aucun —</SelectItem>
+                  {allProfiles.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.display_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </TabsContent>
 
           {/* Planning tab */}
@@ -277,6 +331,40 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
                 <Euro className="h-3.5 w-3.5" /> Budget prévisionnel (€)
               </Label>
               <Input id="budget" type="number" placeholder="Ex: 50000" value={budgetPrevisionnel} onChange={e => setBudgetPrevisionnel(e.target.value)} />
+            </div>
+          </TabsContent>
+
+          {/* FDR / Contexte tab */}
+          <TabsContent value="fdr" className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">🎯 Pilier stratégique</Label>
+              <Select value={pilier} onValueChange={setPilier}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner un pilier" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>— Aucun —</SelectItem>
+                  {(Object.entries(IT_PROJECT_PILIER_CONFIG) as [string, typeof IT_PROJECT_PILIER_CONFIG['P1']][]).map(([code, cfg]) => (
+                    <SelectItem key={code} value={code}>
+                      <div className="flex items-center gap-2">
+                        <Badge className={`${cfg.className} border text-[10px] px-1.5`}>{code}</Badge>
+                        <span className="font-medium">{cfg.label}</span>
+                        <span className="text-xs text-muted-foreground ml-1 hidden sm:inline">— {cfg.description}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="fdr-prio" className="flex items-center gap-1.5">⚡ Priorité FDR</Label>
+              <Input id="fdr-prio" placeholder="Valeur brute FDR (ex: Haute, P1, ...)" value={fdrPriorite} onChange={e => setFdrPriorite(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="fdr-desc" className="flex items-center gap-1.5">📝 Description FDR</Label>
+              <Textarea id="fdr-desc" placeholder="Description issue de la feuille de route..." value={fdrDescription} onChange={e => setFdrDescription(e.target.value)} rows={3} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="fdr-comm" className="flex items-center gap-1.5">💬 Commentaires</Label>
+              <Textarea id="fdr-comm" placeholder="Commentaires, notes, remarques..." value={fdrCommentaires} onChange={e => setFdrCommentaires(e.target.value)} rows={3} />
             </div>
           </TabsContent>
 

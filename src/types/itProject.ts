@@ -27,6 +27,8 @@ export type ITProjectPhase =
   | 'recette'
   | 'deploiement';
 
+export type ITProjectPilier = 'P1' | 'P2' | 'P3' | 'P4' | 'P5';
+
 export type MilestoneStatus = 'a_venir' | 'en_cours' | 'termine' | 'retarde';
 
 export interface ITProject {
@@ -46,7 +48,16 @@ export interface ITProject {
   entite_id?: string | null;
   chef_projet_metier_id?: string | null;
   chef_projet_it_id?: string | null;
+  groupe_service_id?: string | null;
+  directeur_id?: string | null;
   membres_ids?: string[];
+
+  // Pilier & FDR
+  pilier?: ITProjectPilier | null;
+  fdr_priorite?: string | null;
+  fdr_type?: string | null;
+  fdr_description?: string | null;
+  fdr_commentaires?: string | null;
 
   // Dates
   date_debut?: string | null;
@@ -75,9 +86,11 @@ export interface ITProject {
   responsable_it?: { id: string; display_name: string; avatar_url?: string | null } | null;
   chef_projet?: { id: string; display_name: string; avatar_url?: string | null } | null;
   sponsor?: { id: string; display_name: string; avatar_url?: string | null } | null;
-  entite?: { id: string; name: string } | null;
+  entite?: { id: string; name: string; company_id?: string | null } | null;
   chef_projet_metier?: { id: string; display_name: string; avatar_url?: string | null } | null;
   chef_projet_it?: { id: string; display_name: string; avatar_url?: string | null } | null;
+  groupe_service?: { id: string; name: string } | null;
+  directeur?: { id: string; display_name: string; avatar_url?: string | null } | null;
 }
 
 export interface ITProjectMilestone {
@@ -167,5 +180,16 @@ export const IT_PROJECT_PHASES: { value: ITProjectPhase; label: string; order: n
   { value: 'recette', label: 'Recette / Tests', order: 4 },
   { value: 'deploiement', label: 'Déploiement / MEP', order: 5 },
 ];
+
+export const IT_PROJECT_PILIER_CONFIG: Record<
+  ITProjectPilier,
+  { label: string; description: string; color: string; className: string }
+> = {
+  P1: { label: 'Humains & compétences', description: 'Capital humain, formation, montée en compétences', color: '#3b82f6', className: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
+  P2: { label: 'Données / IA / décision', description: 'Data, intelligence artificielle, aide à la décision', color: '#8b5cf6', className: 'bg-violet-500/10 text-violet-600 border-violet-500/20' },
+  P3: { label: 'Process & outils', description: 'Optimisation des processus, outillage métier', color: '#f59e0b', className: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
+  P4: { label: 'Résilience & sécurité', description: 'Cybersécurité, continuité d\'activité, résilience', color: '#ef4444', className: 'bg-red-500/10 text-red-600 border-red-500/20' },
+  P5: { label: 'Durabilité & sobriété', description: 'RSE numérique, sobriété énergétique, green IT', color: '#10b981', className: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
+};
 
 // Exemple de code généré automatiquement : NSK_IT-00001
