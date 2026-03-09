@@ -30,6 +30,18 @@ function BEProjectReadOnly({ projectId }: { projectId: string }) {
   return <span>{name}</span>;
 }
 
+function ITProjectReadOnly({ projectId }: { projectId: string }) {
+  const [name, setName] = useState<string>('...');
+  useEffect(() => {
+    supabase.from('it_projects').select('nom_projet, code_projet_digital').eq('id', projectId).single()
+      .then(({ data }) => {
+        if (data) setName(`${data.code_projet_digital} — ${data.nom_projet}`);
+        else setName('Projet IT inconnu');
+      });
+  }, [projectId]);
+  return <span>{name}</span>;
+}
+
 const PRIORITY_LABELS: Record<string, string> = {
   low: 'Basse',
   medium: 'Moyenne',
