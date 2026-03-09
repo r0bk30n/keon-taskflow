@@ -115,6 +115,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
     setGroupeServiceId(NONE);
     setDirecteurId(NONE);
     setPilier(NONE);
+    setStatutFdr('__none__');
     setFdrPriorite('');
     setFdrDescription('');
     setFdrCommentaires('');
