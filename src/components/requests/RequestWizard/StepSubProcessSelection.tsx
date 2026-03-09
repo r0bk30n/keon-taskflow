@@ -153,7 +153,11 @@ export function StepSubProcessSelection({
     <div className="space-y-6">
       <div className="text-center mb-6">
         <h2 className="text-2xl font-semibold mb-2">Quelles tâches souhaitez-vous déclencher ?</h2>
-        <p className="text-muted-foreground">Sélectionnez les sous-processus à inclure dans votre demande</p>
+        <p className="text-muted-foreground">
+          {selectionMode === 'single'
+            ? `Sélectionnez 1 sous-processus parmi ${subProcesses.filter(sp => !sp.isMandatory).length} disponible(s)`
+            : 'Sélectionnez les sous-processus à inclure dans votre demande'}
+        </p>
         {processName && (
           <Badge variant="secondary" className="mt-3 gap-2">
             <GitBranch className="h-3 w-3" />
