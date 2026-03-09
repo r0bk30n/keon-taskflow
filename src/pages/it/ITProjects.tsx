@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useITProjects } from '@/hooks/useITProjects';
-import { ITProject, ITProjectStatus, ITProjectPilier, IT_PROJECT_STATUS_CONFIG, IT_PROJECT_TYPE_CONFIG, IT_PROJECT_PHASES, IT_PROJECT_PILIER_CONFIG } from '@/types/itProject';
+import { ITProject, ITProjectStatus, ITProjectPilier, IT_PROJECT_STATUS_CONFIG, IT_PROJECT_TYPE_CONFIG, IT_PROJECT_PHASES, IT_PROJECT_PILIER_CONFIG, STATUT_FDR_CONFIG, StatutFDR } from '@/types/itProject';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -472,6 +472,7 @@ export default function ITProjects() {
                             </th>
                           ))}
                           <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">Pilier</th>
+                          <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">FDR</th>
                           <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">Chef IT</th>
                           <th className="w-8" />
                         </tr>
@@ -481,6 +482,7 @@ export default function ITProjects() {
                           const sc = IT_PROJECT_STATUS_CONFIG[p.statut] || IT_PROJECT_STATUS_CONFIG.backlog;
                           const tc = p.type_projet ? IT_PROJECT_TYPE_CONFIG[p.type_projet] : null;
                           const pc = p.pilier ? IT_PROJECT_PILIER_CONFIG[p.pilier as ITProjectPilier] : null;
+                          const fdrCfg = p.statut_fdr ? STATUT_FDR_CONFIG[p.statut_fdr as StatutFDR] : null;
                           const today = new Date(); today.setHours(0, 0, 0, 0);
                           const isLate = p.date_fin_prevue && !['deploye', 'cloture'].includes(p.statut) && new Date(p.date_fin_prevue) < today;
                           return (
@@ -515,6 +517,13 @@ export default function ITProjects() {
                                   <span className="text-xs text-muted-foreground">—</span>
                                 )}
                               </td>
+                              <td className="px-3 py-2.5">
+                                {fdrCfg ? (
+                                  <Badge className={cn(fdrCfg.className, 'border text-[10px]')}>{fdrCfg.icon} {fdrCfg.label}</Badge>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                )}
+                              </td>
                               <td className="px-3 py-2.5 text-xs text-muted-foreground truncate max-w-[120px]">
                                 {p.chef_projet_it?.display_name || '—'}
                               </td>
@@ -526,7 +535,7 @@ export default function ITProjects() {
                         })}
                         {sorted.length === 0 && (
                           <tr>
-                            <td colSpan={10} className="text-center py-12 text-muted-foreground">
+                            <td colSpan={11} className="text-center py-12 text-muted-foreground">
                               Aucun projet ne correspond aux filtres
                             </td>
                           </tr>

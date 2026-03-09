@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { ITProject, ITProjectStatus, ITProjectType, ITProjectPriority, ITProjectPhase, ITProjectPilier, IT_PROJECT_PHASES, IT_PROJECT_PILIER_CONFIG } from '@/types/itProject';
+import { ITProject, ITProjectStatus, ITProjectType, ITProjectPriority, ITProjectPhase, ITProjectPilier, IT_PROJECT_PHASES, IT_PROJECT_PILIER_CONFIG, STATUT_FDR_CONFIG, StatutFDR } from '@/types/itProject';
 import { useITProjects } from '@/hooks/useITProjects';
 import { supabase } from '@/integrations/supabase/client';
 import { Monitor, Users, Calendar, Euro, Link2, MessageSquareText, Loader2, Target } from 'lucide-react';
@@ -47,6 +47,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
   const [directeurId, setDirecteurId] = useState(NONE);
 
   // FDR / Contexte
+  const [statutFdr, setStatutFdr] = useState('__none__');
   const [pilier, setPilier] = useState(NONE);
   const [fdrPriorite, setFdrPriorite] = useState('');
   const [fdrDescription, setFdrDescription] = useState('');
@@ -88,6 +89,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
       setGroupeServiceId(project.groupe_service_id || NONE);
       setDirecteurId(project.directeur_id || NONE);
       setPilier(project.pilier || NONE);
+      setStatutFdr(project.statut_fdr || '__none__');
       setFdrPriorite(project.fdr_priorite || '');
       setFdrDescription(project.fdr_description || '');
       setFdrCommentaires(project.fdr_commentaires || '');
@@ -113,6 +115,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
     setGroupeServiceId(NONE);
     setDirecteurId(NONE);
     setPilier(NONE);
+    setStatutFdr('__none__');
     setFdrPriorite('');
     setFdrDescription('');
     setFdrCommentaires('');
@@ -139,6 +142,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
       groupe_service_id: groupeServiceId !== NONE ? groupeServiceId : null,
       directeur_id: directeurId !== NONE ? directeurId : null,
       pilier: pilier !== NONE ? pilier : null,
+      statut_fdr: statutFdr !== '__none__' ? statutFdr : null,
       fdr_priorite: fdrPriorite || null,
       fdr_description: fdrDescription || null,
       fdr_commentaires: fdrCommentaires || null,
@@ -336,6 +340,23 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
 
           {/* FDR / Contexte tab */}
           <TabsContent value="fdr" className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">📋 Statut Feuille de Route</Label>
+              <Select value={statutFdr} onValueChange={setStatutFdr}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner un statut FDR" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Aucun —</SelectItem>
+                  {(Object.entries(STATUT_FDR_CONFIG) as [StatutFDR, typeof STATUT_FDR_CONFIG['non_soumis']][]).map(([key, cfg]) => (
+                    <SelectItem key={key} value={key}>
+                      <span className="flex items-center gap-2">
+                        <span>{cfg.icon}</span>
+                        <span>{cfg.label}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5">🎯 Pilier stratégique</Label>
               <Select value={pilier} onValueChange={setPilier}>

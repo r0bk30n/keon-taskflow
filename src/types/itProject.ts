@@ -31,6 +31,42 @@ export type ITProjectPilier = 'P1' | 'P2' | 'P3' | 'P4' | 'P5';
 
 export type MilestoneStatus = 'a_venir' | 'en_cours' | 'termine' | 'retarde';
 
+export type StatutFDR =
+  | 'non_soumis'
+  | 'en_cours_validation'
+  | 'abandonne'
+  | 'fdr_2027'
+  | 'fdr_2030'
+  | 'stand_by';
+
+export const STATUT_FDR_CONFIG: Record<StatutFDR, { label: string; className: string; icon: string }> = {
+  non_soumis: { label: 'Non soumis', icon: '⬜', className: 'bg-slate-100 text-slate-600 border-slate-300' },
+  en_cours_validation: { label: 'En cours de validation', icon: '🔄', className: 'bg-blue-100 text-blue-700 border-blue-300' },
+  abandonne: { label: 'Abandonné', icon: '❌', className: 'bg-red-100 text-red-700 border-red-300' },
+  fdr_2027: { label: 'Feuille de Route 2027', icon: '✅', className: 'bg-emerald-100 text-emerald-700 border-emerald-300' },
+  fdr_2030: { label: 'Feuille de Route 2030', icon: '🎯', className: 'bg-violet-100 text-violet-700 border-violet-300' },
+  stand_by: { label: 'Mis en stand-by', icon: '⏸️', className: 'bg-amber-100 text-amber-700 border-amber-300' },
+};
+
+export interface ITProjectFDRValidation {
+  id: string;
+  it_project_id: string;
+  etape: number;
+  etape_label: string;
+  statut: 'a_faire' | 'en_cours' | 'valide' | 'rejete';
+  date_validation?: string | null;
+  valideur_id?: string | null;
+  commentaire?: string | null;
+  valideur?: { id: string; display_name: string } | null;
+}
+
+export const FDR_ETAPES = [
+  { numero: 1, label: 'Expression de besoin', icon: '📋' },
+  { numero: 2, label: 'Estimation budget & délais', icon: '💰' },
+  { numero: 3, label: 'Présentation au CODIR', icon: '👔' },
+  { numero: 4, label: 'Arbitrage & validation', icon: '✅' },
+];
+
 export interface ITProject {
   id: string;
   code_projet_digital: string;
@@ -81,6 +117,10 @@ export interface ITProject {
   created_at: string;
   updated_at: string;
   created_by?: string | null;
+
+  // FDR governance
+  statut_fdr?: StatutFDR | null;
+  etape_validation_fdr?: number | null;
 
   // Joined data (optional, for display)
   responsable_it?: { id: string; display_name: string; avatar_url?: string | null } | null;
