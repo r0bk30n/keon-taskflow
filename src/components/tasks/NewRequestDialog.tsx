@@ -1276,6 +1276,7 @@ export function NewRequestDialog({ open, onClose, onAdd, onTasksCreated, initial
                                   isSelected={isSelected}
                                   hasCustomFields={hasCustomFields}
                                   onToggle={() => toggleSubProcess(subProcess.id)}
+                                  selectionMode={subprocessSelectionMode}
                                 />
                               );
                             })}
