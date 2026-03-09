@@ -35,6 +35,7 @@ export function StepSubProcessSelection({
   processName,
   selectedSubProcesses,
   onSelectionChange,
+  selectionMode = 'multiple',
 }: StepSubProcessSelectionProps) {
   const [subProcesses, setSubProcesses] = useState<SubProcessSelection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
