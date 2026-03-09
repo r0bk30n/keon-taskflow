@@ -387,7 +387,7 @@ export function NewRequestDialog({ open, onClose, onAdd, onTasksCreated, initial
         // Load subprocess selection mode
         setSubprocessSelectionMode(settings?.subprocess_selection_mode || 'multiple');
         if (settings?.common_fields_config) {
-          const cfg = { ...DEFAULT_COMMON_FIELDS_CONFIG, ...settings.common_fields_config } as CommonFieldsConfig;
+          const cfg = mergeCommonFieldsConfig(settings.common_fields_config);
           setCommonFieldsConfig(cfg);
           if (cfg.priority && !cfg.priority.editable && cfg.priority.default_value) {
             setPriority(cfg.priority.default_value as TaskPriority);
