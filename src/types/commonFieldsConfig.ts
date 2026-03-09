@@ -18,6 +18,7 @@ export interface CommonFieldsConfig {
   priority: CommonFieldConfig;
   due_date: CommonFieldConfig;
   be_project: CommonFieldConfig;
+  it_project: CommonFieldConfig;
 }
 
 export const DEFAULT_COMMON_FIELDS_CONFIG: CommonFieldsConfig = {
