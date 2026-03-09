@@ -1462,13 +1462,20 @@ export type Database = {
           date_fin_prevue: string | null
           date_fin_reelle: string | null
           description: string | null
+          directeur_id: string | null
           entite_id: string | null
+          fdr_commentaires: string | null
+          fdr_description: string | null
+          fdr_priorite: string | null
+          fdr_type: string | null
+          groupe_service_id: string | null
           id: string
           loop_workspace_id: string | null
           loop_workspace_url: string | null
           membres_ids: string[] | null
           nom_projet: string
           phase_courante: string | null
+          pilier: string | null
           priorite: string | null
           progress: number | null
           responsable_it_id: string | null
@@ -1492,13 +1499,20 @@ export type Database = {
           date_fin_prevue?: string | null
           date_fin_reelle?: string | null
           description?: string | null
+          directeur_id?: string | null
           entite_id?: string | null
+          fdr_commentaires?: string | null
+          fdr_description?: string | null
+          fdr_priorite?: string | null
+          fdr_type?: string | null
+          groupe_service_id?: string | null
           id?: string
           loop_workspace_id?: string | null
           loop_workspace_url?: string | null
           membres_ids?: string[] | null
           nom_projet: string
           phase_courante?: string | null
+          pilier?: string | null
           priorite?: string | null
           progress?: number | null
           responsable_it_id?: string | null
@@ -1522,13 +1536,20 @@ export type Database = {
           date_fin_prevue?: string | null
           date_fin_reelle?: string | null
           description?: string | null
+          directeur_id?: string | null
           entite_id?: string | null
+          fdr_commentaires?: string | null
+          fdr_description?: string | null
+          fdr_priorite?: string | null
+          fdr_type?: string | null
+          groupe_service_id?: string | null
           id?: string
           loop_workspace_id?: string | null
           loop_workspace_url?: string | null
           membres_ids?: string[] | null
           nom_projet?: string
           phase_courante?: string | null
+          pilier?: string | null
           priorite?: string | null
           progress?: number | null
           responsable_it_id?: string | null
@@ -1569,8 +1590,22 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "it_projects_directeur_id_fkey"
+            columns: ["directeur_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "it_projects_entite_id_fkey"
             columns: ["entite_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "it_projects_groupe_service_id_fkey"
+            columns: ["groupe_service_id"]
             isOneToOne: false
             referencedRelation: "departments"
             referencedColumns: ["id"]
