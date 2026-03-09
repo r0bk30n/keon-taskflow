@@ -114,7 +114,7 @@ export function ITProjectFormDialog({ open, onClose, project, onSaved }: ITProje
     setBudgetPrevisionnel('');
     setTeamsChannelUrl('');
     setLoopWorkspaceUrl('');
-    setEntiteId(NONE);
+    setCompanyId(NONE);
     setChefProjetMetierId(NONE);
     setChefProjetItId(NONE);
     setGroupeServiceId(NONE);
