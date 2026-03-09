@@ -228,7 +228,6 @@ export const IT_PHASE_BADGE_CONFIG: Record<ITProjectPhase, { label: string; clas
   recette: { label: 'Recette', className: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
   deploiement: { label: 'Déploiement', className: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
 };
-];
 
 export const IT_PROJECT_PILIER_CONFIG: Record<
   ITProjectPilier,
