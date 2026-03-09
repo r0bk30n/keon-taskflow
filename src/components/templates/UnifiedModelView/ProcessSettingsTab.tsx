@@ -184,6 +184,32 @@ export function ProcessSettingsTab({ process, onUpdate, canManage }: ProcessSett
     }
   };
 
+  const handleSaveSelectionMode = async () => {
+    setIsSavingSelectionMode(true);
+    try {
+      const existingSettings = (process as any).settings || {};
+      const updatedSettings = {
+        ...existingSettings,
+        subprocess_selection_mode: subprocessSelectionMode,
+      };
+
+      const { error } = await supabase
+        .from('process_templates')
+        .update({ settings: updatedSettings })
+        .eq('id', process.id);
+
+      if (error) throw error;
+
+      toast.success('Mode de sélection enregistré');
+      onUpdate();
+    } catch (error) {
+      console.error('Error saving selection mode:', error);
+      toast.error('Erreur lors de la sauvegarde');
+    } finally {
+      setIsSavingSelectionMode(false);
+    }
+  };
+
   const handleSaveRecurrence = async () => {
     setIsSavingRecurrence(true);
     try {
