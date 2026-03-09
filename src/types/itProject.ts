@@ -221,6 +221,15 @@ export const IT_PROJECT_PHASES: { value: ITProjectPhase; label: string; order: n
   { value: 'deploiement', label: 'Déploiement / MEP', order: 5 },
 ];
 
+export const IT_PHASE_BADGE_CONFIG: Record<ITProjectPhase, { label: string; className: string }> = {
+  cadrage: { label: 'Cadrage', className: 'bg-slate-500/10 text-slate-600 border-slate-500/20' },
+  analyse: { label: 'Analyse', className: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
+  developpement: { label: 'Développement', className: 'bg-violet-500/10 text-violet-600 border-violet-500/20' },
+  recette: { label: 'Recette', className: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
+  deploiement: { label: 'Déploiement', className: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
+};
+];
+
 export const IT_PROJECT_PILIER_CONFIG: Record<
   ITProjectPilier,
   { label: string; description: string; color: string; className: string }
