@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { BEProjectSelect } from '@/components/be/BEProjectSelect';
+import { ITProjectSelect } from '@/components/it/ITProjectSelect';
 import { RequestWizardData, RequestType } from './types';
 import { CommonFieldsConfig, DEFAULT_COMMON_FIELDS_CONFIG, resolveTitlePattern } from '@/types/commonFieldsConfig';
 import { useAuth } from '@/contexts/AuthContext';
