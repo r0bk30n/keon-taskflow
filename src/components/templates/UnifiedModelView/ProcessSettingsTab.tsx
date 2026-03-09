@@ -364,7 +364,7 @@ export function ProcessSettingsTab({ process, onUpdate, canManage }: ProcessSett
                       onCheckedChange={(checked) =>
                         updateFieldConfig(key, { editable: checked })
                       }
-                      disabled={!canManage || (key !== 'be_project' && !config.visible)}
+                      disabled={!canManage || (key !== 'be_project' && key !== 'it_project' && !config.visible)}
                     />
                   </div>
 
