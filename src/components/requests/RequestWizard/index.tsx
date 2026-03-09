@@ -429,6 +429,7 @@ export function RequestWizardDialog({ open, onClose, onSuccess, initialProcessId
             processName={data.processName}
             selectedSubProcesses={data.selectedSubProcesses}
             onSelectionChange={handleSubProcessSelectionChange}
+            selectionMode={subprocessSelectionMode}
           />
         );
       case "details":
