@@ -472,6 +472,7 @@ export default function ITProjects() {
                             </th>
                           ))}
                           <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">Pilier</th>
+                          <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">FDR</th>
                           <th className="text-left px-3 py-2 font-medium text-xs text-muted-foreground">Chef IT</th>
                           <th className="w-8" />
                         </tr>
