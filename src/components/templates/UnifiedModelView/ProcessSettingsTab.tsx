@@ -48,6 +48,12 @@ export function ProcessSettingsTab({ process, onUpdate, canManage }: ProcessSett
   const [itProjects, setItProjects] = useState<{ id: string; nom_projet: string; code_projet_digital: string }[]>([]);
   const [itProjectSearch, setItProjectSearch] = useState('');
 
+  // Subprocess selection mode
+  const [subprocessSelectionMode, setSubprocessSelectionMode] = useState<'multiple' | 'single'>(
+    ((process as any).settings?.subprocess_selection_mode as 'multiple' | 'single') || 'multiple'
+  );
+  const [isSavingSelectionMode, setIsSavingSelectionMode] = useState(false);
+
   // Recurrence config state
   const [recurrence, setRecurrence] = useState<RecurrenceData>({
     enabled: (process as any).recurrence_enabled || false,
