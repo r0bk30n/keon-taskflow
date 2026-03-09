@@ -201,7 +201,8 @@ export function StepSubProcessSelection({
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
                       <input
-                        type="checkbox"
+                        type={selectionMode === 'single' ? 'radio' : 'checkbox'}
+                        name={selectionMode === 'single' ? 'subprocess-selection' : undefined}
                         checked={isSelected}
                         disabled={sp.isMandatory}
                         className="mt-1 h-4 w-4"
