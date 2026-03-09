@@ -448,13 +448,23 @@ export function NewRequestDialog({ open, onClose, onAdd, onTasksCreated, initial
   };
 
   const toggleSubProcess = (subProcessId: string) => {
-    setSelectedSubProcessIds(prev => {
-      if (prev.includes(subProcessId)) {
-        return prev.filter(id => id !== subProcessId);
-      } else {
-        return [...prev, subProcessId];
-      }
-    });
+    if (subprocessSelectionMode === 'single') {
+      setSelectedSubProcessIds(prev => {
+        if (prev.includes(subProcessId)) {
+          return []; // deselect
+        } else {
+          return [subProcessId]; // select only this one
+        }
+      });
+    } else {
+      setSelectedSubProcessIds(prev => {
+        if (prev.includes(subProcessId)) {
+          return prev.filter(id => id !== subProcessId);
+        } else {
+          return [...prev, subProcessId];
+        }
+      });
+    }
   };
 
   // Memoized visible custom fields
