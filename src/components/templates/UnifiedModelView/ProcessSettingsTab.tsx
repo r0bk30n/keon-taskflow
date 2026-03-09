@@ -318,6 +318,7 @@ export function ProcessSettingsTab({ process, onUpdate, canManage }: ProcessSett
             const config = commonFieldsConfig[key];
             const showPriorityDefault = key === 'priority' && config.visible && !config.editable;
             const showProjectDefault = key === 'be_project' && !config.editable;
+            const showItProjectDefault = key === 'it_project' && !config.editable;
 
             // Title is always auto-generated — skip config row
             if (key === 'title') {
