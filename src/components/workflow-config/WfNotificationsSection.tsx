@@ -18,37 +18,14 @@ import {
 import { Plus, Trash2, Edit2, Eye, EyeOff, Bell, Mail, MessageSquare, Save, Loader2 } from 'lucide-react';
 import type { WfNotification, WfNotificationInsert, WfNotificationUpdate, WfStep } from '@/types/workflow';
 import { WF_EVENT_LABELS } from '@/types/workflow';
-
-const NOTIFICATION_VARIABLES = [
-  { key: '{request_number}', label: 'N° demande' },
-  { key: '{requester_name}', label: 'Demandeur' },
-  { key: '{step_name}', label: 'Étape' },
-];
-
-function VariableChips({ onInsert }: { onInsert: (variable: string) => void }) {
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="text-xs text-muted-foreground">Variables :</span>
-      {NOTIFICATION_VARIABLES.map((v) => (
-        <button
-          key={v.key}
-          type="button"
-          onClick={() => onInsert(v.key)}
-          className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-0.5 text-xs font-mono text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
-          title={`Insérer ${v.key}`}
-        >
-          {v.key}
-        </button>
-      ))}
-    </div>
-  );
-}
+import { NotificationVariablePicker } from './NotificationVariablePicker';
 import type { Json } from '@/integrations/supabase/types';
 
 interface Props {
   notifications: WfNotification[];
   steps: WfStep[];
   canManage: boolean;
+  subProcessTemplateId?: string;
   onAdd: (n: Omit<WfNotificationInsert, 'workflow_id'>) => Promise<WfNotification | null>;
   onUpdate: (id: string, updates: Partial<WfNotification>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
@@ -105,7 +82,7 @@ const CHANNEL_ICONS: Record<string, React.ReactNode> = {
   teams: <MessageSquare className="h-3 w-3" />,
 };
 
-export function WfNotificationsSection({ notifications, steps, canManage, onAdd, onUpdate, onDelete }: Props) {
+export function WfNotificationsSection({ notifications, steps, canManage, subProcessTemplateId, onAdd, onUpdate, onDelete }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingNotif, setEditingNotif] = useState<WfNotification | null>(null);
 
@@ -208,6 +185,7 @@ export function WfNotificationsSection({ notifications, steps, canManage, onAdd,
         open={drawerOpen}
         onClose={() => { setDrawerOpen(false); setEditingNotif(null); }}
         steps={steps}
+        subProcessTemplateId={subProcessTemplateId}
         initialData={editingNotif}
         onSave={async (data) => {
           if (editingNotif) {
@@ -229,11 +207,12 @@ interface DrawerProps {
   open: boolean;
   onClose: () => void;
   steps: WfStep[];
+  subProcessTemplateId?: string;
   initialData: WfNotification | null;
   onSave: (data: any) => Promise<void>;
 }
 
-function NotificationDrawer({ open, onClose, steps, initialData, onSave }: DrawerProps) {
+function NotificationDrawer({ open, onClose, steps, subProcessTemplateId, initialData, onSave }: DrawerProps) {
   const isEdit = !!initialData;
 
   const [stepKey, setStepKey] = useState('');
@@ -409,7 +388,7 @@ function NotificationDrawer({ open, onClose, steps, initialData, onSave }: Drawe
               onChange={e => setSubject(e.target.value)}
               placeholder="Ex: Votre demande a été validée"
             />
-            <VariableChips onInsert={(v) => setSubject(prev => prev + v)} />
+            <NotificationVariablePicker subProcessTemplateId={subProcessTemplateId} onInsert={(v) => setSubject(prev => prev + v)} />
           </div>
 
           {/* Body */}
@@ -422,7 +401,7 @@ function NotificationDrawer({ open, onClose, steps, initialData, onSave }: Drawe
               onChange={e => setBodyTemplate(e.target.value)}
               placeholder="Ex: La demande {request_number} a été traitée..."
             />
-            <VariableChips onInsert={(v) => setBodyTemplate(prev => prev + v)} />
+            <NotificationVariablePicker subProcessTemplateId={subProcessTemplateId} onInsert={(v) => setBodyTemplate(prev => prev + v)} />
           </div>
 
           {/* Active */}

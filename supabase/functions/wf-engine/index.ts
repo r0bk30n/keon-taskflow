@@ -621,6 +621,73 @@ async function processActions(supabase: any, workflowId: string, fromStepKey: st
   }
 }
 
+async function buildNotificationVariables(supabase: any, demandId: string, contextData: any): Promise<Record<string, string>> {
+  const vars: Record<string, string> = {};
+
+  // 1. Context data (highest priority — set last to override)
+  const contextEntries = Object.entries(contextData || {}).map(([k, v]) => [k, String(v ?? '')]);
+
+  // 2. System fields from the demand (tasks table)
+  const { data: demand } = await supabase
+    .from("tasks")
+    .select("id, title, status, priority, user_id, request_number, created_at, assignee_id")
+    .eq("id", demandId)
+    .single();
+
+  if (demand) {
+    vars.request_title = demand.title || '';
+    vars.request_status = demand.status || '';
+    vars.request_priority = demand.priority || '';
+    vars.request_number = demand.request_number || '';
+
+    // Resolve requester name
+    if (demand.user_id) {
+      const { data: requesterProfile } = await supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("user_id", demand.user_id)
+        .single();
+      vars.requester_name = requesterProfile?.display_name || '';
+    }
+
+    // Resolve assignee name
+    if (demand.assignee_id) {
+      const { data: assigneeProfile } = await supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("id", demand.assignee_id)
+        .single();
+      vars.assignee_name = assigneeProfile?.display_name || '';
+    }
+  }
+
+  // 3. Custom fields from request_field_values + template_custom_fields
+  const { data: fieldValues } = await supabase
+    .from("request_field_values")
+    .select("value, template_custom_fields!inner(name)")
+    .eq("task_id", demandId);
+
+  if (fieldValues) {
+    for (const fv of fieldValues as any[]) {
+      const fieldName = fv.template_custom_fields?.name;
+      if (fieldName) {
+        vars[fieldName] = fv.value || '';
+      }
+    }
+  }
+
+  // Apply context_data last (highest priority)
+  for (const [k, v] of contextEntries) {
+    vars[k] = v as string;
+  }
+
+  return vars;
+}
+
+function interpolateTemplate(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`);
+}
+
 async function processNotifications(supabase: any, workflowId: string, stepKey: string, event: string, demandId: string, contextData: any) {
   const { data: notifs } = await supabase
     .from("wf_notifications")
@@ -632,17 +699,30 @@ async function processNotifications(supabase: any, workflowId: string, stepKey: 
 
   if (!notifs || notifs.length === 0) return;
 
+  // Build variable dictionary once for all notifications
+  const vars = await buildNotificationVariables(supabase, demandId, contextData);
+  // Add step name
+  const { data: stepData } = await supabase
+    .from("wf_steps")
+    .select("name")
+    .eq("workflow_id", workflowId)
+    .eq("step_key", stepKey)
+    .single();
+  vars.step_name = stepData?.name || stepKey;
+
   for (const notif of notifs) {
     const channels = notif.channels_json || [];
     if (channels.includes("in_app")) {
-      // Create in-app notification
       try {
         const recipients = await resolveRecipients(supabase, notif.recipients_rules_json, demandId, contextData);
+        const resolvedSubject = interpolateTemplate(notif.subject_template || "Notification workflow", vars);
+        const resolvedBody = interpolateTemplate(notif.body_template || "", vars);
+
         for (const recipientId of recipients) {
           await supabase.from("notifications").insert({
             user_id: recipientId,
-            title: notif.subject_template || "Notification workflow",
-            message: notif.body_template || "",
+            title: resolvedSubject,
+            message: resolvedBody,
             type: "workflow",
             related_entity_type: "task",
             related_entity_id: demandId,
