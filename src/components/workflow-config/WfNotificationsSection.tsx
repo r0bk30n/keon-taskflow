@@ -388,7 +388,7 @@ function NotificationDrawer({ open, onClose, steps, subProcessTemplateId, initia
               onChange={e => setSubject(e.target.value)}
               placeholder="Ex: Votre demande a été validée"
             />
-            <VariableChips onInsert={(v) => setSubject(prev => prev + v)} />
+            <NotificationVariablePicker subProcessTemplateId={subProcessTemplateId} onInsert={(v) => setSubject(prev => prev + v)} />
           </div>
 
           {/* Body */}
