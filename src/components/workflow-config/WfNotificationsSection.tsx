@@ -18,6 +18,31 @@ import {
 import { Plus, Trash2, Edit2, Eye, EyeOff, Bell, Mail, MessageSquare, Save, Loader2 } from 'lucide-react';
 import type { WfNotification, WfNotificationInsert, WfNotificationUpdate, WfStep } from '@/types/workflow';
 import { WF_EVENT_LABELS } from '@/types/workflow';
+
+const NOTIFICATION_VARIABLES = [
+  { key: '{request_number}', label: 'N° demande' },
+  { key: '{requester_name}', label: 'Demandeur' },
+  { key: '{step_name}', label: 'Étape' },
+];
+
+function VariableChips({ onInsert }: { onInsert: (variable: string) => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-xs text-muted-foreground">Variables :</span>
+      {NOTIFICATION_VARIABLES.map((v) => (
+        <button
+          key={v.key}
+          type="button"
+          onClick={() => onInsert(v.key)}
+          className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-0.5 text-xs font-mono text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+          title={`Insérer ${v.key}`}
+        >
+          {v.key}
+        </button>
+      ))}
+    </div>
+  );
+}
 import type { Json } from '@/integrations/supabase/types';
 
 interface Props {
@@ -379,24 +404,25 @@ function NotificationDrawer({ open, onClose, steps, initialData, onSave }: Drawe
           <div className="space-y-2">
             <Label>Sujet du message</Label>
             <Input
+              id="notif-subject"
               value={subject}
               onChange={e => setSubject(e.target.value)}
               placeholder="Ex: Votre demande a été validée"
             />
-            <p className="text-xs text-muted-foreground">
-              Variables disponibles : {'{request_number}'}, {'{requester_name}'}, {'{step_name}'}
-            </p>
+            <VariableChips onInsert={(v) => setSubject(prev => prev + v)} />
           </div>
 
           {/* Body */}
           <div className="space-y-2">
             <Label>Corps du message (optionnel)</Label>
             <textarea
+              id="notif-body"
               className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               value={bodyTemplate}
               onChange={e => setBodyTemplate(e.target.value)}
               placeholder="Ex: La demande {request_number} a été traitée..."
             />
+            <VariableChips onInsert={(v) => setBodyTemplate(prev => prev + v)} />
           </div>
 
           {/* Active */}
