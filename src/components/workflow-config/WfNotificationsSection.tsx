@@ -401,7 +401,7 @@ function NotificationDrawer({ open, onClose, steps, subProcessTemplateId, initia
               onChange={e => setBodyTemplate(e.target.value)}
               placeholder="Ex: La demande {request_number} a été traitée..."
             />
-            <VariableChips onInsert={(v) => setBodyTemplate(prev => prev + v)} />
+            <NotificationVariablePicker subProcessTemplateId={subProcessTemplateId} onInsert={(v) => setBodyTemplate(prev => prev + v)} />
           </div>
 
           {/* Active */}
