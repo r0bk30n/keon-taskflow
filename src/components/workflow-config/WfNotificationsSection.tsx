@@ -185,6 +185,7 @@ export function WfNotificationsSection({ notifications, steps, canManage, subPro
         open={drawerOpen}
         onClose={() => { setDrawerOpen(false); setEditingNotif(null); }}
         steps={steps}
+        subProcessTemplateId={subProcessTemplateId}
         initialData={editingNotif}
         onSave={async (data) => {
           if (editingNotif) {
