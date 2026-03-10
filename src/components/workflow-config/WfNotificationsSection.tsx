@@ -82,7 +82,7 @@ const CHANNEL_ICONS: Record<string, React.ReactNode> = {
   teams: <MessageSquare className="h-3 w-3" />,
 };
 
-export function WfNotificationsSection({ notifications, steps, canManage, onAdd, onUpdate, onDelete }: Props) {
+export function WfNotificationsSection({ notifications, steps, canManage, subProcessTemplateId, onAdd, onUpdate, onDelete }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingNotif, setEditingNotif] = useState<WfNotification | null>(null);
 
