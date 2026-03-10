@@ -280,6 +280,7 @@ export function WorkflowConfigTab({ subProcessId, subProcessName, canManage }: P
           <TabsContent value="notifications" className="mt-4">
             <WfNotificationsSection
               notifications={wf.notifications} steps={wf.steps} canManage={canManage}
+              subProcessTemplateId={subProcessId}
               onAdd={wf.addNotification} onUpdate={wf.updateNotification} onDelete={wf.deleteNotification}
             />
           </TabsContent>
