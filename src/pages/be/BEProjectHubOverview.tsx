@@ -65,6 +65,38 @@ export default function BEProjectHubOverview() {
   const { data: project, isLoading: projectLoading } = useBEProjectByCode(code);
   const { data: tasks = [], isLoading: tasksLoading } = useBEProjectTasks(project?.id);
   const [isGeocodingGps, setIsGeocodingGps] = useState(false);
+
+  const handleGenerateGps = async () => {
+    if (!project) return;
+    const addressParts = [project.adresse_site, project.departement, project.region, project.pays_site].filter(Boolean);
+    if (addressParts.length === 0) {
+      toast({ title: 'Adresse manquante', description: 'Aucune information d\'adresse pour géocoder.', variant: 'destructive' });
+      return;
+    }
+    setIsGeocodingGps(true);
+    try {
+      const query = encodeURIComponent(addressParts.join(', '));
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`, {
+        headers: { 'User-Agent': 'keon-app' },
+      });
+      const data = await res.json();
+      if (!data || data.length === 0) {
+        toast({ title: 'Aucun résultat', description: 'Nominatim n\'a trouvé aucune correspondance pour cette adresse.', variant: 'destructive' });
+        return;
+      }
+      const { lat, lon } = data[0];
+      const coords = `${lat}, ${lon}`;
+      const { error } = await supabase.from('be_projects').update({ gps_coordinates: coords }).eq('id', project.id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['be-project', code] });
+      toast({ title: 'GPS générées', description: `Coordonnées : ${coords}` });
+    } catch (err: any) {
+      toast({ title: 'Erreur', description: err.message || 'Erreur lors du géocodage', variant: 'destructive' });
+    } finally {
+      setIsGeocodingGps(false);
+    }
+  };
+
   const [expandedRequests, setExpandedRequests] = useState<Set<string>>(new Set());
   
   const stats = useBEProjectStats(project?.id, tasks);
