@@ -247,18 +247,32 @@ function ProjectMapCard({ projects, allProjectStats = {} }: { projects: BEProjec
     };
   }, [withCoords, allProjectStats, navigate]);
 
-  const bulkButton = missingGps.length > 0 ? (
-    <Button
-      variant="outline"
-      size="sm"
-      className="h-7 px-2 text-xs gap-1 ml-auto"
-      onClick={handleBulkGeocode}
-      disabled={isBulkGeocoding}
-    >
-      {isBulkGeocoding ? <Loader2 className="h-3 w-3 animate-spin" /> : <span>📍</span>}
-      Générer GPS manquants ({missingGps.length})
-    </Button>
-  ) : null;
+  const bulkButton = (
+    <div className="flex items-center gap-1 ml-auto">
+      {missingGps.length > 0 && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 px-2 text-xs gap-1"
+          onClick={handleBulkGeocode}
+          disabled={isBulkGeocoding || isRegenGeocoding}
+        >
+          {isBulkGeocoding ? <Loader2 className="h-3 w-3 animate-spin" /> : <span>📍</span>}
+          Générer GPS manquants ({missingGps.length})
+        </Button>
+      )}
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-7 px-2 text-xs gap-1"
+        onClick={handleRegenGeocode}
+        disabled={isBulkGeocoding || isRegenGeocoding}
+      >
+        {isRegenGeocoding ? <Loader2 className="h-3 w-3 animate-spin" /> : <span>🔄</span>}
+        Régénérer GPS filtrés ({projects.length})
+      </Button>
+    </div>
+  );
 
   if (withCoords.length === 0) {
     return (
