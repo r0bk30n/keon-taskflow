@@ -75,9 +75,13 @@ export default function BEProjectHubOverview() {
     }
     setIsGeocodingGps(true);
     try {
-      const query = encodeURIComponent(addressParts.join(', '));
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`, {
-        headers: { 'User-Agent': 'keon-app' },
+      const q = encodeURIComponent(addressParts.join(', '));
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${q}`, {
+        headers: {
+          'User-Agent': 'keon-app/1.0',
+          'Accept': 'application/json',
+          'Accept-Language': 'fr',
+        },
       });
       const data = await res.json();
       if (!data || data.length === 0) {
@@ -204,7 +208,12 @@ export default function BEProjectHubOverview() {
                   <div className="flex items-center justify-between py-1.5 border-b border-border/50">
                     <span className="text-sm text-muted-foreground">Coordonnées GPS</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-right font-mono">{project.gps_coordinates || '-'}</span>
+                      <span className="text-sm text-right font-mono">{(() => {
+                        if (!project.gps_coordinates) return '-';
+                        const pts = project.gps_coordinates.split(',').map(s => parseFloat(s.trim()));
+                        if (pts.length === 2 && Math.abs(pts[0]) < 0.001 && Math.abs(pts[1]) < 0.001) return 'Non renseigné';
+                        return project.gps_coordinates;
+                      })()}</span>
                       <Button
                         variant="outline"
                         size="sm"
@@ -225,6 +234,7 @@ export default function BEProjectHubOverview() {
                   const lat = parseFloat(parts[0]);
                   const lon = parseFloat(parts[1]);
                   if (isNaN(lat) || isNaN(lon)) return null;
+                  if (Math.abs(lat) < 0.001 && Math.abs(lon) < 0.001) return null;
                   return (
                     <div className="mt-3 rounded-lg overflow-hidden border border-border">
                       <iframe

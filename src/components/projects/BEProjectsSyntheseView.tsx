@@ -74,11 +74,19 @@ function ProjectMapCard({ projects }: { projects: BEProject[] }) {
     projects.filter(p => {
       if (!p.gps_coordinates) return false;
       const parts = p.gps_coordinates.split(',').map(s => parseFloat(s.trim()));
-      return parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1]);
+      if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) return false;
+      if (Math.abs(parts[0]) < 0.001 && Math.abs(parts[1]) < 0.001) return false;
+      return true;
     }), [projects]);
 
   const missingGps = useMemo(() =>
-    projects.filter(p => !p.gps_coordinates || p.gps_coordinates.trim() === ''), [projects]);
+    projects.filter(p => {
+      if (!p.gps_coordinates || p.gps_coordinates.trim() === '') return true;
+      const parts = p.gps_coordinates.split(',').map(s => parseFloat(s.trim()));
+      if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) return true;
+      if (Math.abs(parts[0]) < 0.001 && Math.abs(parts[1]) < 0.001) return true;
+      return false;
+    }), [projects]);
 
   const handleBulkGeocode = useCallback(async () => {
     if (missingGps.length === 0) {
@@ -88,8 +96,8 @@ function ProjectMapCard({ projects }: { projects: BEProject[] }) {
     setIsBulkGeocoding(true);
     let success = 0;
     let errors = 0;
+    const failedNames: string[] = [];
     const total = missingGps.length;
-    const toastId = `bulk-gps-${Date.now()}`;
 
     toast({ title: 'Géocodage en cours...', description: `0 / ${total} projets traités...` });
 
@@ -99,26 +107,30 @@ function ProjectMapCard({ projects }: { projects: BEProject[] }) {
       if (addressParts.length === 0) { errors++; continue; }
 
       try {
-        const query = encodeURIComponent(addressParts.join(', '));
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`, {
-          headers: { 'User-Agent': 'keon-app' },
+        const q = encodeURIComponent(addressParts.join(', '));
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${q}`, {
+          headers: {
+            'User-Agent': 'keon-app/1.0',
+            'Accept': 'application/json',
+            'Accept-Language': 'fr',
+          },
         });
         const data = await res.json();
         if (data && data.length > 0) {
           const coords = `${data[0].lat}, ${data[0].lon}`;
           const { error } = await supabase.from('be_projects').update({ gps_coordinates: coords }).eq('id', p.id);
-          if (error) { errors++; } else { success++; }
+          if (error) { errors++; failedNames.push(p.code_projet); } else { success++; }
         } else {
           errors++;
+          failedNames.push(p.code_projet);
         }
-      } catch {
+      } catch (err: any) {
         errors++;
+        failedNames.push(p.code_projet);
       }
 
-      // Update progress toast
       toast({ title: 'Géocodage en cours...', description: `${i + 1} / ${total} projets traités...` });
 
-      // Rate limit: 1100ms between calls
       if (i < missingGps.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 1100));
       }
@@ -128,7 +140,7 @@ function ProjectMapCard({ projects }: { projects: BEProject[] }) {
     queryClient.invalidateQueries({ queryKey: ['be-synthese-stats'] });
     toast({
       title: 'Géocodage terminé',
-      description: `${success} coordonnées générées, ${errors} échecs sur ${total} projets.`,
+      description: `${success} coordonnées générées, ${errors} échecs sur ${total} projets.${failedNames.length > 0 ? ` Échecs : ${failedNames.slice(0, 5).join(', ')}${failedNames.length > 5 ? '...' : ''}` : ''}`,
     });
   }, [missingGps, queryClient]);
 
