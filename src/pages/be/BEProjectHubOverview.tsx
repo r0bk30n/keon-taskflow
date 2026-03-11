@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { BEProjectHubLayout } from '@/components/be/BEProjectHubLayout';
 import { 
   useBEProjectByCode, 
@@ -7,12 +8,14 @@ import {
   useBEProjectStats,
   useBEProjectRecentActivity 
 } from '@/hooks/useBEProjectHub';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   MapPin, 
@@ -30,8 +33,10 @@ import {
   ChevronDown,
   ChevronRight,
   ListTodo,
-  ClipboardList
+  ClipboardList,
+  Loader2
 } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 import { format, isPast, isToday } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
