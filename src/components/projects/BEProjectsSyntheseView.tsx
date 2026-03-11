@@ -36,6 +36,7 @@ interface ProjectStats {
 interface Props {
   projects: BEProject[];
   qstData: Record<string, Record<string, any>>;
+  widgets?: WidgetConfig[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
