@@ -145,6 +145,12 @@ export default function BEProjectHubOverview() {
     }
   };
 
+  const hasValidCoords = useMemo(() => {
+    if (!project?.gps_coordinates) return false;
+    const pts = project.gps_coordinates.split(',').map(s => parseFloat(s.trim()));
+    return pts.length === 2 && !isNaN(pts[0]) && !isNaN(pts[1]) && !(Math.abs(pts[0]) < 0.001 && Math.abs(pts[1]) < 0.001);
+  }, [project?.gps_coordinates]);
+
   const [expandedRequests, setExpandedRequests] = useState<Set<string>>(new Set());
   
   const stats = useBEProjectStats(project?.id, tasks);
