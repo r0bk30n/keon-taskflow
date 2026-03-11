@@ -17,6 +17,11 @@ import {
   MapPin, CheckCircle2, Clock, AlertTriangle, FolderOpen,
   TrendingUp, Activity, Zap, Globe, Loader2
 } from 'lucide-react';
+import {
+  SyntheseWidgetConfigPanel,
+  loadWidgetConfig,
+  WidgetConfig,
+} from './SyntheseWidgetConfigPanel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ProjectStats {
@@ -46,6 +51,40 @@ const TYPO_COLORS: Record<string, string> = {
 
 const CHART_COLORS = ['#10b981', '#f59e0b', '#6b7280', '#3b82f6', '#ec4899', '#8b5cf6'];
 
+// ─── Size → height mapping ────────────────────────────────────────────────────
+const SIZE_HEIGHTS: Record<string, number> = { compact: 160, normal: 200, large: 280 };
+
+// ─── Count-up hook ────────────────────────────────────────────────────────────
+function useCountUp(target: number, duration = 800) {
+  const [value, setValue] = useState(0);
+  const prevTarget = useRef(target);
+
+  useEffect(() => {
+    const start = prevTarget.current === target ? 0 : value;
+    prevTarget.current = target;
+    if (target === 0) { setValue(0); return; }
+    const startTime = performance.now();
+    let raf: number;
+    const tick = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.round(start + (target - start) * eased));
+      if (progress < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+
+  return value;
+}
+
+function AnimatedNumber({ value, suffix = '' }: { value: number; suffix?: string }) {
+  const animated = useCountUp(value);
+  return <>{animated}{suffix}</>;
+}
+
 function RadialProgress({ value, size = 80, stroke = 7, color = '#10b981' }: {
   value: number; size?: number; stroke?: number; color?: string;
 }) {
@@ -63,9 +102,44 @@ function RadialProgress({ value, size = 80, stroke = 7, color = '#10b981' }: {
   );
 }
 
+// ─── Animated widget wrapper ──────────────────────────────────────────────────
+function WidgetCard({
+  children,
+  accentColor,
+  gradientFrom,
+  gradientTo,
+  className,
+  delay = 0,
+  ...props
+}: {
+  children: React.ReactNode;
+  accentColor: string;
+  gradientFrom: string;
+  gradientTo: string;
+  className?: string;
+  delay?: number;
+} & React.ComponentProps<typeof Card>) {
+  return (
+    <Card
+      className={cn(
+        'border-border/50 overflow-hidden transition-shadow duration-300 hover:shadow-lg hover:shadow-black/5',
+        className
+      )}
+      style={{
+        borderLeft: `3px solid ${accentColor}`,
+        animation: `synthese-slide-up 0.5s ease-out ${delay}ms both`,
+      }}
+      {...props}
+    >
+      {children}
+    </Card>
+  );
+}
+
 // ─── OSM Map tile card ────────────────────────────────────────────────────────
 function ProjectMapCard({ projects, allProjectStats = {} }: { projects: BEProject[]; allProjectStats?: Record<string, ProjectStats> }) {
   const [isBulkGeocoding, setIsBulkGeocoding] = useState(false);
+  const [isRegenGeocoding, setIsRegenGeocoding] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -89,8 +163,6 @@ function ProjectMapCard({ projects, allProjectStats = {} }: { projects: BEProjec
       return false;
     }), [projects]);
 
-  const [isRegenGeocoding, setIsRegenGeocoding] = useState(false);
-
   const bulkGeocode = useCallback(async (targetProjects: BEProject[], setLoading: (v: boolean) => void) => {
     if (targetProjects.length === 0) {
       toast({ title: 'Rien à géocoder', description: 'Aucun projet à traiter.' });
@@ -111,29 +183,18 @@ function ProjectMapCard({ projects, allProjectStats = {} }: { projects: BEProjec
 
       try {
         const address = addressParts.join(', ');
-        const { data, error: fnError } = await supabase.functions.invoke('geocode', {
-          body: { address },
-        });
+        const { data, error: fnError } = await supabase.functions.invoke('geocode', { body: { address } });
         if (fnError) throw fnError;
         const result = Array.isArray(data) ? data : [];
         if (result.length > 0) {
           const coords = `${result[0].lat}, ${result[0].lon}`;
           const { error } = await supabase.from('be_projects').update({ gps_coordinates: coords }).eq('id', p.id);
           if (error) { errors++; failedNames.push(p.code_projet); } else { success++; }
-        } else {
-          errors++;
-          failedNames.push(p.code_projet);
-        }
-      } catch (err: any) {
-        errors++;
-        failedNames.push(p.code_projet);
-      }
+        } else { errors++; failedNames.push(p.code_projet); }
+      } catch { errors++; failedNames.push(p.code_projet); }
 
       toast({ title: 'Géocodage en cours...', description: `${i + 1} / ${total} projets traités...` });
-
-      if (i < targetProjects.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1100));
-      }
+      if (i < targetProjects.length - 1) await new Promise(resolve => setTimeout(resolve, 1100));
     }
 
     setLoading(false);
@@ -144,41 +205,22 @@ function ProjectMapCard({ projects, allProjectStats = {} }: { projects: BEProjec
     });
   }, [queryClient]);
 
-  const handleBulkGeocode = useCallback(() => {
-    bulkGeocode(missingGps, setIsBulkGeocoding);
-  }, [missingGps, bulkGeocode]);
-
-  const handleRegenGeocode = useCallback(() => {
-    bulkGeocode(projects, setIsRegenGeocoding);
-  }, [projects, bulkGeocode]);
+  const handleBulkGeocode = useCallback(() => bulkGeocode(missingGps, setIsBulkGeocoding), [missingGps, bulkGeocode]);
+  const handleRegenGeocode = useCallback(() => bulkGeocode(projects, setIsRegenGeocoding), [projects, bulkGeocode]);
 
   // Leaflet map initialization
   useEffect(() => {
     const L = (window as any).L;
     if (!L || !mapContainerRef.current || withCoords.length === 0) return;
 
-    // Destroy previous map
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove();
-      mapInstanceRef.current = null;
-    }
+    if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; }
 
-    const map = L.map(mapContainerRef.current, {
-      zoomControl: true,
-      scrollWheelZoom: true,
-    });
+    const map = L.map(mapContainerRef.current, { zoomControl: true, scrollWheelZoom: true });
     mapInstanceRef.current = map;
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap',
-      maxZoom: 18,
-    }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 18 }).addTo(map);
 
-    const statusColor: Record<string, string> = {
-      active: '#10b981',
-      on_hold: '#f59e0b',
-      closed: '#6b7280',
-    };
+    const statusColor: Record<string, string> = { active: '#10b981', on_hold: '#f59e0b', closed: '#6b7280' };
 
     const markers = L.markerClusterGroup({
       iconCreateFunction: (cluster: any) => {
@@ -198,8 +240,7 @@ function ProjectMapCard({ projects, allProjectStats = {} }: { projects: BEProjec
 
     withCoords.forEach(p => {
       const parts = p.gps_coordinates!.split(',').map(s => parseFloat(s.trim()));
-      const lat = parts[0];
-      const lon = parts[1];
+      const lat = parts[0], lon = parts[1];
       bounds.push([lat, lon]);
 
       const color = statusColor[p.status] || statusColor.active;
@@ -209,14 +250,7 @@ function ProjectMapCard({ projects, allProjectStats = {} }: { projects: BEProjec
         ? `<div style="margin-top:6px;font-size:11px;color:#6b7280;">Avancement: ${stats.progress}% · ${stats.doneTasks}/${stats.totalTasks} tâches</div>`
         : '';
 
-      const marker = L.circleMarker([lat, lon], {
-        radius: 8,
-        fillColor: color,
-        color: '#fff',
-        weight: 2,
-        fillOpacity: 0.9,
-      });
-
+      const marker = L.circleMarker([lat, lon], { radius: 8, fillColor: color, color: '#fff', weight: 2, fillOpacity: 0.9 });
       marker.bindPopup(`
         <div style="min-width:180px;font-family:system-ui,sans-serif;">
           <div style="font-weight:700;font-size:13px;color:${color};">${p.code_projet}</div>
@@ -229,45 +263,26 @@ function ProjectMapCard({ projects, allProjectStats = {} }: { projects: BEProjec
           <a href="/be/projects/${p.code_projet}/overview" style="display:inline-block;margin-top:6px;font-size:11px;color:#3b82f6;text-decoration:underline;">Ouvrir le projet →</a>
         </div>
       `, { maxWidth: 250 });
-
       markers.addLayer(marker);
     });
 
     map.addLayer(markers);
+    if (bounds.length > 0) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 });
 
-    if (bounds.length > 0) {
-      map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 });
-    }
-
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
-    };
+    return () => { if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; } };
   }, [withCoords, allProjectStats, navigate]);
 
   const bulkButton = (
     <div className="flex items-center gap-1 ml-auto">
       {missingGps.length > 0 && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-7 px-2 text-xs gap-1"
-          onClick={handleBulkGeocode}
-          disabled={isBulkGeocoding || isRegenGeocoding}
-        >
+        <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1"
+          onClick={handleBulkGeocode} disabled={isBulkGeocoding || isRegenGeocoding}>
           {isBulkGeocoding ? <Loader2 className="h-3 w-3 animate-spin" /> : <span>📍</span>}
           Générer GPS manquants ({missingGps.length})
         </Button>
       )}
-      <Button
-        variant="outline"
-        size="sm"
-        className="h-7 px-2 text-xs gap-1"
-        onClick={handleRegenGeocode}
-        disabled={isBulkGeocoding || isRegenGeocoding}
-      >
+      <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1"
+        onClick={handleRegenGeocode} disabled={isBulkGeocoding || isRegenGeocoding}>
         {isRegenGeocoding ? <Loader2 className="h-3 w-3 animate-spin" /> : <span>🔄</span>}
         Régénérer GPS filtrés ({projects.length})
       </Button>
@@ -276,7 +291,7 @@ function ProjectMapCard({ projects, allProjectStats = {} }: { projects: BEProjec
 
   if (withCoords.length === 0) {
     return (
-      <Card className="col-span-2 border-border/50">
+      <Card className="col-span-full border-border/50" style={{ borderLeft: '3px solid #12B6C8' }}>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Globe className="h-4 w-4 text-muted-foreground" />
@@ -292,7 +307,7 @@ function ProjectMapCard({ projects, allProjectStats = {} }: { projects: BEProjec
   }
 
   return (
-    <Card className="col-span-2 border-border/50 overflow-hidden">
+    <Card className="col-span-full border-border/50 overflow-hidden" style={{ borderLeft: '3px solid #12B6C8' }}>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Globe className="h-4 w-4 text-muted-foreground" />
@@ -311,6 +326,7 @@ function ProjectMapCard({ projects, allProjectStats = {} }: { projects: BEProjec
 // ─── Main component ───────────────────────────────────────────────────────────
 export function BEProjectsSyntheseView({ projects, qstData }: Props) {
   const navigate = useNavigate();
+  const [widgets, setWidgets] = useState<WidgetConfig[]>(loadWidgetConfig);
 
   // Fetch task stats for all projects (batch)
   const projectIds = useMemo(() => projects.map(p => p.id), [projects]);
@@ -360,14 +376,13 @@ export function BEProjectsSyntheseView({ projects, qstData }: Props) {
     return { total, active, closed, onHold, totalTasks, doneTasks, overdue, avgProgress };
   }, [projects, allProjectStats]);
 
-  // ── Chart: by status ──────────────────────────────────────────────────────
+  // ── Chart data ──────────────────────────────────────────────────────────
   const statusData = useMemo(() => [
     { name: 'Actif',      value: kpis.active,  color: '#10b981' },
     { name: 'Clôturé',    value: kpis.closed,  color: '#6b7280' },
     { name: 'En attente', value: kpis.onHold,  color: '#f59e0b' },
   ].filter(d => d.value > 0), [kpis]);
 
-  // ── Chart: by typologie ───────────────────────────────────────────────────
   const typoData = useMemo(() => {
     const map: Record<string, number> = {};
     projects.forEach(p => {
@@ -383,7 +398,6 @@ export function BEProjectsSyntheseView({ projects, qstData }: Props) {
     }));
   }, [projects]);
 
-  // ── Chart: avancement par projet (top 10 with tasks) ─────────────────────
   const progressData = useMemo(() =>
     projects
       .filter(p => (allProjectStats[p.id]?.totalTasks ?? 0) > 0)
@@ -397,7 +411,6 @@ export function BEProjectsSyntheseView({ projects, qstData }: Props) {
     [projects, allProjectStats]
   );
 
-  // ── Chart: by région ──────────────────────────────────────────────────────
   const regionData = useMemo(() => {
     const map: Record<string, number> = {};
     projects.forEach(p => {
@@ -410,7 +423,6 @@ export function BEProjectsSyntheseView({ projects, qstData }: Props) {
       .map(([name, value], i) => ({ name, value, fill: CHART_COLORS[i % CHART_COLORS.length] }));
   }, [projects]);
 
-  // ── KEON questionnaire summary ────────────────────────────────────────────
   const keonProjects = useMemo(() =>
     projects.filter(p => qstData[p.id] && Object.keys(qstData[p.id]).length > 0),
     [projects, qstData]
@@ -427,7 +439,6 @@ export function BEProjectsSyntheseView({ projects, qstData }: Props) {
     }));
   }, [keonProjects, qstData]);
 
-  // ── Project cards (top performers + at risk) ──────────────────────────────
   const topProjects = useMemo(() =>
     [...projects]
       .filter(p => allProjectStats[p.id]?.totalTasks > 0)
@@ -444,6 +455,17 @@ export function BEProjectsSyntheseView({ projects, qstData }: Props) {
     [projects, allProjectStats]
   );
 
+  // ── Widget visibility helper ──────────────────────────────────────────────
+  const isVisible = useCallback((id: string) => widgets.find(w => w.id === id)?.visible ?? true, [widgets]);
+  const getWidgetConfig = useCallback((id: string) => widgets.find(w => w.id === id), [widgets]);
+  const getHeight = useCallback((id: string) => {
+    const w = widgets.find(w => w.id === id);
+    return SIZE_HEIGHTS[w?.size ?? 'normal'];
+  }, [widgets]);
+
+  // Build ordered widget render map
+  const visibleWidgets = useMemo(() => widgets.filter(w => w.visible), [widgets]);
+
   if (projects.length === 0) {
     return (
       <div className="flex items-center justify-center h-64 text-muted-foreground">
@@ -452,248 +474,314 @@ export function BEProjectsSyntheseView({ projects, qstData }: Props) {
     );
   }
 
-  return (
-    <div className="space-y-6">
+  // ── Render a widget by id ────────────────────────────────────────────────
+  const renderWidget = (widget: WidgetConfig, delay: number) => {
+    const h = SIZE_HEIGHTS[widget.size];
 
-      {/* ── KPI Strip ─────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-        {[
-          { icon: FolderOpen,    label: 'Total projets',  value: kpis.total,       color: 'text-primary'  },
-          { icon: Activity,      label: 'Actifs',         value: kpis.active,      color: 'text-emerald-500' },
-          { icon: Clock,         label: 'En attente',     value: kpis.onHold,      color: 'text-amber-500' },
-          { icon: CheckCircle2,  label: 'Clôturés',       value: kpis.closed,      color: 'text-slate-400' },
-          { icon: Zap,           label: 'Total tâches',   value: kpis.totalTasks,  color: 'text-blue-500' },
-          { icon: CheckCircle2,  label: 'Tâches faites',  value: kpis.doneTasks,   color: 'text-emerald-500' },
-          { icon: AlertTriangle, label: 'En retard',      value: kpis.overdue,     color: 'text-red-500' },
-          { icon: TrendingUp,    label: 'Avancement moy.', value: `${kpis.avgProgress}%`, color: 'text-violet-500' },
-        ].map(({ icon: Icon, label, value, color }) => (
-          <Card key={label} className="border-border/50 hover:shadow-md transition-shadow">
-            <CardContent className="p-3 flex flex-col gap-1">
-              <Icon className={cn('h-4 w-4', color)} />
-              <div className={cn('text-xl font-bold', color)}>{value}</div>
-              <div className="text-[10px] text-muted-foreground leading-tight">{label}</div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+    switch (widget.id) {
+      case 'kpi_strip':
+        return (
+          <div
+            key={widget.id}
+            className="col-span-full grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3"
+            style={{ animation: `synthese-slide-up 0.5s ease-out ${delay}ms both` }}
+          >
+            {[
+              { icon: FolderOpen,    label: 'Total projets',  value: kpis.total,       color: 'text-primary',      accent: '#1E5EFF' },
+              { icon: Activity,      label: 'Actifs',         value: kpis.active,      color: 'text-emerald-500',  accent: '#10b981' },
+              { icon: Clock,         label: 'En attente',     value: kpis.onHold,      color: 'text-amber-500',    accent: '#f59e0b' },
+              { icon: CheckCircle2,  label: 'Clôturés',       value: kpis.closed,      color: 'text-muted-foreground', accent: '#6b7280' },
+              { icon: Zap,           label: 'Total tâches',   value: kpis.totalTasks,  color: 'text-blue-500',     accent: '#3b82f6' },
+              { icon: CheckCircle2,  label: 'Tâches faites',  value: kpis.doneTasks,   color: 'text-emerald-500',  accent: '#10b981' },
+              { icon: AlertTriangle, label: 'En retard',      value: kpis.overdue,     color: 'text-red-500',      accent: '#ef4444' },
+              { icon: TrendingUp,    label: 'Avancement moy.', value: kpis.avgProgress, color: 'text-violet-500',  accent: '#8b5cf6', suffix: '%' },
+            ].map(({ icon: Icon, label, value, color, accent, suffix }, i) => (
+              <Card key={label}
+                className="border-border/50 hover:shadow-md transition-all duration-300 overflow-hidden"
+                style={{
+                  borderLeft: `3px solid ${accent}`,
+                  animation: `synthese-slide-up 0.4s ease-out ${delay + i * 50}ms both`,
+                }}
+              >
+                <CardContent className="p-3 flex flex-col gap-1">
+                  <Icon className={cn('h-4 w-4', color)} />
+                  <div className={cn('text-xl font-bold tabular-nums', color)}>
+                    <AnimatedNumber value={typeof value === 'number' ? value : 0} suffix={suffix} />
+                  </div>
+                  <div className="text-[10px] text-muted-foreground leading-tight">{label}</div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        );
 
-      {/* ── Row 1: Map + Statuts + Typologies ──────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      case 'map':
+        return (
+          <div key={widget.id} className="col-span-full"
+            style={{ animation: `synthese-slide-up 0.5s ease-out ${delay}ms both` }}>
+            <ProjectMapCard projects={projects} allProjectStats={allProjectStats} />
+          </div>
+        );
 
-        {/* Map: spans 2 cols */}
-        <ProjectMapCard projects={projects} allProjectStats={allProjectStats} />
-
-        {/* Status Pie */}
-        <Card className="border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Par statut</CardTitle>
-          </CardHeader>
-          <CardContent className="p-3">
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%"
-                  innerRadius={45} outerRadius={75} paddingAngle={3}>
-                  {statusData.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(v: any, n: any) => [`${v} projet(s)`, n]} />
-                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Typologie Pie */}
-        <Card className="border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Par typologie</CardTitle>
-          </CardHeader>
-          <CardContent className="p-3">
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie data={typoData} dataKey="value" nameKey="name" cx="50%" cy="50%"
-                  innerRadius={45} outerRadius={75} paddingAngle={3}>
-                  {typoData.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(v: any, n: any) => [`${v} projet(s)`, n]} />
-                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ── Row 2: Avancement bar + Régions bar ────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-        <Card className="border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              Avancement par projet (tâches)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3">
-            {progressData.length === 0 ? (
-              <div className="text-center text-muted-foreground text-sm py-8">Aucune tâche enregistrée</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={Math.max(200, progressData.length * 28)}>
-                <BarChart data={progressData} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
-                  <XAxis type="number" domain={[0, 100]} tickFormatter={v => `${v}%`}
-                    tick={{ fontSize: 10 }} />
-                  <YAxis type="category" dataKey="name" width={72} tick={{ fontSize: 10, fontFamily: 'monospace' }} />
-                  <Tooltip formatter={(v: any) => [`${v}%`, 'Avancement']} />
-                  <Bar dataKey="progress" radius={[0, 4, 4, 0]}>
-                    {progressData.map((entry, i) => (
-                      <Cell key={i}
-                        fill={entry.progress >= 80 ? '#10b981' : entry.progress >= 40 ? '#f59e0b' : '#6b7280'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              Répartition géographique
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3">
-            {regionData.length === 0 ? (
-              <div className="text-center text-muted-foreground text-sm py-8">Aucune région renseignée</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={Math.max(200, regionData.length * 28)}>
-                <BarChart data={regionData} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
-                  <XAxis type="number" tick={{ fontSize: 10 }} />
-                  <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={(v: any) => [`${v} projet(s)`, 'Projets']} />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                    {regionData.map((entry, i) => (
-                      <Cell key={i} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ── Row 3: KEON questionnaire (SPV) + At risk ──────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-        {/* SPV chart (KEON) */}
-        <Card className="border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              KEON — SPV créée
-              <Badge variant="secondary" className="ml-auto text-[10px]">
-                {keonProjects.length} projet(s) KEON
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3">
-            {spvData.length === 0 ? (
-              <div className="text-center text-muted-foreground text-sm py-8">Aucune donnée questionnaire</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={180}>
+      case 'status_pie':
+        return (
+          <WidgetCard key={widget.id} accentColor={widget.accentColor}
+            gradientFrom={widget.gradientFrom} gradientTo={widget.gradientTo} delay={delay}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Par statut</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3">
+              <ResponsiveContainer width="100%" height={h}>
                 <PieChart>
-                  <Pie data={spvData} dataKey="value" nameKey="name" cx="50%" cy="50%"
-                    innerRadius={40} outerRadius={65} paddingAngle={3}>
-                    {spvData.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} />
-                    ))}
+                  <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%"
+                    innerRadius={h * 0.22} outerRadius={h * 0.37} paddingAngle={3}>
+                    {statusData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                   </Pie>
                   <Tooltip formatter={(v: any, n: any) => [`${v} projet(s)`, n]} />
-                  <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 10 }} />
+                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
                 </PieChart>
               </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </WidgetCard>
+        );
 
-        {/* At risk projects */}
-        <Card className="border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-red-500" />
-              Projets en retard
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-2 space-y-2">
-            {atRiskProjects.length === 0 ? (
-              <div className="text-center text-muted-foreground text-sm py-6 flex flex-col items-center gap-2">
-                <CheckCircle2 className="h-8 w-8 text-emerald-500/50" />
-                Aucun projet en retard
-              </div>
-            ) : atRiskProjects.map(p => {
-              const st = allProjectStats[p.id];
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => navigate(`/be/projects/${p.code_projet}/overview`)}
-                  className="w-full text-left rounded-lg border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 px-3 py-2 transition-colors"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-xs text-primary">{p.code_projet}</span>
-                    <Badge variant="destructive" className="text-[10px] h-4 px-1">
-                      {st?.overdueTasks} retard{st?.overdueTasks > 1 ? 's' : ''}
-                    </Badge>
-                  </div>
-                  <div className="text-xs text-muted-foreground truncate mt-0.5">{p.nom_projet}</div>
-                  <Progress value={st?.progress ?? 0} className="h-1 mt-1.5" />
-                </button>
-              );
-            })}
-          </CardContent>
-        </Card>
+      case 'typo_pie':
+        return (
+          <WidgetCard key={widget.id} accentColor={widget.accentColor}
+            gradientFrom={widget.gradientFrom} gradientTo={widget.gradientTo} delay={delay}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Par typologie</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3">
+              <ResponsiveContainer width="100%" height={h}>
+                <PieChart>
+                  <Pie data={typoData} dataKey="value" nameKey="name" cx="50%" cy="50%"
+                    innerRadius={h * 0.22} outerRadius={h * 0.37} paddingAngle={3}>
+                    {typoData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  </Pie>
+                  <Tooltip formatter={(v: any, n: any) => [`${v} projet(s)`, n]} />
+                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </WidgetCard>
+        );
 
-        {/* Top performing projects */}
-        <Card className="border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-emerald-500" />
-              Projets les plus avancés
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-2 space-y-2">
-            {topProjects.length === 0 ? (
-              <div className="text-center text-muted-foreground text-sm py-6">Aucune tâche enregistrée</div>
-            ) : topProjects.map(p => {
-              const st = allProjectStats[p.id];
-              const prog = st?.progress ?? 0;
-              const color = prog >= 80 ? '#10b981' : prog >= 40 ? '#f59e0b' : '#6b7280';
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => navigate(`/be/projects/${p.code_projet}/overview`)}
-                  className="w-full text-left rounded-lg border border-border/50 hover:bg-muted/30 px-3 py-2 transition-colors"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-xs text-primary">{p.code_projet}</span>
-                    <div className="relative w-10 h-10 shrink-0">
-                      <RadialProgress value={prog} size={40} stroke={4} color={color} />
-                      <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold" style={{ color }}>
-                        {prog}%
-                      </span>
+      case 'progress_bar':
+        return (
+          <WidgetCard key={widget.id} accentColor={widget.accentColor}
+            gradientFrom={widget.gradientFrom} gradientTo={widget.gradientTo} delay={delay}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                Avancement par projet (tâches)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3">
+              {progressData.length === 0 ? (
+                <div className="text-center text-muted-foreground text-sm py-8">Aucune tâche enregistrée</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={Math.max(h, progressData.length * 28)}>
+                  <BarChart data={progressData} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
+                    <XAxis type="number" domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{ fontSize: 10 }} />
+                    <YAxis type="category" dataKey="name" width={72} tick={{ fontSize: 10, fontFamily: 'monospace' }} />
+                    <Tooltip formatter={(v: any) => [`${v}%`, 'Avancement']} />
+                    <Bar dataKey="progress" radius={[0, 4, 4, 0]}>
+                      {progressData.map((entry, i) => (
+                        <Cell key={i} fill={entry.progress >= 80 ? '#10b981' : entry.progress >= 40 ? '#f59e0b' : '#6b7280'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </WidgetCard>
+        );
+
+      case 'region_bar':
+        return (
+          <WidgetCard key={widget.id} accentColor={widget.accentColor}
+            gradientFrom={widget.gradientFrom} gradientTo={widget.gradientTo} delay={delay}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                Répartition géographique
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3">
+              {regionData.length === 0 ? (
+                <div className="text-center text-muted-foreground text-sm py-8">Aucune région renseignée</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={Math.max(h, regionData.length * 28)}>
+                  <BarChart data={regionData} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
+                    <XAxis type="number" tick={{ fontSize: 10 }} />
+                    <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10 }} />
+                    <Tooltip formatter={(v: any) => [`${v} projet(s)`, 'Projets']} />
+                    <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                      {regionData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </WidgetCard>
+        );
+
+      case 'keon_spv':
+        return (
+          <WidgetCard key={widget.id} accentColor={widget.accentColor}
+            gradientFrom={widget.gradientFrom} gradientTo={widget.gradientTo} delay={delay}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                KEON — SPV créée
+                <Badge variant="secondary" className="ml-auto text-[10px]">{keonProjects.length} projet(s) KEON</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3">
+              {spvData.length === 0 ? (
+                <div className="text-center text-muted-foreground text-sm py-8">Aucune donnée questionnaire</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={h - 20}>
+                  <PieChart>
+                    <Pie data={spvData} dataKey="value" nameKey="name" cx="50%" cy="50%"
+                      innerRadius={h * 0.2} outerRadius={h * 0.32} paddingAngle={3}>
+                      {spvData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip formatter={(v: any, n: any) => [`${v} projet(s)`, n]} />
+                    <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 10 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </WidgetCard>
+        );
+
+      case 'at_risk':
+        return (
+          <WidgetCard key={widget.id} accentColor={widget.accentColor}
+            gradientFrom={widget.gradientFrom} gradientTo={widget.gradientTo} delay={delay}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-red-500" />
+                Projets en retard
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-2 space-y-2">
+              {atRiskProjects.length === 0 ? (
+                <div className="text-center text-muted-foreground text-sm py-6 flex flex-col items-center gap-2">
+                  <CheckCircle2 className="h-8 w-8 text-emerald-500/50" />
+                  Aucun projet en retard
+                </div>
+              ) : atRiskProjects.map(p => {
+                const st = allProjectStats[p.id];
+                return (
+                  <button key={p.id}
+                    onClick={() => navigate(`/be/projects/${p.code_projet}/overview`)}
+                    className="w-full text-left rounded-lg border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 px-3 py-2 transition-colors">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-xs text-primary">{p.code_projet}</span>
+                      <Badge variant="destructive" className="text-[10px] h-4 px-1">
+                        {st?.overdueTasks} retard{(st?.overdueTasks ?? 0) > 1 ? 's' : ''}
+                      </Badge>
                     </div>
-                  </div>
-                  <div className="text-xs text-muted-foreground truncate">{p.nom_projet}</div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5">{st?.doneTasks}/{st?.totalTasks} tâches</div>
-                </button>
-              );
-            })}
-          </CardContent>
-        </Card>
+                    <div className="text-xs text-muted-foreground truncate mt-0.5">{p.nom_projet}</div>
+                    <Progress value={st?.progress ?? 0} className="h-1 mt-1.5" />
+                  </button>
+                );
+              })}
+            </CardContent>
+          </WidgetCard>
+        );
+
+      case 'top_projects':
+        return (
+          <WidgetCard key={widget.id} accentColor={widget.accentColor}
+            gradientFrom={widget.gradientFrom} gradientTo={widget.gradientTo} delay={delay}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-emerald-500" />
+                Projets les plus avancés
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-2 space-y-2">
+              {topProjects.length === 0 ? (
+                <div className="text-center text-muted-foreground text-sm py-6">Aucune tâche enregistrée</div>
+              ) : topProjects.map(p => {
+                const st = allProjectStats[p.id];
+                const prog = st?.progress ?? 0;
+                const color = prog >= 80 ? '#10b981' : prog >= 40 ? '#f59e0b' : '#6b7280';
+                return (
+                  <button key={p.id}
+                    onClick={() => navigate(`/be/projects/${p.code_projet}/overview`)}
+                    className="w-full text-left rounded-lg border border-border/50 hover:bg-muted/30 px-3 py-2 transition-colors">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-xs text-primary">{p.code_projet}</span>
+                      <div className="relative w-10 h-10 shrink-0">
+                        <RadialProgress value={prog} size={40} stroke={4} color={color} />
+                        <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold" style={{ color }}>{prog}%</span>
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">{p.nom_projet}</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">{st?.doneTasks}/{st?.totalTasks} tâches</div>
+                  </button>
+                );
+              })}
+            </CardContent>
+          </WidgetCard>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  // ── Layout: group widgets into rows ──────────────────────────────────────
+  // full-width: kpi_strip, map, progress_bar, region_bar
+  // half-width: status_pie, typo_pie
+  // third-width: keon_spv, at_risk, top_projects
+  const FULL_WIDTH = new Set(['kpi_strip', 'map']);
+  const HALF_WIDTH = new Set(['progress_bar', 'region_bar']);
+  const THIRD_WIDTH = new Set(['keon_spv', 'at_risk', 'top_projects']);
+
+  // Group visible widgets into layout sections
+  const fullWidgets = visibleWidgets.filter(w => FULL_WIDTH.has(w.id));
+  const halfWidgets = visibleWidgets.filter(w => HALF_WIDTH.has(w.id) || w.id === 'status_pie' || w.id === 'typo_pie');
+  const thirdWidgets = visibleWidgets.filter(w => THIRD_WIDTH.has(w.id));
+
+  let delayCounter = 0;
+  const getDelay = () => { delayCounter += 80; return delayCounter; };
+
+  return (
+    <div className="space-y-6">
+      {/* Config panel button — positioned by parent via props */}
+      <div className="flex justify-end">
+        <SyntheseWidgetConfigPanel widgets={widgets} onChange={setWidgets} />
       </div>
 
+      {/* Render widgets in order */}
+      {visibleWidgets.map(widget => {
+        const delay = getDelay();
+
+        if (FULL_WIDTH.has(widget.id)) {
+          return renderWidget(widget, delay);
+        }
+
+        return null;
+      })}
+
+      {/* Half-width row */}
+      {halfWidgets.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {halfWidgets.map(w => renderWidget(w, getDelay()))}
+        </div>
+      )}
+
+      {/* Third-width row */}
+      {thirdWidgets.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {thirdWidgets.map(w => renderWidget(w, getDelay()))}
+        </div>
+      )}
     </div>
   );
 }
