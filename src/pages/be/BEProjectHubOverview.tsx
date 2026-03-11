@@ -75,15 +75,12 @@ export default function BEProjectHubOverview() {
     }
     setIsGeocodingGps(true);
     try {
-      const q = encodeURIComponent(addressParts.join(', '));
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${q}`, {
-        headers: {
-          'User-Agent': 'keon-app/1.0',
-          'Accept': 'application/json',
-          'Accept-Language': 'fr',
-        },
+      const address = addressParts.join(', ');
+      const { data, error: fnError } = await supabase.functions.invoke('geocode', {
+        body: { address },
       });
-      const data = await res.json();
+      if (fnError) throw fnError;
+      const result = Array.isArray(data) ? data : [];
       if (!data || data.length === 0) {
         toast({ title: 'Aucun résultat', description: 'Nominatim n\'a trouvé aucune correspondance pour cette adresse.', variant: 'destructive' });
         return;
