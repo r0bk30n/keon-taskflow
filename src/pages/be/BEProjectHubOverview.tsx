@@ -75,9 +75,13 @@ export default function BEProjectHubOverview() {
     }
     setIsGeocodingGps(true);
     try {
-      const query = encodeURIComponent(addressParts.join(', '));
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`, {
-        headers: { 'User-Agent': 'keon-app' },
+      const q = encodeURIComponent(addressParts.join(', '));
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${q}`, {
+        headers: {
+          'User-Agent': 'keon-app/1.0',
+          'Accept': 'application/json',
+          'Accept-Language': 'fr',
+        },
       });
       const data = await res.json();
       if (!data || data.length === 0) {
