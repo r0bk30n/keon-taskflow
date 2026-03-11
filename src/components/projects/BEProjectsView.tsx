@@ -71,6 +71,7 @@ export function BEProjectsView() {
   
   // KEON filter: only projects with questionnaire data
   const [showKeonOnly, setShowKeonOnly] = useState(false);
+  const [syntheseWidgets, setSyntheseWidgets] = useState<WidgetConfig[]>(loadWidgetConfig);
   const { qstData, keonProjectIds, getDistinctValues: getQstDistinctValues } = useQuestionnaireProjectData(projects);
 
   // Sync questionnaire data to filter hook for questionnaire-based filtering
