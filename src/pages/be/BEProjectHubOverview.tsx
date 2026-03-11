@@ -258,28 +258,55 @@ export default function BEProjectHubOverview() {
                         if (pts.length === 2 && Math.abs(pts[0]) < 0.001 && Math.abs(pts[1]) < 0.001) return 'Non renseigné';
                         return project.gps_coordinates;
                       })()}</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-2 text-xs gap-1"
-                        onClick={handleGenerateGps}
-                        disabled={isGeocodingGps || isForceGeocodingGps}
-                      >
-                        {isGeocodingGps ? <Loader2 className="h-3 w-3 animate-spin" /> : <span>📍</span>}
-                        Générer GPS
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-2 text-xs gap-1"
-                        onClick={handleForceRegenerateGps}
-                        disabled={isGeocodingGps || isForceGeocodingGps}
-                      >
-                        {isForceGeocodingGps ? <Loader2 className="h-3 w-3 animate-spin" /> : <span>🔄</span>}
-                        Forcer régénération GPS
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1" disabled={isGeocodingGps}>
+                            {isGeocodingGps ? <Loader2 className="h-3 w-3 animate-spin" /> : <span>⚡</span>}
+                            GPS
+                            <ChevronDown className="h-3 w-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem disabled={isGeocodingGps} onClick={() => setGpsConfirm({
+                            label: hasValidCoords ? 'Régénérer les coordonnées GPS (auto) ?' : 'Générer les coordonnées GPS ?',
+                            action: () => geocodeProject('auto'),
+                          })}>
+                            <span className="mr-2">📍</span>
+                            {hasValidCoords ? 'Générer GPS (auto)' : 'Générer GPS'}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem disabled={isGeocodingGps} onClick={() => setGpsConfirm({
+                            label: 'Forcer la génération GPS par données questionnaire uniquement ?',
+                            action: () => geocodeProject('questionnaire'),
+                          })}>
+                            <span className="mr-2">🗺️</span>
+                            Forcer par questionnaire
+                          </DropdownMenuItem>
+                          <DropdownMenuItem disabled={isGeocodingGps} onClick={() => setGpsConfirm({
+                            label: 'Forcer la génération GPS par adresse société uniquement ?',
+                            action: () => geocodeProject('societe'),
+                          })}>
+                            <span className="mr-2">🏢</span>
+                            Forcer par adresse société
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
+
+                  <AlertDialog open={!!gpsConfirm} onOpenChange={(open) => { if (!open) setGpsConfirm(null); }}>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Confirmation</AlertDialogTitle>
+                        <AlertDialogDescription>{gpsConfirm?.label}</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => { gpsConfirm?.action(); setGpsConfirm(null); }}>
+                          Confirmer
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
 
                 {/* Map embed */}
