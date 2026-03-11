@@ -641,7 +641,13 @@ export function TaskDetailDialog({ task, open, onClose, onStatusChange }: TaskDe
             </div>
           </div>
 
-          {/* Process info */}
+          {/* Checklist / Sub-actions for main task */}
+          <Separator />
+          <div>
+            <h4 className="text-sm font-medium text-muted-foreground mb-2">Sous-actions</h4>
+            <TaskChecklist taskId={task.id} />
+          </div>
+
           {processName && (
             <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
               <div className="flex items-center gap-2">
