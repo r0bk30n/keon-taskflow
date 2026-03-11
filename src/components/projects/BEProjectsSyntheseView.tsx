@@ -107,16 +107,13 @@ function ProjectMapCard({ projects }: { projects: BEProject[] }) {
       if (addressParts.length === 0) { errors++; continue; }
 
       try {
-        const q = encodeURIComponent(addressParts.join(', '));
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${q}`, {
-          headers: {
-            'User-Agent': 'keon-app/1.0',
-            'Accept': 'application/json',
-            'Accept-Language': 'fr',
-          },
+        const address = addressParts.join(', ');
+        const { data, error: fnError } = await supabase.functions.invoke('geocode', {
+          body: { address },
         });
-        const data = await res.json();
-        if (data && data.length > 0) {
+        if (fnError) throw fnError;
+        const result = Array.isArray(data) ? data : [];
+        if (result.length > 0) {
           const coords = `${data[0].lat}, ${data[0].lon}`;
           const { error } = await supabase.from('be_projects').update({ gps_coordinates: coords }).eq('id', p.id);
           if (error) { errors++; failedNames.push(p.code_projet); } else { success++; }
