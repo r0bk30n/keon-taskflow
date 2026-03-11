@@ -457,7 +457,7 @@ export function BEProjectsSyntheseView({ projects, qstData }: Props) {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 
         {/* Map: spans 2 cols */}
-        <ProjectMapCard projects={projects} />
+        <ProjectMapCard projects={projects} allProjectStats={allProjectStats} />
 
         {/* Status Pie */}
         <Card className="border-border/50">
