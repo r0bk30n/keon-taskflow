@@ -61,8 +61,10 @@ function DescriptionItem({ label, value, mono }: DescriptionItemProps) {
 
 export default function BEProjectHubOverview() {
   const { code } = useParams<{ code: string }>();
+  const queryClient = useQueryClient();
   const { data: project, isLoading: projectLoading } = useBEProjectByCode(code);
   const { data: tasks = [], isLoading: tasksLoading } = useBEProjectTasks(project?.id);
+  const [isGeocodingGps, setIsGeocodingGps] = useState(false);
   const [expandedRequests, setExpandedRequests] = useState<Set<string>>(new Set());
   
   const stats = useBEProjectStats(project?.id, tasks);
