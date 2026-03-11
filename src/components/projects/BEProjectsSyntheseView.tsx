@@ -107,26 +107,30 @@ function ProjectMapCard({ projects }: { projects: BEProject[] }) {
       if (addressParts.length === 0) { errors++; continue; }
 
       try {
-        const query = encodeURIComponent(addressParts.join(', '));
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`, {
-          headers: { 'User-Agent': 'keon-app' },
+        const q = encodeURIComponent(addressParts.join(', '));
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${q}`, {
+          headers: {
+            'User-Agent': 'keon-app/1.0',
+            'Accept': 'application/json',
+            'Accept-Language': 'fr',
+          },
         });
         const data = await res.json();
         if (data && data.length > 0) {
           const coords = `${data[0].lat}, ${data[0].lon}`;
           const { error } = await supabase.from('be_projects').update({ gps_coordinates: coords }).eq('id', p.id);
-          if (error) { errors++; } else { success++; }
+          if (error) { errors++; failedNames.push(p.code_projet); } else { success++; }
         } else {
           errors++;
+          failedNames.push(p.code_projet);
         }
-      } catch {
+      } catch (err: any) {
         errors++;
+        failedNames.push(p.code_projet);
       }
 
-      // Update progress toast
       toast({ title: 'Géocodage en cours...', description: `${i + 1} / ${total} projets traités...` });
 
-      // Rate limit: 1100ms between calls
       if (i < missingGps.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 1100));
       }
