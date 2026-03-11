@@ -466,6 +466,13 @@ export function TaskDetailDialog({ task, open, onClose, onStatusChange }: TaskDe
                     )}
                   </div>
 
+                  {/* Checklist / Sub-actions */}
+                  <Separator />
+                  <div>
+                    <h4 className="text-sm font-medium text-muted-foreground mb-2">Sous-actions</h4>
+                    <TaskChecklist taskId={selectedChildTask.id} />
+                  </div>
+
                   {/* Chat section for child task */}
                   <Separator />
                   <TaskCommentsSection taskId={selectedChildTask.id} className="min-h-[200px]" />
