@@ -354,9 +354,10 @@ function ProjectMapCard({ projects, allProjectStats = {} }: { projects: BEProjec
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export function BEProjectsSyntheseView({ projects, qstData }: Props) {
+export function BEProjectsSyntheseView({ projects, qstData, widgets: externalWidgets }: Props) {
   const navigate = useNavigate();
-  const [widgets, setWidgets] = useState<WidgetConfig[]>(loadWidgetConfig);
+  const [internalWidgets, setInternalWidgets] = useState<WidgetConfig[]>(loadWidgetConfig);
+  const widgets = externalWidgets ?? internalWidgets;
 
   // Fetch task stats for all projects (batch)
   const projectIds = useMemo(() => projects.map(p => p.id), [projects]);
