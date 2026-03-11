@@ -68,7 +68,7 @@ export default function BEProjectHubOverview() {
 
   const handleGenerateGps = async () => {
     if (!project) return;
-    const addressParts = [project.adresse_site, project.departement, project.region, project.pays_site].filter(Boolean);
+    const addressParts = [project.adresse_site || project.adresse_societe, project.departement, project.region, project.pays_site || project.pays || 'France'].filter(Boolean);
     if (addressParts.length === 0) {
       toast({ title: 'Adresse manquante', description: 'Aucune information d\'adresse pour géocoder.', variant: 'destructive' });
       return;

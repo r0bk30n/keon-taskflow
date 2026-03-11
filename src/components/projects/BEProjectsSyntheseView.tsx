@@ -103,7 +103,7 @@ function ProjectMapCard({ projects }: { projects: BEProject[] }) {
 
     for (let i = 0; i < missingGps.length; i++) {
       const p = missingGps[i];
-      const addressParts = [p.adresse_site, p.departement, p.region, p.pays_site].filter(Boolean);
+      const addressParts = [p.adresse_site || p.adresse_societe, p.departement, p.region, p.pays_site || p.pays || 'France'].filter(Boolean);
       if (addressParts.length === 0) { errors++; continue; }
 
       try {
