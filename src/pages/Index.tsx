@@ -29,7 +29,7 @@ import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Workflow, ChevronDown, ChevronUp, Eye, Zap, Settings2, ShieldCheck, LayoutGrid, Columns, Calendar, TableProperties, BarChart3 } from 'lucide-react';
+import { Loader2, Workflow, ChevronDown, ChevronUp, Zap, Settings2, ShieldCheck, LayoutGrid, Columns, Calendar, TableProperties, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Layers } from 'lucide-react';
@@ -52,14 +52,11 @@ const Index = () => {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [showFullStats, setShowFullStats] = useState(false);
   const [dashboardMode, setDashboardMode] = useState<'tasks' | 'planner' | 'validations'>('tasks');
-  const [taskSubMode, setTaskSubMode] = useState<'grid' | 'kanban' | 'calendar' | 'table' | 'analytics' | 'tracking'>('grid');
+  const [taskSubMode, setTaskSubMode] = useState<'grid' | 'kanban' | 'calendar' | 'table' | 'analytics'>('grid');
   const [isBulkActionOpen, setIsBulkActionOpen] = useState(false);
   const [kanbanGroupMode, setKanbanGroupMode] = useState<KanbanGroupMode>('status');
   const [crossFilters, setCrossFilters] = useState<CrossFilters>(DEFAULT_CROSS_FILTERS);
   
-  // Request tracking state
-  const [myRequests, setMyRequests] = useState<Task[]>([]);
-  const [isLoadingRequests, setIsLoadingRequests] = useState(false);
   // All requests for analytics mode
   const [allRequests, setAllRequests] = useState<Task[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<Task | null>(null);
@@ -122,25 +119,6 @@ const Index = () => {
     });
   }, [advancedFilters]);
 
-  // Fetch user's requests for tracking tab
-  const fetchMyRequests = useCallback(async () => {
-    if (!profile?.id) return;
-    setIsLoadingRequests(true);
-    try {
-      const { data } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('type', 'request')
-        .eq('requester_id', profile.id)
-        .order('created_at', { ascending: false });
-      setMyRequests((data || []) as Task[]);
-    } catch (error) {
-      console.error('Error fetching requests:', error);
-    } finally {
-      setIsLoadingRequests(false);
-    }
-  }, [profile?.id]);
-
   // Fetch all requests for analytics mode
   const fetchAllRequests = useCallback(async () => {
     if (!profile?.id) return;
@@ -157,9 +135,8 @@ const Index = () => {
   }, [profile?.id]);
 
   useEffect(() => {
-    if (taskSubMode === 'tracking') fetchMyRequests();
     if (taskSubMode === 'analytics') fetchAllRequests();
-  }, [taskSubMode, fetchMyRequests, fetchAllRequests]);
+  }, [taskSubMode, fetchAllRequests]);
 
   // Merge tasks + requests for analytics mode
   const analyticsTasksAndRequests = useMemo(() => {
@@ -172,23 +149,6 @@ const Index = () => {
     }
     return merged;
   }, [allTasks, allRequests]);
-
-  // Stats for request tracking dashboard
-  const requestStats = useMemo((): TaskStats => {
-    const total = myRequests.length;
-    const todo = myRequests.filter(t => t.status === 'todo').length;
-    const inProgress = myRequests.filter(t => t.status === 'in-progress').length;
-    const done = myRequests.filter(t => t.status === 'done').length;
-    const pendingValidation = myRequests.filter(t => t.status === 'pending_validation_1' || t.status === 'pending_validation_2').length;
-    const validated = myRequests.filter(t => t.status === 'validated').length;
-    const refused = myRequests.filter(t => t.status === 'refused').length;
-    return {
-      total, todo, inProgress, done, pendingValidation, validated, refused,
-      completionRate: total > 0 ? Math.round(((done + validated) / total) * 100) : 0,
-    };
-  }, [myRequests]);
-
-  const requestGlobalProgress = requestStats.completionRate;
 
   // Fetch profiles for group labels + process→service_group mapping
   const [processServiceGroupMap, setProcessServiceGroupMap] = useState<Map<string, string>>(new Map());
@@ -400,23 +360,6 @@ const Index = () => {
         />
       );
     }
-    if (taskSubMode === 'tracking') {
-      return isLoadingRequests ? (
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : (
-        <ConfigurableDashboard
-          tasks={myRequests}
-          stats={requestStats}
-          globalProgress={requestGlobalProgress}
-          onTaskClick={(task) => {
-            setSelectedRequest(task);
-            setIsRequestDetailOpen(true);
-          }}
-        />
-      );
-    }
     // Task management views (grid/kanban/calendar/table)
     return (
       <>
@@ -539,19 +482,6 @@ const Index = () => {
             Analytique
           </button>
 
-          <button
-            onClick={() => { setTaskSubMode('tracking'); fetchMyRequests(); }}
-            className={cn(
-              "flex items-center gap-1.5 px-4 py-2 text-xs border-b-2 transition-colors",
-              taskSubMode === 'tracking'
-                ? "border-keon-blue text-keon-blue bg-white font-medium"
-                : "border-transparent text-keon-600 hover:text-keon-900 hover:bg-keon-100"
-            )}
-          >
-            <Eye className="h-3.5 w-3.5" />
-            Suivi
-            {myRequests.length > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{myRequests.length}</Badge>}
-          </button>
         </div>
 
         {renderTasksSubContent()}
@@ -684,7 +614,6 @@ const Index = () => {
           onClose={() => {
             setIsRequestDetailOpen(false);
             setSelectedRequest(null);
-            fetchMyRequests();
           }}
           onStatusChange={updateTaskStatus}
         />
