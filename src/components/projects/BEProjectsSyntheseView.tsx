@@ -578,6 +578,26 @@ export function BEProjectsSyntheseView({ projects, qstData, widgets: externalWid
     toast({ title: 'Tous les widgets sont visibles' });
   }, [setWidgets]);
 
+  const handleAddWidget = useCallback((widget: WidgetConfig) => {
+    setWidgets(prev => [...prev, widget]);
+    toast({ title: `Widget "${widget.label}" ajouté` });
+  }, [setWidgets]);
+
+  // Build dynamic data for custom widgets
+  const buildCriterionData = useCallback((criterion: string) => {
+    const COLORS = ['#10b981', '#f59e0b', '#6b7280', '#3b82f6', '#ec4899', '#8b5cf6', '#ef4444', '#FF9432', '#12B6C8'];
+    const map: Record<string, number> = {};
+    projects.forEach(p => {
+      const raw = (p as any)[criterion];
+      const k = raw || 'Non renseigné';
+      map[k] = (map[k] || 0) + 1;
+    });
+    return Object.entries(map)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 12)
+      .map(([name, value], i) => ({ name, value, color: COLORS[i % COLORS.length], fill: COLORS[i % COLORS.length] }));
+  }, [projects]);
+
   // Drag-and-drop
   const handleDragStart = (widgetId: string) => {
     if (!isEditing) return;
