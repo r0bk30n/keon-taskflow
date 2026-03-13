@@ -417,6 +417,7 @@ export function BEProjectsSyntheseView({ projects, qstData, widgets: externalWid
 
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [draggedWidget, setDraggedWidget] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
