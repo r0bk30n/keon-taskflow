@@ -360,23 +360,6 @@ const Index = () => {
         />
       );
     }
-    if (taskSubMode === 'tracking') {
-      return isLoadingRequests ? (
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : (
-        <ConfigurableDashboard
-          tasks={myRequests}
-          stats={requestStats}
-          globalProgress={requestGlobalProgress}
-          onTaskClick={(task) => {
-            setSelectedRequest(task);
-            setIsRequestDetailOpen(true);
-          }}
-        />
-      );
-    }
     // Task management views (grid/kanban/calendar/table)
     return (
       <>
