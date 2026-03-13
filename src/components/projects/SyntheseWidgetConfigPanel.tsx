@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Settings, RotateCcw, GripVertical } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Settings2, RotateCcw, GripVertical, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DndContext,
