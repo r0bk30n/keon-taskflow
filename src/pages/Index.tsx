@@ -614,7 +614,6 @@ const Index = () => {
           onClose={() => {
             setIsRequestDetailOpen(false);
             setSelectedRequest(null);
-            fetchMyRequests();
           }}
           onStatusChange={updateTaskStatus}
         />
