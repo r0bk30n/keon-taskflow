@@ -197,7 +197,7 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
       <Card className="border-border/50">
         <CardContent className="py-12 text-center text-muted-foreground">
           <Leaf className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
-          <p>Aucun projet KEON trouvé dans les filtres actuels.</p>
+          <p>Aucun projet SPV trouvé dans les filtres actuels.</p>
         </CardContent>
       </Card>
     );
@@ -207,7 +207,7 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
     <div className="space-y-6">
       {/* KPI BAND */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <KpiCard icon={<Leaf className="h-5 w-5 text-emerald-500" />} label="Projets KEON" value={String(kpis.total)} />
+        <KpiCard icon={<Leaf className="h-5 w-5 text-emerald-500" />} label="Projets SPV" value={String(kpis.total)} />
         <KpiCard icon={<Building2 className="h-5 w-5 text-blue-500" />} label="SPV créées" value={String(kpis.spv)} badge badgeClass="bg-emerald-500/10 text-emerald-600 border-emerald-500/20" />
         <KpiCard icon={<BarChart2 className="h-5 w-5 text-amber-500" />} label="Gisement cumulé" value={`${kpis.gisement.toLocaleString('fr-FR')} tMB/an`} />
         <KpiCard icon={<Flame className="h-5 w-5 text-orange-500" />} label="Cmax moyen" value={kpis.cmas === 'N/A' ? 'N/A' : `${kpis.cmas} Nm³/h`} />
@@ -221,7 +221,7 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <MapPin className="h-4 w-4 text-muted-foreground" />
-              Carte des projets KEON
+              Carte des projets SPV
               <Badge variant="secondary" className="ml-auto text-xs">{keonWithCoords.length} localisés</Badge>
             </CardTitle>
           </CardHeader>
