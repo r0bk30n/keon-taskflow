@@ -20,7 +20,7 @@ import { ProjectKanbanView, GroupByField } from './ProjectKanbanView';
 import { ProjectViewConfigPanel } from './ProjectViewConfigPanel';
 import { useFilteredProjects } from './ProjectFilters';
 import { BEProjectCardsView } from './BEProjectCardsView';
-import { BEProjectsKeonView } from './BEProjectsKeonView';
+
 import { BEProjectsSyntheseView } from './BEProjectsSyntheseView';
 import { ProjectMultiFiltersPanel } from './ProjectMultiFiltersPanel';
 import {
