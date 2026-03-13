@@ -304,7 +304,7 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds, widgetCo
       </Card>
     ) : null,
 
-    table: () => (
+    tableau: () => (
       <Card className="border-border/50">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
