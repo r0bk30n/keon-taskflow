@@ -7,80 +7,19 @@ import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
-import { Leaf, Flame, MapPin, Building2, Settings2, Recycle, BarChart3 } from 'lucide-react';
+import { Leaf, Flame, MapPin, BarChart3 } from 'lucide-react';
+
+import { KpiCard } from './keon-synthese/KpiCard';
+import { ProgressGauge } from './keon-synthese/ProgressGauge';
+import { InfoRow } from './keon-synthese/InfoRow';
+import { computePilierCompletion } from './keon-synthese/utils';
 
 interface Props {
   project: BEProject;
   qstData: Record<string, string>;
 }
 
-const PILIER_COLORS: Record<string, string> = {
-  '00': 'hsl(210, 60%, 50%)',
-  '02': 'hsl(260, 50%, 55%)',
-  '04': 'hsl(25, 80%, 55%)',
-  '05': 'hsl(10, 75%, 55%)',
-  '06': 'hsl(140, 50%, 45%)',
-  '07': 'hsl(170, 55%, 45%)',
-};
-
 const PIE_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#64748b'];
-
-function computePilierCompletion(pilierCode: PilierCode, qstData: Record<string, string>) {
-  const questions = QUESTIONS.filter(q => q.pilier === pilierCode);
-  if (questions.length === 0) return 0;
-  const filled = questions.filter(q => {
-    const v = qstData[q.champ_id];
-    return v !== undefined && v !== null && v !== '';
-  }).length;
-  return Math.round((filled / questions.length) * 100);
-}
-
-function getGaugeColor(pct: number) {
-  if (pct <= 30) return 'hsl(0, 72%, 51%)';
-  if (pct <= 70) return 'hsl(38, 92%, 50%)';
-  return 'hsl(142, 71%, 45%)';
-}
-
-function ProgressGauge({ label, percent, size = 90 }: { label: string; percent: number; size?: number }) {
-  const strokeWidth = 8;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (percent / 100) * circumference;
-  const color = getGaugeColor(percent);
-
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="relative inline-flex items-center justify-center">
-        <svg width={size} height={size} className="-rotate-90">
-          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="hsl(var(--muted))" strokeWidth={strokeWidth} />
-          <circle
-            cx={size / 2} cy={size / 2} r={radius} fill="none"
-            stroke={color} strokeWidth={strokeWidth} strokeLinecap="round"
-            strokeDasharray={circumference} strokeDashoffset={offset}
-            className="transition-all duration-700 ease-out"
-          />
-        </svg>
-        <span className="absolute text-lg font-bold" style={{ color }}>{percent}%</span>
-      </div>
-      <span className="text-xs font-medium text-muted-foreground text-center">{label}</span>
-    </div>
-  );
-}
-
-function KpiCard({ label, value, badge, badgeClass }: { label: string; value?: string; badge?: boolean; badgeClass?: string }) {
-  return (
-    <Card className="flex-1 min-w-[140px]">
-      <CardContent className="p-4 flex flex-col items-center justify-center gap-1 text-center">
-        <span className="text-xs text-muted-foreground font-medium">{label}</span>
-        {badge ? (
-          <Badge className={badgeClass || ''}>{value || '—'}</Badge>
-        ) : (
-          <span className="text-xl font-bold text-foreground">{value || '—'}</span>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
 
 export function BEProjectKeonSyntheseTab({ project, qstData }: Props) {
   const pilierCompletions = useMemo(() =>
@@ -97,7 +36,6 @@ export function BEProjectKeonSyntheseTab({ project, qstData }: Props) {
     [pilierCompletions]
   );
 
-  // Gisement pie data
   const gisementPieData = useMemo(() => {
     const fields = [
       { key: '06_GEN_pct_effluents', label: 'Effluents élevage' },
@@ -108,7 +46,6 @@ export function BEProjectKeonSyntheseTab({ project, qstData }: Props) {
     const data = fields
       .map(f => ({ name: f.label, value: parseFloat(qstData[f.key]) || 0 }))
       .filter(d => d.value > 0);
-    // Add "Autre" if total < 100
     const total = data.reduce((s, d) => s + d.value, 0);
     if (total < 100 && total > 0) data.push({ name: 'Autre', value: 100 - total });
     return data;
@@ -119,8 +56,8 @@ export function BEProjectKeonSyntheseTab({ project, qstData }: Props) {
   const typologieValue = qstData['00_GEN_typologie'] || '—';
   const keonPct = qstData['02_CAPI_keon_pct'];
   const cmax1 = qstData['05_GEN_cmax1'];
+  const cmasValue = qstData['03_GEN_cmas'] || '—';
 
-  // Location data
   const commune = qstData['04_GEN_commune'] || '—';
   const departement = qstData['04_GEN_departement_nom'] || '—';
   const region = qstData['04_GEN_region'] || '—';
@@ -128,7 +65,7 @@ export function BEProjectKeonSyntheseTab({ project, qstData }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* KPI Band */}
+      {/* 1. KPI Band */}
       <div className="flex flex-wrap gap-3">
         <KpiCard label="Typologie" value={typologieValue} badge badgeClass="bg-primary/10 text-primary border border-primary/20" />
         <KpiCard
@@ -141,12 +78,11 @@ export function BEProjectKeonSyntheseTab({ project, qstData }: Props) {
         />
         <KpiCard label="Keon.co KS (%)" value={keonPct ? `${keonPct}%` : '—'} badge badgeClass="bg-blue-500/10 text-blue-600 border border-blue-500/20" />
         <KpiCard label="Gisement total" value={totalGisement !== '—' ? `${totalGisement} tMB/an` : '—'} />
-        <KpiCard label="Cmax 1" value={cmax1 ? `${cmax1} Nm³/h` : '—'} />
+        <KpiCard label="CMAS" value={cmasValue} />
       </div>
 
-      {/* Radar + Gauges */}
+      {/* 2. Radar + 3. Gauges */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Radar Chart */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -166,7 +102,6 @@ export function BEProjectKeonSyntheseTab({ project, qstData }: Props) {
           </CardContent>
         </Card>
 
-        {/* Progress Gauges */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Avancement par section</CardTitle>
@@ -181,9 +116,9 @@ export function BEProjectKeonSyntheseTab({ project, qstData }: Props) {
         </Card>
       </div>
 
-      {/* Localisation + Gisement + Gaz */}
+      {/* 4. Localisation + 5. Gisement + 6. Gaz */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Localisation */}
+        {/* 4. Localisation */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -193,6 +128,11 @@ export function BEProjectKeonSyntheseTab({ project, qstData }: Props) {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
+              {project.gps_coordinates && (
+                <div className="rounded-lg bg-muted/50 p-3 text-center mb-2">
+                  <span className="text-xs font-mono text-muted-foreground">{project.gps_coordinates}</span>
+                </div>
+              )}
               <InfoRow label="Commune" value={commune} />
               <InfoRow label="Département" value={departement} />
               <InfoRow label="Région" value={region} />
@@ -203,7 +143,7 @@ export function BEProjectKeonSyntheseTab({ project, qstData }: Props) {
           </CardContent>
         </Card>
 
-        {/* Gisement Pie */}
+        {/* 5. Gisement Pie */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -240,7 +180,7 @@ export function BEProjectKeonSyntheseTab({ project, qstData }: Props) {
           </CardContent>
         </Card>
 
-        {/* Gaz */}
+        {/* 6. Gaz */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -263,15 +203,6 @@ export function BEProjectKeonSyntheseTab({ project, qstData }: Props) {
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between items-center text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium text-foreground">{value}</span>
     </div>
   );
 }
