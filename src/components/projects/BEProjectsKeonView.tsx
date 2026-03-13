@@ -105,10 +105,13 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
   // ── Gisement bar data ────────────────────────────────────────────────────
   const gisementBarData = useMemo(() => {
     return keonProjects
-      .map(p => ({
-        code: p.code_projet,
-        gisement: safeFloat(qstData[p.id]?.['06_GEN_quantite_totale']),
-      }))
+      .map(p => {
+        const d = qstData[p.id] || {};
+        return {
+          code: p.code_projet,
+          gisement: safeFloat(getQstValue(d, 'quantite', 'totale') || getQstValue(d, 'gisement', 'total') || '0'),
+        };
+      })
       .filter(d => d.gisement > 0)
       .sort((a, b) => b.gisement - a.gisement);
   }, [keonProjects, qstData]);
