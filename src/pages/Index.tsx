@@ -119,25 +119,6 @@ const Index = () => {
     });
   }, [advancedFilters]);
 
-  // Fetch user's requests for tracking tab
-  const fetchMyRequests = useCallback(async () => {
-    if (!profile?.id) return;
-    setIsLoadingRequests(true);
-    try {
-      const { data } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('type', 'request')
-        .eq('requester_id', profile.id)
-        .order('created_at', { ascending: false });
-      setMyRequests((data || []) as Task[]);
-    } catch (error) {
-      console.error('Error fetching requests:', error);
-    } finally {
-      setIsLoadingRequests(false);
-    }
-  }, [profile?.id]);
-
   // Fetch all requests for analytics mode
   const fetchAllRequests = useCallback(async () => {
     if (!profile?.id) return;
