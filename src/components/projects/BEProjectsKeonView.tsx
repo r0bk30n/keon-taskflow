@@ -96,7 +96,7 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
   const typoPieData = useMemo(() => {
     const counts: Record<string, number> = {};
     keonProjects.forEach(p => {
-      const t = qstData[p.id]?.['00_GEN_typologie'] || 'Non renseigné';
+      const t = getQstValue(qstData[p.id] || {}, 'typologie') || 'Non renseigné';
       counts[t] = (counts[t] || 0) + 1;
     });
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
