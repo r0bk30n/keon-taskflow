@@ -124,12 +124,12 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
         id: p.id,
         code_projet: p.code_projet,
         nom_projet: p.nom_projet,
-        region: d['04_GEN_region'] || p.region || '—',
-        typologie: d['00_GEN_typologie'] || '—',
-        spv: d['02_GEN_spv_cree']?.toUpperCase() || '',
-        ks: safeFloat(d['02_CAPI_keon_pct']),
-        gisement: safeFloat(d['06_GEN_quantite_totale']),
-        cmas: safeFloat(d['05_GEN_cmax1']),
+        region: getQstValue(d, 'region') || p.region || '—',
+        typologie: getQstValue(d, 'typologie') || '—',
+        spv: (getQstValue(d, 'spv') || '').toUpperCase(),
+        ks: safeFloat(getQstValue(d, 'keon', 'pct') || getQstValue(d, 'ks', 'keon') || '0'),
+        gisement: safeFloat(getQstValue(d, 'quantite', 'totale') || getQstValue(d, 'gisement', 'total') || '0'),
+        cmas: safeFloat(getQstValue(d, 'cmax1') || '0'),
         completion: avgCompletion(d),
       };
     });
