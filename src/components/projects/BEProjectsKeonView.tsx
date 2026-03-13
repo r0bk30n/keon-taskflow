@@ -32,6 +32,12 @@ function safeFloat(v: any): number {
   return isNaN(n) ? 0 : n;
 }
 
+/** Flexible qstData key lookup: finds first key containing ALL keywords */
+function getQstValue(qst: Record<string, any>, ...keywords: string[]): string | null {
+  const key = Object.keys(qst).find(k => keywords.every(kw => k.toLowerCase().includes(kw.toLowerCase())));
+  return key ? qst[key] : null;
+}
+
 function avgCompletion(projectQst: Record<string, any>): number {
   const totals = PILIER_CODES.map(code => computePilierCompletion(code, projectQst));
   return Math.round(totals.reduce((a, b) => a + b, 0) / totals.length);
