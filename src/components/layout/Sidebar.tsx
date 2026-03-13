@@ -213,20 +213,23 @@ export function Sidebar({
   const profile = isSimulating && simulatedProfile ? simulatedProfile : authProfile;
 
   const filteredGroups = useMemo(() => {
-    const groups = menuGroups
-      .map(group => group.filter(item => 
-        canAccessScreen(item.permissionKey) && isPageVisibleOnDevice(item.id, currentDevice)
-      ))
-      .filter(group => group.length > 0);
+    const groups: MenuGroup[] = menuGroups
+      .map(group => ({
+        label: group.label,
+        items: group.items.filter(item =>
+          (!item.permissionKey || canAccessScreen(item.permissionKey)) && isPageVisibleOnDevice(item.id, currentDevice)
+        ),
+      }))
+      .filter(group => group.items.length > 0);
     
-    // Add admin group
+    // Add admin into CONFIGURATION group or as its own group
     if (isAdmin && isPageVisibleOnDevice('admin', currentDevice)) {
-      groups.push([adminMenuItem as any]);
-    }
-    
-    // Add chat group (always last)
-    if (canAccessScreen('can_access_dashboard') && isPageVisibleOnDevice('chat', currentDevice)) {
-      groups.push([chatMenuItem as any]);
+      const configGroup = groups.find(g => g.label === 'CONFIGURATION');
+      if (configGroup) {
+        configGroup.items.push(adminMenuItem as any);
+      } else {
+        groups.push({ label: 'CONFIGURATION', items: [adminMenuItem as any] });
+      }
     }
     
     return groups;
