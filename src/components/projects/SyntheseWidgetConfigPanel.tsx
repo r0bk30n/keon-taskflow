@@ -225,25 +225,24 @@ export function SyntheseWidgetConfigPanel({ widgets, onChange }: Props) {
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
-          <Settings className="h-3.5 w-3.5" />
+        <Button variant="outline" size="sm" className="gap-2">
+          <Settings2 className="h-4 w-4" />
           Configurer
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-[380px] sm:w-[420px] overflow-y-auto">
+      <SheetContent className="w-[450px] sm:w-[540px] bg-background">
         <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5 text-muted-foreground" />
+          <SheetTitle className="font-display uppercase tracking-wide">
             Configuration Synthèse
           </SheetTitle>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Glissez pour réordonner, ajustez la taille et la visibilité de chaque widget.
           </p>
         </SheetHeader>
 
-        <div className="mt-6 space-y-1">
-          <div className="flex items-center justify-between mb-3">
-            <Badge variant="secondary" className="text-xs">
+        <div className="mt-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <Badge variant="outline">
               {visibleCount}/{widgets.length} widgets visibles
             </Badge>
             <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={reset}>
@@ -252,26 +251,26 @@ export function SyntheseWidgetConfigPanel({ widgets, onChange }: Props) {
             </Button>
           </div>
 
-          <Separator />
-
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext items={widgets.map(w => w.id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-1 pt-2">
-                {widgets.map(widget => (
-                  <SortableWidgetRow
-                    key={widget.id}
-                    widget={widget}
-                    onToggleVisible={() => toggleVisible(widget.id)}
-                    onChangeSize={(size) => changeSize(widget.id, size)}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
+          <ScrollArea className="h-[500px] pr-4">
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={widgets.map(w => w.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-1">
+                  {widgets.map(widget => (
+                    <SortableWidgetRow
+                      key={widget.id}
+                      widget={widget}
+                      onToggleVisible={() => toggleVisible(widget.id)}
+                      onChangeSize={(size) => changeSize(widget.id, size)}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          </ScrollArea>
         </div>
       </SheetContent>
     </Sheet>
