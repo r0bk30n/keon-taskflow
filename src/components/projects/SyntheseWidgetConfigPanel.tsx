@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Settings, RotateCcw, GripVertical } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Settings2, RotateCcw, GripVertical, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DndContext,
@@ -113,57 +114,70 @@ function SortableWidgetRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'flex items-center gap-2 rounded-lg px-2 py-2.5 transition-colors border',
-        isDragging && 'z-50 shadow-lg',
+        'p-2 rounded-sm border transition-all',
+        isDragging && 'opacity-50 border-primary ring-2 ring-primary/30',
         widget.visible
-          ? 'bg-card border-border/60'
-          : 'bg-muted/30 border-transparent opacity-60'
+          ? 'bg-background border-border hover:border-muted-foreground/40'
+          : 'bg-muted/30 border-transparent opacity-60',
+        'cursor-grab active:cursor-grabbing'
       )}
     >
-      {/* Drag handle */}
-      <button
-        {...attributes}
-        {...listeners}
-        className="p-0.5 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
-      >
-        <GripVertical className="h-4 w-4" />
-      </button>
+      <div className="flex items-center gap-2">
+        {/* Drag handle */}
+        <button
+          {...attributes}
+          {...listeners}
+          className="p-0.5 flex-shrink-0 text-muted-foreground hover:text-foreground touch-none"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
 
-      {/* Accent dot */}
-      <div
-        className="w-2.5 h-2.5 rounded-full shrink-0"
-        style={{ backgroundColor: widget.accentColor }}
-      />
+        {/* Accent dot */}
+        <div
+          className="w-2.5 h-2.5 rounded-full shrink-0"
+          style={{ backgroundColor: widget.accentColor }}
+        />
 
-      {/* Label */}
-      <div className="flex-1 min-w-0">
-        <span className="text-sm font-medium truncate block">{widget.label}</span>
+        {/* Eye icon + Label */}
+        <div
+          className="flex-1 flex items-center gap-2 min-w-0 cursor-pointer select-none"
+          onClick={onToggleVisible}
+        >
+          {widget.visible ? (
+            <Eye className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+          ) : (
+            <EyeOff className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+          )}
+          <span className={cn('text-sm truncate', widget.visible ? 'text-foreground' : 'text-muted-foreground')}>
+            {widget.label}
+          </span>
+        </div>
+
+        {/* Size selector: C / N / L */}
+        <div className="flex items-center gap-0.5 shrink-0">
+          {SIZE_OPTIONS.map(opt => (
+            <button
+              key={opt.key}
+              onClick={() => onChangeSize(opt.key)}
+              className={cn(
+                'w-6 h-6 rounded text-[10px] font-semibold transition-colors',
+                widget.size === opt.key
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Toggle */}
+        <Switch
+          checked={widget.visible}
+          onCheckedChange={onToggleVisible}
+          className="shrink-0"
+        />
       </div>
-
-      {/* Size selector: C / N / L */}
-      <div className="flex items-center gap-0.5 shrink-0">
-        {SIZE_OPTIONS.map(opt => (
-          <button
-            key={opt.key}
-            onClick={() => onChangeSize(opt.key)}
-            className={cn(
-              'w-6 h-6 rounded text-[10px] font-semibold transition-colors',
-              widget.size === opt.key
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            )}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Toggle */}
-      <Switch
-        checked={widget.visible}
-        onCheckedChange={onToggleVisible}
-        className="shrink-0"
-      />
     </div>
   );
 }
@@ -211,25 +225,24 @@ export function SyntheseWidgetConfigPanel({ widgets, onChange }: Props) {
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
-          <Settings className="h-3.5 w-3.5" />
+        <Button variant="outline" size="sm" className="gap-2">
+          <Settings2 className="h-4 w-4" />
           Configurer
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-[380px] sm:w-[420px] overflow-y-auto">
+      <SheetContent className="w-[450px] sm:w-[540px] bg-background">
         <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5 text-muted-foreground" />
+          <SheetTitle className="font-display uppercase tracking-wide">
             Configuration Synthèse
           </SheetTitle>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Glissez pour réordonner, ajustez la taille et la visibilité de chaque widget.
           </p>
         </SheetHeader>
 
-        <div className="mt-6 space-y-1">
-          <div className="flex items-center justify-between mb-3">
-            <Badge variant="secondary" className="text-xs">
+        <div className="mt-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <Badge variant="outline">
               {visibleCount}/{widgets.length} widgets visibles
             </Badge>
             <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={reset}>
@@ -238,26 +251,26 @@ export function SyntheseWidgetConfigPanel({ widgets, onChange }: Props) {
             </Button>
           </div>
 
-          <Separator />
-
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext items={widgets.map(w => w.id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-1 pt-2">
-                {widgets.map(widget => (
-                  <SortableWidgetRow
-                    key={widget.id}
-                    widget={widget}
-                    onToggleVisible={() => toggleVisible(widget.id)}
-                    onChangeSize={(size) => changeSize(widget.id, size)}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
+          <ScrollArea className="h-[500px] pr-4">
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={widgets.map(w => w.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-1">
+                  {widgets.map(widget => (
+                    <SortableWidgetRow
+                      key={widget.id}
+                      widget={widget}
+                      onToggleVisible={() => toggleVisible(widget.id)}
+                      onChangeSize={(size) => changeSize(widget.id, size)}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          </ScrollArea>
         </div>
       </SheetContent>
     </Sheet>
