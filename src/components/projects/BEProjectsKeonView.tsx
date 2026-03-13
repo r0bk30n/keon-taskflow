@@ -51,7 +51,7 @@ function completionColor(pct: number) {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props) {
+export function BEProjectsKeonView({ projects, qstData, keonProjectIds, widgetConfig }: Props) {
   const navigate = useNavigate();
 
   const keonProjects = useMemo(
