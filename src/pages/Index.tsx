@@ -150,23 +150,6 @@ const Index = () => {
     return merged;
   }, [allTasks, allRequests]);
 
-  // Stats for request tracking dashboard
-  const requestStats = useMemo((): TaskStats => {
-    const total = myRequests.length;
-    const todo = myRequests.filter(t => t.status === 'todo').length;
-    const inProgress = myRequests.filter(t => t.status === 'in-progress').length;
-    const done = myRequests.filter(t => t.status === 'done').length;
-    const pendingValidation = myRequests.filter(t => t.status === 'pending_validation_1' || t.status === 'pending_validation_2').length;
-    const validated = myRequests.filter(t => t.status === 'validated').length;
-    const refused = myRequests.filter(t => t.status === 'refused').length;
-    return {
-      total, todo, inProgress, done, pendingValidation, validated, refused,
-      completionRate: total > 0 ? Math.round(((done + validated) / total) * 100) : 0,
-    };
-  }, [myRequests]);
-
-  const requestGlobalProgress = requestStats.completionRate;
-
   // Fetch profiles for group labels + process→service_group mapping
   const [processServiceGroupMap, setProcessServiceGroupMap] = useState<Map<string, string>>(new Map());
   const [deptServiceGroupMap, setDeptServiceGroupMap] = useState<Map<string, string>>(new Map());
