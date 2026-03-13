@@ -216,10 +216,6 @@ export default function KeonDashboard() {
                 </Button>
               </div>
 
-              {/* Widget config button (only in synthese view) */}
-              {currentView === 'synthese' && (
-                <SpvWidgetConfigPanel config={widgetConfig} onChange={setWidgetConfig} />
-              )}
             </div>
 
             {/* Multi-criteria filters */}
