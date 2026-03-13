@@ -1,36 +1,13 @@
-import { useState } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Settings2, RotateCcw, GripVertical, Eye, EyeOff } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+// ─── Widget definitions & config persistence for Synthèse view ───────────────
+// This module defines the widget catalog, config shape, and localStorage helpers.
+// The inline edit mode (drag-drop, resize) lives in BEProjectsSyntheseView.
 
-// ─── Widget definitions ──────────────────────────────────────────────────────
 export interface WidgetConfig {
   id: string;
   label: string;
   visible: boolean;
-  size: 'compact' | 'normal' | 'large';
+  /** Grid dimensions: w (1=half, 2=full), h (1-5 height preset) */
+  size: { w: number; h: number };
   accentColor: string;
   gradientFrom: string;
   gradientTo: string;
@@ -48,10 +25,27 @@ export const WIDGET_DEFINITIONS: Omit<WidgetConfig, 'visible' | 'size'>[] = [
   { id: 'top_projects',  label: 'Projets les plus avancés',      accentColor: '#10b981', gradientFrom: 'from-emerald-500/10',gradientTo: 'to-emerald-600/5'},
 ];
 
+// Default widths: kpi_strip & map = full (w:2), charts = half (w:1)
+const DEFAULT_SIZES: Record<string, { w: number; h: number }> = {
+  kpi_strip:    { w: 2, h: 2 },
+  map:          { w: 2, h: 3 },
+  status_pie:   { w: 1, h: 3 },
+  typo_pie:     { w: 1, h: 3 },
+  progress_bar: { w: 1, h: 3 },
+  region_bar:   { w: 1, h: 3 },
+  keon_spv:     { w: 1, h: 3 },
+  at_risk:      { w: 1, h: 3 },
+  top_projects: { w: 1, h: 3 },
+};
+
 const STORAGE_KEY = 'synthese_widget_config';
 
-function getDefaultWidgets(): WidgetConfig[] {
-  return WIDGET_DEFINITIONS.map(w => ({ ...w, visible: true, size: 'normal' as const }));
+export function getDefaultWidgets(): WidgetConfig[] {
+  return WIDGET_DEFINITIONS.map(w => ({
+    ...w,
+    visible: true,
+    size: DEFAULT_SIZES[w.id] || { w: 1, h: 3 },
+  }));
 }
 
 export function loadWidgetConfig(): WidgetConfig[] {
@@ -59,14 +53,25 @@ export function loadWidgetConfig(): WidgetConfig[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return getDefaultWidgets();
     const saved: WidgetConfig[] = JSON.parse(raw);
-    const savedMap = new Map(saved.map(w => [w.id, w]));
+
+    // Migration: convert old string size format to { w, h }
+    const migrated = saved.map(s => {
+      if (typeof s.size === 'string') {
+        const def = DEFAULT_SIZES[s.id] || { w: 1, h: 3 };
+        const hMap: Record<string, number> = { compact: 2, normal: 3, large: 4 };
+        return { ...s, size: { w: def.w, h: hMap[s.size as string] || 3 } };
+      }
+      return s;
+    });
+
+    const savedMap = new Map(migrated.map(w => [w.id, w]));
     const merged: WidgetConfig[] = [];
-    saved.forEach(s => {
+    migrated.forEach(s => {
       const def = WIDGET_DEFINITIONS.find(d => d.id === s.id);
       if (def) merged.push({ ...def, visible: s.visible, size: s.size });
     });
     WIDGET_DEFINITIONS.forEach(d => {
-      if (!savedMap.has(d.id)) merged.push({ ...d, visible: true, size: 'normal' });
+      if (!savedMap.has(d.id)) merged.push({ ...d, visible: true, size: DEFAULT_SIZES[d.id] || { w: 1, h: 3 } });
     });
     return merged;
   } catch {
@@ -74,205 +79,6 @@ export function loadWidgetConfig(): WidgetConfig[] {
   }
 }
 
-function saveWidgetConfig(widgets: WidgetConfig[]) {
+export function saveWidgetConfig(widgets: WidgetConfig[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(widgets));
-}
-
-// ─── Size button labels ──────────────────────────────────────────────────────
-const SIZE_OPTIONS: { key: WidgetConfig['size']; label: string }[] = [
-  { key: 'compact', label: 'C' },
-  { key: 'normal', label: 'N' },
-  { key: 'large', label: 'L' },
-];
-
-// ─── Sortable widget row ─────────────────────────────────────────────────────
-function SortableWidgetRow({
-  widget,
-  onToggleVisible,
-  onChangeSize,
-}: {
-  widget: WidgetConfig;
-  onToggleVisible: () => void;
-  onChangeSize: (size: WidgetConfig['size']) => void;
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: widget.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        'p-2 rounded-sm border transition-all',
-        isDragging && 'opacity-50 border-primary ring-2 ring-primary/30',
-        widget.visible
-          ? 'bg-background border-border hover:border-muted-foreground/40'
-          : 'bg-muted/30 border-transparent opacity-60',
-        'cursor-grab active:cursor-grabbing'
-      )}
-    >
-      <div className="flex items-center gap-2">
-        {/* Drag handle */}
-        <button
-          {...attributes}
-          {...listeners}
-          className="p-0.5 flex-shrink-0 text-muted-foreground hover:text-foreground touch-none"
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
-
-        {/* Accent dot */}
-        <div
-          className="w-2.5 h-2.5 rounded-full shrink-0"
-          style={{ backgroundColor: widget.accentColor }}
-        />
-
-        {/* Eye icon + Label */}
-        <div
-          className="flex-1 flex items-center gap-2 min-w-0 cursor-pointer select-none"
-          onClick={onToggleVisible}
-        >
-          {widget.visible ? (
-            <Eye className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-          ) : (
-            <EyeOff className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-          )}
-          <span className={cn('text-sm truncate', widget.visible ? 'text-foreground' : 'text-muted-foreground')}>
-            {widget.label}
-          </span>
-        </div>
-
-        {/* Size selector: C / N / L */}
-        <div className="flex items-center gap-0.5 shrink-0">
-          {SIZE_OPTIONS.map(opt => (
-            <button
-              key={opt.key}
-              onClick={() => onChangeSize(opt.key)}
-              className={cn(
-                'w-6 h-6 rounded text-[10px] font-semibold transition-colors',
-                widget.size === opt.key
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Toggle */}
-        <Switch
-          checked={widget.visible}
-          onCheckedChange={onToggleVisible}
-          className="shrink-0"
-        />
-      </div>
-    </div>
-  );
-}
-
-// ─── Main panel ──────────────────────────────────────────────────────────────
-interface Props {
-  widgets: WidgetConfig[];
-  onChange: (widgets: WidgetConfig[]) => void;
-}
-
-export function SyntheseWidgetConfigPanel({ widgets, onChange }: Props) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-
-  const commit = (next: WidgetConfig[]) => {
-    onChange(next);
-    saveWidgetConfig(next);
-  };
-
-  const toggleVisible = (id: string) => {
-    commit(widgets.map(w => w.id === id ? { ...w, visible: !w.visible } : w));
-  };
-
-  const changeSize = (id: string, size: WidgetConfig['size']) => {
-    commit(widgets.map(w => w.id === id ? { ...w, size } : w));
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIndex = widgets.findIndex(w => w.id === active.id);
-    const newIndex = widgets.findIndex(w => w.id === over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
-    commit(arrayMove(widgets, oldIndex, newIndex));
-  };
-
-  const reset = () => commit(getDefaultWidgets());
-
-  const visibleCount = widgets.filter(w => w.visible).length;
-
-  return (
-    <Sheet open={isOpen} onOpenChange={setIsOpen}>
-      <SheetTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <Settings2 className="h-4 w-4" />
-          Configurer
-        </Button>
-      </SheetTrigger>
-      <SheetContent className="w-[450px] sm:w-[540px] bg-background">
-        <SheetHeader>
-          <SheetTitle className="font-display uppercase tracking-wide">
-            Configuration Synthèse
-          </SheetTitle>
-          <p className="text-sm text-muted-foreground">
-            Glissez pour réordonner, ajustez la taille et la visibilité de chaque widget.
-          </p>
-        </SheetHeader>
-
-        <div className="mt-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <Badge variant="outline">
-              {visibleCount}/{widgets.length} widgets visibles
-            </Badge>
-            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={reset}>
-              <RotateCcw className="h-3 w-3" />
-              Réinitialiser
-            </Button>
-          </div>
-
-          <ScrollArea className="h-[500px] pr-4">
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext items={widgets.map(w => w.id)} strategy={verticalListSortingStrategy}>
-                <div className="space-y-1">
-                  {widgets.map(widget => (
-                    <SortableWidgetRow
-                      key={widget.id}
-                      widget={widget}
-                      onToggleVisible={() => toggleVisible(widget.id)}
-                      onChangeSize={(size) => changeSize(widget.id, size)}
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-            </DndContext>
-          </ScrollArea>
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
 }
