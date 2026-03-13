@@ -48,11 +48,11 @@ const Index = () => {
   const { profile } = useAuth();
   const [activeView, setActiveView] = useState('dashboard');
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
-  const [taskView, setTaskView] = useState<TaskView>('grid');
+  const [taskView, setTaskView] = useState<TaskView>('table');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [showFullStats, setShowFullStats] = useState(false);
   const [dashboardMode, setDashboardMode] = useState<'tasks' | 'planner' | 'validations'>('tasks');
-  const [taskSubMode, setTaskSubMode] = useState<'grid' | 'kanban' | 'calendar' | 'table' | 'analytics'>('grid');
+  const [taskSubMode, setTaskSubMode] = useState<'grid' | 'kanban' | 'calendar' | 'table' | 'analytics'>('table');
   const [isBulkActionOpen, setIsBulkActionOpen] = useState(false);
   const [kanbanGroupMode, setKanbanGroupMode] = useState<KanbanGroupMode>('status');
   const [crossFilters, setCrossFilters] = useState<CrossFilters>(DEFAULT_CROSS_FILTERS);
