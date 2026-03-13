@@ -171,6 +171,14 @@ const App = () => (
               }
             />
             <Route
+              path="/be/projects/:code/keon-synthese"
+              element={
+                <ProtectedRoute>
+                  <BEProjectHubKeonSynthese />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/be/projects/:code/timeline"
               element={
                 <ProtectedRoute>
