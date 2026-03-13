@@ -215,6 +215,11 @@ export default function KeonDashboard() {
                   <span className="hidden sm:inline">Kanban</span>
                 </Button>
               </div>
+
+              {/* Widget config button (only in synthese view) */}
+              {currentView === 'synthese' && (
+                <SpvWidgetConfigPanel config={widgetConfig} onChange={setWidgetConfig} />
+              )}
             </div>
 
             {/* Multi-criteria filters */}
