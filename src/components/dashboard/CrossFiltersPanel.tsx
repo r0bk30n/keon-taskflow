@@ -268,7 +268,35 @@ export function CrossFiltersPanel({ filters, onFiltersChange, onClose, processId
       }
       const { data: globalData } = await globalQuery.order('created_at', { ascending: false });
 
-      const allPresets = [...(ownData || []), ...(globalData || [])];
+      let allPresets = [...(ownData || []), ...(globalData || [])];
+      
+      // Auto-create standard global preset if none exists (global context only)
+      if (!processId && !contextId) {
+        const existingGlobal = allPresets.find((p: FilterPreset) => p.is_global);
+        if (!existingGlobal) {
+          const standardFilters = {
+            ...DEFAULT_CROSS_FILTERS,
+            statuses: ['to_assign', 'todo', 'in-progress', 'pending_validation_1', 'pending_validation_2', 'review'],
+            dateRange: { start: null, end: null },
+          };
+          const { data: newPreset } = await (supabase as any)
+            .from('user_filter_presets')
+            .insert({
+              user_id: user.id,
+              name: 'Affaires non terminées',
+              filters: standardFilters,
+              is_global: true,
+              is_default: false,
+              process_template_id: null,
+            })
+            .select('id, name, filters, is_default, is_global, user_id, visible_columns')
+            .single();
+          if (newPreset) {
+            allPresets.push(newPreset);
+          }
+        }
+      }
+
       if (allPresets.length) {
         setPresets(allPresets);
         // Auto-apply default preset ONLY on first load per context
