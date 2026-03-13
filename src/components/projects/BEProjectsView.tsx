@@ -362,13 +362,6 @@ export function BEProjectsView() {
         />
       )}
 
-      {currentView === 'keon' && (
-        <BEProjectsKeonView
-          projects={filteredProjects}
-          qstData={qstData}
-          keonProjectIds={keonProjectIds}
-        />
-      )}
 
       {currentView === 'table' && (
         <Card className="border-border/50">

@@ -144,6 +144,12 @@ const menuColors: Record<string, { bg: string; text: string; border: string; ico
     border: 'border-[#7C3AED]',
     iconBg: 'bg-gradient-to-br from-[#7C3AED] to-[#7C3AED]/80'
   },
+  keon: {
+    bg: 'bg-[#10B981]/10',
+    text: 'text-[#10B981]',
+    border: 'border-[#10B981]',
+    iconBg: 'bg-gradient-to-br from-[#10B981] to-[#10B981]/80'
+  },
 };
 
 export function Sidebar({
