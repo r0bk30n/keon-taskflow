@@ -1009,6 +1009,13 @@ export function BEProjectsSyntheseView({ projects, qstData, widgets: externalWid
           ))}
         </div>
       </div>
+
+      {/* Add Widget Dialog */}
+      <AddSyntheseWidgetDialog
+        open={isAddDialogOpen}
+        onClose={() => setIsAddDialogOpen(false)}
+        onAdd={handleAddWidget}
+      />
     </div>
   );
 }
