@@ -221,7 +221,7 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <MapPin className="h-4 w-4 text-muted-foreground" />
-              Carte des projets KEON
+              Carte des projets SPV
               <Badge variant="secondary" className="ml-auto text-xs">{keonWithCoords.length} localisés</Badge>
             </CardTitle>
           </CardHeader>
