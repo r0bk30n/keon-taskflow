@@ -62,28 +62,31 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
   const kpis = useMemo(() => {
     let spvCount = 0;
     let gisementSum = 0;
-    let cmasSum = 0;
-    let cmasCount = 0;
+    let cmasValues: number[] = [];
     let ksSum = 0;
     let ksCount = 0;
     let completeCount = 0;
 
     keonProjects.forEach(p => {
       const d = qstData[p.id] || {};
-      if (d['02_GEN_spv_cree']?.toUpperCase() === 'OUI') spvCount++;
-      gisementSum += safeFloat(d['06_GEN_quantite_totale']);
-      const cmas = safeFloat(d['05_GEN_cmax1']);
-      if (cmas > 0) { cmasSum += cmas; cmasCount++; }
-      const ks = safeFloat(d['02_CAPI_keon_pct']);
+      const spvVal = getQstValue(d, 'spv') || '';
+      if (spvVal.toUpperCase() === 'OUI') spvCount++;
+      const gis = safeFloat(getQstValue(d, 'quantite', 'totale') || getQstValue(d, 'gisement', 'total') || '0');
+      gisementSum += gis;
+      const cmas = safeFloat(getQstValue(d, 'cmax1') || '0');
+      if (cmas > 0) cmasValues.push(cmas);
+      const ks = safeFloat(getQstValue(d, 'keon', 'pct') || getQstValue(d, 'ks', 'keon') || '0');
       if (ks > 0) { ksSum += ks; ksCount++; }
       if (avgCompletion(d) > 50) completeCount++;
     });
+
+    const cmasMoyen = cmasValues.length > 0 ? (cmasValues.reduce((a, b) => a + b, 0) / cmasValues.length).toFixed(1) : null;
 
     return {
       total: keonProjects.length,
       spv: spvCount,
       gisement: Math.round(gisementSum),
-      cmas: cmasCount > 0 ? (cmasSum / cmasCount).toFixed(1) : '—',
+      cmas: cmasMoyen ?? 'N/A',
       ks: ksCount > 0 ? (ksSum / ksCount).toFixed(1) : '—',
       complete: completeCount,
     };
