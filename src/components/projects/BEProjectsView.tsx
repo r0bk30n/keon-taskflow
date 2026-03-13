@@ -332,9 +332,6 @@ export function BEProjectsView() {
               />
             )}
 
-            {currentView === 'synthese' && (
-              <SyntheseWidgetConfigPanel widgets={syntheseWidgets} onChange={setSyntheseWidgets} />
-            )}
           </div>
 
           {/* Multi-criteria filters */}
