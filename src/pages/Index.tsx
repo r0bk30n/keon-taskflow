@@ -482,19 +482,6 @@ const Index = () => {
             Analytique
           </button>
 
-          <button
-            onClick={() => { setTaskSubMode('tracking'); fetchMyRequests(); }}
-            className={cn(
-              "flex items-center gap-1.5 px-4 py-2 text-xs border-b-2 transition-colors",
-              taskSubMode === 'tracking'
-                ? "border-keon-blue text-keon-blue bg-white font-medium"
-                : "border-transparent text-keon-600 hover:text-keon-900 hover:bg-keon-100"
-            )}
-          >
-            <Eye className="h-3.5 w-3.5" />
-            Suivi
-            {myRequests.length > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{myRequests.length}</Badge>}
-          </button>
         </div>
 
         {renderTasksSubContent()}
