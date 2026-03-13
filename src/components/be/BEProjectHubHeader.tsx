@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { BEProject } from '@/types/beProject';
 import { Task } from '@/types/task';
@@ -17,9 +17,11 @@ import {
   AlertTriangle,
   TrendingUp,
   Pencil,
-  ClipboardList
+  ClipboardList,
+  BarChart3
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useQuestionnaireProjectData } from '@/hooks/useQuestionnaireProjectData';
 
 interface BEProjectHubHeaderProps {
   project: BEProject;
@@ -39,15 +41,24 @@ const statusLabels: Record<string, { label: string; className: string }> = {
   on_hold: { label: 'En attente', className: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
 };
 
-const navItems = [
+const baseNavItems = [
   { value: 'overview', label: 'Fiche', icon: LayoutDashboard },
   { value: 'questionnaire', label: 'Questionnaire', icon: ClipboardList },
+  { value: 'keon-synthese', label: '📊 Synthèse KEON', icon: BarChart3, keonOnly: true },
   { value: 'timeline', label: 'Timeline', icon: Calendar },
   { value: 'discussions', label: 'Discussions', icon: MessageSquare },
   { value: 'files', label: 'Fichiers', icon: Paperclip },
 ];
 
 export function BEProjectHubHeader({ project, stats, onEditProject }: BEProjectHubHeaderProps) {
+  const projectsArray = useMemo(() => [project], [project]);
+  const { keonProjectIds } = useQuestionnaireProjectData(projectsArray);
+  const isKeonProject = keonProjectIds.has(project.id);
+
+  const navItems = useMemo(
+    () => baseNavItems.filter(item => !item.keonOnly || isKeonProject),
+    [isKeonProject]
+  );
   const navigate = useNavigate();
   const location = useLocation();
 
