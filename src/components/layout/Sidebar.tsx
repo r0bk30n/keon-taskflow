@@ -507,12 +507,17 @@ export function Sidebar({
         {filteredGroups.map((group, groupIndex) => (
           <div key={groupIndex}>
             {groupIndex > 0 && (
-              <div className="py-2">
+              <div className="pt-3 pb-1">
                 <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
               </div>
             )}
-            <div className="space-y-1">
-              {group.map((item) => {
+            {group.label && !collapsed && (
+              <div className="px-3 pt-2 pb-1">
+                <span className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground/60">{group.label}</span>
+              </div>
+            )}
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeView === item.id;
                 const colors = menuColors[item.id] || menuColors.dashboard;
@@ -525,7 +530,9 @@ export function Sidebar({
                       "w-full flex items-center gap-3 transition-all duration-200 font-body group relative",
                       collapsed ? "justify-center p-2" : "px-3 py-2.5 rounded-xl",
                       isActive && !collapsed && [colors.bg, "border-l-4", colors.border],
-                      !isActive && !collapsed && "hover:bg-muted border-l-4 border-transparent",
+                      !isActive && !collapsed && "hover:bg-muted/60 border-l-4 border-transparent",
+                      isActive && collapsed && "bg-muted/80",
+                      !isActive && collapsed && "hover:bg-muted/60",
                     )}
                     title={collapsed ? item.label : undefined}
                   >
@@ -534,7 +541,7 @@ export function Sidebar({
                       collapsed ? "p-3" : "p-2",
                       isActive 
                         ? [colors.iconBg, "text-white shadow-md"]
-                        : "bg-muted text-muted-foreground group-hover:bg-muted group-hover:text-foreground",
+                        : "bg-muted/50 text-foreground/50 group-hover:bg-muted group-hover:text-foreground",
                     )}>
                       <Icon className={cn("relative z-10", collapsed ? "w-5 h-5" : "w-4 h-4")} />
                       {isActive && (
@@ -551,7 +558,7 @@ export function Sidebar({
                       <>
                         <span className={cn(
                           "font-medium text-sm transition-colors flex-1 text-left",
-                          isActive ? [colors.text, "font-semibold"] : "text-muted-foreground group-hover:text-foreground"
+                          isActive ? [colors.text, "font-semibold"] : "text-foreground/60 group-hover:text-foreground"
                         )}>
                           {item.label}
                         </span>
