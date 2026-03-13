@@ -215,7 +215,7 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds, widgetCo
   // ── Ordered widgets ─────────────────────────────────────────────────────
   const orderedWidgetIds = widgetConfig
     ? widgetConfig.filter(w => w.visible).map(w => w.id)
-    : ['kpi_band', 'map', 'typologie', 'gisement', 'table'];
+    : ['kpis', 'map', 'typologie', 'gisement', 'tableau'];
 
   // ── Render ───────────────────────────────────────────────────────────────
   if (keonProjects.length === 0) {
