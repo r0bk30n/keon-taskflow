@@ -20,7 +20,7 @@ import { ProjectKanbanView, GroupByField } from './ProjectKanbanView';
 import { ProjectViewConfigPanel } from './ProjectViewConfigPanel';
 import { useFilteredProjects } from './ProjectFilters';
 import { BEProjectCardsView } from './BEProjectCardsView';
-import { BEProjectsKeonView } from './BEProjectsKeonView';
+
 import { BEProjectsSyntheseView } from './BEProjectsSyntheseView';
 import { ProjectMultiFiltersPanel } from './ProjectMultiFiltersPanel';
 import {
@@ -32,7 +32,7 @@ import { fr } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
-type ViewType = 'synthese' | 'cards' | 'table' | 'kanban' | 'keon';
+type ViewType = 'synthese' | 'cards' | 'table' | 'kanban';
 
 export function BEProjectsView() {
   const navigate = useNavigate();
@@ -69,8 +69,6 @@ export function BEProjectsView() {
   const [kanbanGroupBy, setKanbanGroupBy] = useState<GroupByField>('status');
   const [localSearch, setLocalSearch] = useState(searchQuery);
   
-  // KEON filter: only projects with questionnaire data
-  const [showKeonOnly, setShowKeonOnly] = useState(false);
   const [syntheseWidgets, setSyntheseWidgets] = useState<WidgetConfig[]>(loadWidgetConfig);
   const { qstData, keonProjectIds, getDistinctValues: getQstDistinctValues } = useQuestionnaireProjectData(projects);
 
@@ -88,10 +86,7 @@ export function BEProjectsView() {
   // Apply multi-criteria filters first, then column filters
   const multiFilteredProjects = useMemo(() => applyMultiFilters(projects), [projects, applyMultiFilters]);
   const columnFilteredProjects = useFilteredProjects(multiFilteredProjects, columnFilters);
-  const filteredProjects = useMemo(() => {
-    if (!showKeonOnly) return columnFilteredProjects;
-    return columnFilteredProjects.filter(p => keonProjectIds.has(p.id));
-  }, [columnFilteredProjects, showKeonOnly, keonProjectIds]);
+  const filteredProjects = columnFilteredProjects;
 
   // Get ordered columns based on config
   const orderedVisibleColumns = useMemo(() => {
@@ -266,22 +261,6 @@ export function BEProjectsView() {
               />
             </div>
 
-            {/* KEON Filter Toggle */}
-            <Button
-              variant={showKeonOnly ? 'default' : 'outline'}
-              size="sm"
-              className={cn('h-8 px-3 gap-2', showKeonOnly && 'shadow-sm')}
-              onClick={() => setShowKeonOnly(!showKeonOnly)}
-            >
-              <ClipboardList className="h-4 w-4" />
-              <span className="hidden sm:inline">Projets KEON</span>
-              {showKeonOnly && keonProjectIds.size > 0 && (
-                <Badge variant="secondary" className="ml-1 text-xs h-5 px-1.5">
-                  {keonProjectIds.size}
-                </Badge>
-              )}
-            </Button>
-            
             {/* View Toggle */}
             <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg">
               <Button
@@ -319,15 +298,6 @@ export function BEProjectsView() {
               >
                 <Kanban className="h-4 w-4" />
                 <span className="hidden sm:inline">Kanban</span>
-              </Button>
-              <Button
-                variant={currentView === 'keon' ? 'default' : 'ghost'}
-                size="sm"
-                className={cn('h-8 px-3 gap-2', currentView === 'keon' && 'shadow-sm')}
-                onClick={() => setCurrentView('keon')}
-              >
-                <span>🌿</span>
-                <span className="hidden sm:inline">KEON</span>
               </Button>
             </div>
 
@@ -392,13 +362,6 @@ export function BEProjectsView() {
         />
       )}
 
-      {currentView === 'keon' && (
-        <BEProjectsKeonView
-          projects={filteredProjects}
-          qstData={qstData}
-          keonProjectIds={keonProjectIds}
-        />
-      )}
 
       {currentView === 'table' && (
         <Card className="border-border/50">

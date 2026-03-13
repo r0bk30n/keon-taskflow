@@ -32,6 +32,12 @@ function safeFloat(v: any): number {
   return isNaN(n) ? 0 : n;
 }
 
+/** Flexible qstData key lookup: finds first key containing ALL keywords */
+function getQstValue(qst: Record<string, any>, ...keywords: string[]): string | null {
+  const key = Object.keys(qst).find(k => keywords.every(kw => k.toLowerCase().includes(kw.toLowerCase())));
+  return key ? qst[key] : null;
+}
+
 function avgCompletion(projectQst: Record<string, any>): number {
   const totals = PILIER_CODES.map(code => computePilierCompletion(code, projectQst));
   return Math.round(totals.reduce((a, b) => a + b, 0) / totals.length);
@@ -56,28 +62,31 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
   const kpis = useMemo(() => {
     let spvCount = 0;
     let gisementSum = 0;
-    let cmasSum = 0;
-    let cmasCount = 0;
+    let cmasValues: number[] = [];
     let ksSum = 0;
     let ksCount = 0;
     let completeCount = 0;
 
     keonProjects.forEach(p => {
       const d = qstData[p.id] || {};
-      if (d['02_GEN_spv_cree']?.toUpperCase() === 'OUI') spvCount++;
-      gisementSum += safeFloat(d['06_GEN_quantite_totale']);
-      const cmas = safeFloat(d['05_GEN_cmax1']);
-      if (cmas > 0) { cmasSum += cmas; cmasCount++; }
-      const ks = safeFloat(d['02_CAPI_keon_pct']);
+      const spvVal = getQstValue(d, 'spv') || '';
+      if (spvVal.toUpperCase() === 'OUI') spvCount++;
+      const gis = safeFloat(getQstValue(d, 'quantite', 'totale') || getQstValue(d, 'gisement', 'total') || '0');
+      gisementSum += gis;
+      const cmas = safeFloat(getQstValue(d, 'cmax1') || '0');
+      if (cmas > 0) cmasValues.push(cmas);
+      const ks = safeFloat(getQstValue(d, 'keon', 'pct') || getQstValue(d, 'ks', 'keon') || '0');
       if (ks > 0) { ksSum += ks; ksCount++; }
       if (avgCompletion(d) > 50) completeCount++;
     });
+
+    const cmasMoyen = cmasValues.length > 0 ? (cmasValues.reduce((a, b) => a + b, 0) / cmasValues.length).toFixed(1) : null;
 
     return {
       total: keonProjects.length,
       spv: spvCount,
       gisement: Math.round(gisementSum),
-      cmas: cmasCount > 0 ? (cmasSum / cmasCount).toFixed(1) : '—',
+      cmas: cmasMoyen ?? 'N/A',
       ks: ksCount > 0 ? (ksSum / ksCount).toFixed(1) : '—',
       complete: completeCount,
     };
@@ -87,7 +96,7 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
   const typoPieData = useMemo(() => {
     const counts: Record<string, number> = {};
     keonProjects.forEach(p => {
-      const t = qstData[p.id]?.['00_GEN_typologie'] || 'Non renseigné';
+      const t = getQstValue(qstData[p.id] || {}, 'typologie') || 'Non renseigné';
       counts[t] = (counts[t] || 0) + 1;
     });
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
@@ -96,10 +105,13 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
   // ── Gisement bar data ────────────────────────────────────────────────────
   const gisementBarData = useMemo(() => {
     return keonProjects
-      .map(p => ({
-        code: p.code_projet,
-        gisement: safeFloat(qstData[p.id]?.['06_GEN_quantite_totale']),
-      }))
+      .map(p => {
+        const d = qstData[p.id] || {};
+        return {
+          code: p.code_projet,
+          gisement: safeFloat(getQstValue(d, 'quantite', 'totale') || getQstValue(d, 'gisement', 'total') || '0'),
+        };
+      })
       .filter(d => d.gisement > 0)
       .sort((a, b) => b.gisement - a.gisement);
   }, [keonProjects, qstData]);
@@ -112,12 +124,12 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
         id: p.id,
         code_projet: p.code_projet,
         nom_projet: p.nom_projet,
-        region: d['04_GEN_region'] || p.region || '—',
-        typologie: d['00_GEN_typologie'] || '—',
-        spv: d['02_GEN_spv_cree']?.toUpperCase() || '',
-        ks: safeFloat(d['02_CAPI_keon_pct']),
-        gisement: safeFloat(d['06_GEN_quantite_totale']),
-        cmas: safeFloat(d['05_GEN_cmax1']),
+        region: getQstValue(d, 'region') || p.region || '—',
+        typologie: getQstValue(d, 'typologie') || '—',
+        spv: (getQstValue(d, 'spv') || '').toUpperCase(),
+        ks: safeFloat(getQstValue(d, 'keon', 'pct') || getQstValue(d, 'ks', 'keon') || '0'),
+        gisement: safeFloat(getQstValue(d, 'quantite', 'totale') || getQstValue(d, 'gisement', 'total') || '0'),
+        cmas: safeFloat(getQstValue(d, 'cmax1') || '0'),
         completion: avgCompletion(d),
       };
     });
@@ -198,7 +210,7 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
         <KpiCard icon={<Leaf className="h-5 w-5 text-emerald-500" />} label="Projets KEON" value={String(kpis.total)} />
         <KpiCard icon={<Building2 className="h-5 w-5 text-blue-500" />} label="SPV créées" value={String(kpis.spv)} badge badgeClass="bg-emerald-500/10 text-emerald-600 border-emerald-500/20" />
         <KpiCard icon={<BarChart2 className="h-5 w-5 text-amber-500" />} label="Gisement cumulé" value={`${kpis.gisement.toLocaleString('fr-FR')} tMB/an`} />
-        <KpiCard icon={<Flame className="h-5 w-5 text-orange-500" />} label="Cmax moyen" value={`${kpis.cmas} Nm³/h`} />
+        <KpiCard icon={<Flame className="h-5 w-5 text-orange-500" />} label="Cmax moyen" value={kpis.cmas === 'N/A' ? 'N/A' : `${kpis.cmas} Nm³/h`} />
         <KpiCard icon={<BarChart2 className="h-5 w-5 text-violet-500" />} label="KS Keon moyen" value={`${kpis.ks} %`} />
         <KpiCard icon={<CheckCircle2 className="h-5 w-5 text-emerald-500" />} label="Questionnaire >50%" value={String(kpis.complete)} />
       </div>
