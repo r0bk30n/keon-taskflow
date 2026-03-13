@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, BarChart3, Users, ChevronLeft, ChevronRight, Workflow, ShieldCheck, FolderOpen, CalendarClock, FileText, ArrowLeftRight, Calendar, MessageCircle, Building2, ClipboardList, Lightbulb, Monitor, Leaf } from 'lucide-react';
+import { LayoutDashboard, BarChart3, ChevronLeft, ChevronRight, Workflow, ShieldCheck, FolderOpen, CalendarClock, FileText, ArrowLeftRight, Calendar, MessageCircle, Building2, ClipboardList, Lightbulb, Monitor, Leaf } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useEffectivePermissions } from '@/hooks/useEffectivePermissions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,31 +22,59 @@ interface SidebarProps {
   onViewChange: (view: string) => void;
 }
 
-const menuGroups = [
-  // Group 1
-  [
-    { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard, path: '/', permissionKey: 'can_access_dashboard' as ScreenPermissionKey },
-    { id: 'requests', label: 'Demandes', icon: FileText, path: '/requests', permissionKey: 'can_access_requests' as ScreenPermissionKey },
-  ],
-  // Group 2
-  [
-    { id: 'process-tracking', label: 'Suivi des processus', icon: ClipboardList, path: '/process-tracking', permissionKey: 'can_access_process_tracking' as ScreenPermissionKey },
-    { id: 'workload', label: 'Plan de charge', icon: CalendarClock, path: '/workload', permissionKey: 'can_access_workload' as ScreenPermissionKey },
-    { id: 'team', label: 'Équipe', icon: Users, path: '/', permissionKey: 'can_access_team' as ScreenPermissionKey },
-  ],
-  // Group 3
-  [
-    { id: 'projects', label: 'Projets', icon: FolderOpen, path: '/projects', permissionKey: 'can_access_projects' as ScreenPermissionKey },
-    { id: 'spv', label: 'SPV', icon: Leaf, path: '/spv', permissionKey: 'can_access_projects' as ScreenPermissionKey },
-    { id: 'it-projects', label: 'Projets IT', icon: Monitor, path: '/it/projects', permissionKey: 'can_access_projects' as ScreenPermissionKey },
-    { id: 'innovation', label: 'Innovation', icon: Lightbulb, path: '/innovation', permissionKey: 'can_access_dashboard' as ScreenPermissionKey },
-    { id: 'suppliers', label: 'Fournisseurs', icon: Building2, path: '/suppliers', permissionKey: 'can_access_suppliers' as ScreenPermissionKey },
-    { id: 'templates', label: 'Modèles', icon: Workflow, path: '/templates', permissionKey: 'can_access_templates' as ScreenPermissionKey },
-  ],
-  // Group 4
-  [
-    { id: 'calendar', label: 'Calendrier', icon: Calendar, path: '/calendar', permissionKey: 'can_access_calendar' as ScreenPermissionKey },
-  ],
+interface MenuGroup {
+  label?: string;
+  items: {
+    id: string;
+    label: string;
+    icon: any;
+    path: string;
+    permissionKey?: ScreenPermissionKey;
+  }[];
+}
+
+const menuGroups: MenuGroup[] = [
+  {
+    items: [
+      { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard, path: '/', permissionKey: 'can_access_dashboard' },
+      { id: 'requests', label: 'Demandes', icon: FileText, path: '/requests', permissionKey: 'can_access_requests' },
+      { id: 'process-tracking', label: 'Suivi de processus', icon: ClipboardList, path: '/process-tracking', permissionKey: 'can_access_process_tracking' },
+    ],
+  },
+  {
+    label: 'ÉQUIPE',
+    items: [
+      { id: 'workload', label: 'Plan de charge équipe', icon: CalendarClock, path: '/workload', permissionKey: 'can_access_workload' },
+    ],
+  },
+  {
+    label: 'PROJETS',
+    items: [
+      { id: 'projects', label: 'Projets Bioénergie', icon: FolderOpen, path: '/projects', permissionKey: 'can_access_projects' },
+      { id: 'spv', label: 'Projets SPV', icon: Leaf, path: '/spv', permissionKey: 'can_access_projects' },
+      { id: 'it-projects', label: 'Projets IT', icon: Monitor, path: '/it/projects', permissionKey: 'can_access_projects' },
+      { id: 'innovation', label: 'Projets INNO', icon: Lightbulb, path: '/innovation', permissionKey: 'can_access_dashboard' },
+    ],
+  },
+  {
+    label: 'RÉFÉRENTIELS',
+    items: [
+      { id: 'suppliers', label: 'Fournisseurs', icon: Building2, path: '/suppliers', permissionKey: 'can_access_suppliers' },
+    ],
+  },
+  {
+    label: 'CONFIGURATION',
+    items: [
+      { id: 'templates', label: 'Modèles', icon: Workflow, path: '/templates', permissionKey: 'can_access_templates' },
+    ],
+  },
+  {
+    label: 'OUTILS',
+    items: [
+      { id: 'calendar', label: 'Calendrier', icon: Calendar, path: '/calendar', permissionKey: 'can_access_calendar' },
+      { id: 'chat', label: 'Messages', icon: MessageCircle, path: '/chat', permissionKey: 'can_access_dashboard' },
+    ],
+  },
 ];
 
 const adminMenuItem = {
@@ -54,14 +82,6 @@ const adminMenuItem = {
   label: 'Administration',
   icon: ShieldCheck,
   path: '/admin'
-};
-
-const chatMenuItem = {
-  id: 'chat',
-  label: 'Messages',
-  icon: MessageCircle,
-  path: '/chat',
-  permissionKey: 'can_access_dashboard' as ScreenPermissionKey
 };
 
 // Color assignments for menu items - using new premium palette
@@ -108,12 +128,6 @@ const menuColors: Record<string, { bg: string; text: string; border: string; ico
     border: 'border-info',
     iconBg: 'bg-gradient-to-br from-info to-info/80'
   },
-  team: { 
-    bg: 'bg-accent/10', 
-    text: 'text-accent', 
-    border: 'border-accent',
-    iconBg: 'bg-gradient-to-br from-accent to-accent/80'
-  },
   suppliers: { 
     bg: 'bg-[#10B981]/10', 
     text: 'text-[#10B981]', 
@@ -144,7 +158,7 @@ const menuColors: Record<string, { bg: string; text: string; border: string; ico
     border: 'border-[#7C3AED]',
     iconBg: 'bg-gradient-to-br from-[#7C3AED] to-[#7C3AED]/80'
   },
-  keon: {
+  spv: {
     bg: 'bg-[#10B981]/10',
     text: 'text-[#10B981]',
     border: 'border-[#10B981]',
@@ -193,20 +207,23 @@ export function Sidebar({
   const profile = isSimulating && simulatedProfile ? simulatedProfile : authProfile;
 
   const filteredGroups = useMemo(() => {
-    const groups = menuGroups
-      .map(group => group.filter(item => 
-        canAccessScreen(item.permissionKey) && isPageVisibleOnDevice(item.id, currentDevice)
-      ))
-      .filter(group => group.length > 0);
+    const groups: MenuGroup[] = menuGroups
+      .map(group => ({
+        label: group.label,
+        items: group.items.filter(item =>
+          (!item.permissionKey || canAccessScreen(item.permissionKey)) && isPageVisibleOnDevice(item.id, currentDevice)
+        ),
+      }))
+      .filter(group => group.items.length > 0);
     
-    // Add admin group
+    // Add admin into CONFIGURATION group or as its own group
     if (isAdmin && isPageVisibleOnDevice('admin', currentDevice)) {
-      groups.push([adminMenuItem as any]);
-    }
-    
-    // Add chat group (always last)
-    if (canAccessScreen('can_access_dashboard') && isPageVisibleOnDevice('chat', currentDevice)) {
-      groups.push([chatMenuItem as any]);
+      const configGroup = groups.find(g => g.label === 'CONFIGURATION');
+      if (configGroup) {
+        configGroup.items.push(adminMenuItem as any);
+      } else {
+        groups.push({ label: 'CONFIGURATION', items: [adminMenuItem as any] });
+      }
     }
     
     return groups;
@@ -335,12 +352,17 @@ export function Sidebar({
             {filteredGroups.map((group, groupIndex) => (
               <div key={groupIndex}>
                 {groupIndex > 0 && (
-                  <div className="py-2">
+                  <div className="pt-3 pb-1">
                     <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
                   </div>
                 )}
-                <div className="space-y-1">
-                  {group.map((item) => {
+                {group.label && (
+                  <div className="px-3 pt-2 pb-1">
+                    <span className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground/60">{group.label}</span>
+                  </div>
+                )}
+                <div className="space-y-0.5">
+                  {group.items.map((item) => {
                     const Icon = item.icon;
                     const isActive = activeView === item.id;
                     const colors = menuColors[item.id] || menuColors.dashboard;
@@ -351,21 +373,21 @@ export function Sidebar({
                         className={cn(
                           "w-full flex items-center gap-3 transition-all duration-200 font-body group relative px-3 py-2.5 rounded-xl",
                           isActive && [colors.bg, "border-l-4", colors.border],
-                          !isActive && "hover:bg-muted border-l-4 border-transparent",
+                          !isActive && "hover:bg-muted/60 border-l-4 border-transparent",
                         )}
                       >
                         <div className={cn(
                           "flex items-center justify-center rounded-xl transition-all duration-200 relative p-2",
                           isActive
                             ? [colors.iconBg, "text-white shadow-md"]
-                            : "bg-muted text-muted-foreground group-hover:text-foreground",
+                            : "bg-muted/50 text-foreground/50 group-hover:text-foreground group-hover:bg-muted",
                         )}>
                           <Icon className="w-4 h-4 relative z-10" />
                           {isActive && <div className={cn("absolute inset-0 rounded-xl blur-sm opacity-50", colors.iconBg)} />}
                         </div>
                         <span className={cn(
                           "font-medium text-sm transition-colors flex-1 text-left",
-                          isActive ? [colors.text, "font-semibold"] : "text-muted-foreground group-hover:text-foreground"
+                          isActive ? [colors.text, "font-semibold"] : "text-foreground/60 group-hover:text-foreground"
                         )}>
                           {item.label}
                         </span>
@@ -479,12 +501,17 @@ export function Sidebar({
         {filteredGroups.map((group, groupIndex) => (
           <div key={groupIndex}>
             {groupIndex > 0 && (
-              <div className="py-2">
+              <div className="pt-3 pb-1">
                 <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
               </div>
             )}
-            <div className="space-y-1">
-              {group.map((item) => {
+            {group.label && !collapsed && (
+              <div className="px-3 pt-2 pb-1">
+                <span className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground/60">{group.label}</span>
+              </div>
+            )}
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeView === item.id;
                 const colors = menuColors[item.id] || menuColors.dashboard;
@@ -497,7 +524,9 @@ export function Sidebar({
                       "w-full flex items-center gap-3 transition-all duration-200 font-body group relative",
                       collapsed ? "justify-center p-2" : "px-3 py-2.5 rounded-xl",
                       isActive && !collapsed && [colors.bg, "border-l-4", colors.border],
-                      !isActive && !collapsed && "hover:bg-muted border-l-4 border-transparent",
+                      !isActive && !collapsed && "hover:bg-muted/60 border-l-4 border-transparent",
+                      isActive && collapsed && "bg-muted/80",
+                      !isActive && collapsed && "hover:bg-muted/60",
                     )}
                     title={collapsed ? item.label : undefined}
                   >
@@ -506,7 +535,7 @@ export function Sidebar({
                       collapsed ? "p-3" : "p-2",
                       isActive 
                         ? [colors.iconBg, "text-white shadow-md"]
-                        : "bg-muted text-muted-foreground group-hover:bg-muted group-hover:text-foreground",
+                        : "bg-muted/50 text-foreground/50 group-hover:bg-muted group-hover:text-foreground",
                     )}>
                       <Icon className={cn("relative z-10", collapsed ? "w-5 h-5" : "w-4 h-4")} />
                       {isActive && (
@@ -523,7 +552,7 @@ export function Sidebar({
                       <>
                         <span className={cn(
                           "font-medium text-sm transition-colors flex-1 text-left",
-                          isActive ? [colors.text, "font-semibold"] : "text-muted-foreground group-hover:text-foreground"
+                          isActive ? [colors.text, "font-semibold"] : "text-foreground/60 group-hover:text-foreground"
                         )}>
                           {item.label}
                         </span>
