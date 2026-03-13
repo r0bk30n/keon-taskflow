@@ -114,57 +114,70 @@ function SortableWidgetRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'flex items-center gap-2 rounded-lg px-2 py-2.5 transition-colors border',
-        isDragging && 'z-50 shadow-lg',
+        'p-2 rounded-sm border transition-all',
+        isDragging && 'opacity-50 border-primary ring-2 ring-primary/30',
         widget.visible
-          ? 'bg-card border-border/60'
-          : 'bg-muted/30 border-transparent opacity-60'
+          ? 'bg-background border-border hover:border-muted-foreground/40'
+          : 'bg-muted/30 border-transparent opacity-60',
+        'cursor-grab active:cursor-grabbing'
       )}
     >
-      {/* Drag handle */}
-      <button
-        {...attributes}
-        {...listeners}
-        className="p-0.5 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
-      >
-        <GripVertical className="h-4 w-4" />
-      </button>
+      <div className="flex items-center gap-2">
+        {/* Drag handle */}
+        <button
+          {...attributes}
+          {...listeners}
+          className="p-0.5 flex-shrink-0 text-muted-foreground hover:text-foreground touch-none"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
 
-      {/* Accent dot */}
-      <div
-        className="w-2.5 h-2.5 rounded-full shrink-0"
-        style={{ backgroundColor: widget.accentColor }}
-      />
+        {/* Accent dot */}
+        <div
+          className="w-2.5 h-2.5 rounded-full shrink-0"
+          style={{ backgroundColor: widget.accentColor }}
+        />
 
-      {/* Label */}
-      <div className="flex-1 min-w-0">
-        <span className="text-sm font-medium truncate block">{widget.label}</span>
+        {/* Eye icon + Label */}
+        <div
+          className="flex-1 flex items-center gap-2 min-w-0 cursor-pointer select-none"
+          onClick={onToggleVisible}
+        >
+          {widget.visible ? (
+            <Eye className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+          ) : (
+            <EyeOff className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+          )}
+          <span className={cn('text-sm truncate', widget.visible ? 'text-foreground' : 'text-muted-foreground')}>
+            {widget.label}
+          </span>
+        </div>
+
+        {/* Size selector: C / N / L */}
+        <div className="flex items-center gap-0.5 shrink-0">
+          {SIZE_OPTIONS.map(opt => (
+            <button
+              key={opt.key}
+              onClick={() => onChangeSize(opt.key)}
+              className={cn(
+                'w-6 h-6 rounded text-[10px] font-semibold transition-colors',
+                widget.size === opt.key
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Toggle */}
+        <Switch
+          checked={widget.visible}
+          onCheckedChange={onToggleVisible}
+          className="shrink-0"
+        />
       </div>
-
-      {/* Size selector: C / N / L */}
-      <div className="flex items-center gap-0.5 shrink-0">
-        {SIZE_OPTIONS.map(opt => (
-          <button
-            key={opt.key}
-            onClick={() => onChangeSize(opt.key)}
-            className={cn(
-              'w-6 h-6 rounded text-[10px] font-semibold transition-colors',
-              widget.size === opt.key
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            )}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Toggle */}
-      <Switch
-        checked={widget.visible}
-        onCheckedChange={onToggleVisible}
-        className="shrink-0"
-      />
     </div>
   );
 }
