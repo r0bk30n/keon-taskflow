@@ -1,7 +1,7 @@
 import { forwardRef, useState, useEffect, useMemo } from 'react';
 import { Task, TaskStatus } from '@/types/task';
 import { TaskCard } from './TaskCard';
-import { ClipboardList, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ClipboardList, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface TaskListProps {
