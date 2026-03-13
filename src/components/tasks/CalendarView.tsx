@@ -1,15 +1,13 @@
 import { useState, useMemo } from 'react';
 import { Task, TaskStatus } from '@/types/task';
-import { Calendar } from '@/components/ui/calendar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { format, isSameDay, parseISO, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isToday } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
-import { TaskCard } from './TaskCard';
-import { ClipboardList, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getStatusFilterOptions, matchesStatusFilter, getStatusColor, getStatusLabel } from '@/services/taskStatusService';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import { TaskDetailDialog } from '@/components/tasks/TaskDetailDialog';
+import { getStatusFilterOptions, matchesStatusFilter } from '@/services/taskStatusService';
 
 interface CalendarViewProps {
   tasks: Task[];
@@ -21,328 +19,217 @@ interface CalendarViewProps {
   onTaskUpdated?: () => void;
 }
 
-const priorityColors: Record<string, string> = {
-  urgent: 'bg-red-500',
-  high: 'bg-orange-500',
-  medium: 'bg-yellow-500',
-  low: 'bg-green-500',
+const PRIORITY_COLORS: Record<string, string> = {
+  urgent: 'bg-destructive',
+  high: 'bg-orange-400',
+  medium: 'bg-yellow-400',
+  low: 'bg-green-400',
 };
 
-// Get status filter options from centralized service
+const STATUS_BG: Record<string, string> = {
+  todo: 'bg-muted text-muted-foreground border-border',
+  'in-progress': 'bg-blue-50 text-blue-700 border-blue-200',
+  done: 'bg-green-50 text-green-700 border-green-200 line-through opacity-60',
+  validated: 'bg-emerald-50 text-emerald-700 border-emerald-200 opacity-60',
+  refused: 'bg-red-50 text-red-700 border-red-200 opacity-60',
+  pending_validation_1: 'bg-amber-50 text-amber-700 border-amber-200',
+  pending_validation_2: 'bg-amber-50 text-amber-700 border-amber-200',
+};
+
+const WEEK_DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+const MAX_VISIBLE_PER_DAY = 3;
+
 const statusFilterOptions = getStatusFilterOptions();
 
-export function CalendarView({ tasks, onStatusChange, onDelete, groupBy, groupLabels, progressMap, onTaskUpdated }: CalendarViewProps) {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+export function CalendarView({ tasks, onStatusChange, onDelete, progressMap, onTaskUpdated }: CalendarViewProps) {
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
-  // Filter tasks by status
   const filteredTasks = useMemo(() => {
     if (statusFilter === 'all') return tasks;
     return tasks.filter(t => matchesStatusFilter(t.status, statusFilter));
   }, [tasks, statusFilter]);
 
-  const tasksWithDueDate = useMemo(() => 
-    filteredTasks.filter(t => t.due_date), 
-    [filteredTasks]
-  );
+  const calendarDays = useMemo(() => {
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
+    const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+    return eachDayOfInterval({ start: gridStart, end: gridEnd });
+  }, [currentMonth]);
 
   const tasksByDate = useMemo(() => {
     const map = new Map<string, Task[]>();
-    tasksWithDueDate.forEach(task => {
+    filteredTasks.forEach(task => {
       if (task.due_date) {
-        const dateKey = task.due_date.split('T')[0];
-        if (!map.has(dateKey)) {
-          map.set(dateKey, []);
-        }
-        map.get(dateKey)!.push(task);
+        const key = task.due_date.split('T')[0];
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(task);
       }
     });
     return map;
-  }, [tasksWithDueDate]);
+  }, [filteredTasks]);
 
-  const selectedDateTasks = useMemo(() => {
-    const dateKey = format(selectedDate, 'yyyy-MM-dd');
-    return tasksByDate.get(dateKey) || [];
-  }, [selectedDate, tasksByDate]);
+  const tasksWithoutDate = useMemo(() => filteredTasks.filter(t => !t.due_date), [filteredTasks]);
 
-  const tasksWithoutDueDate = useMemo(() => 
-    filteredTasks.filter(t => !t.due_date),
-    [filteredTasks]
-  );
-
-  // Custom day render to show task indicators
-  const modifiers = useMemo(() => {
-    const hasTasks: Date[] = [];
-    const hasUrgent: Date[] = [];
-    
-    tasksByDate.forEach((dateTasks, dateKey) => {
-      const date = parseISO(dateKey);
-      hasTasks.push(date);
-      if (dateTasks.some(t => t.priority === 'urgent' || t.priority === 'high')) {
-        hasUrgent.push(date);
-      }
-    });
-    
-    return { hasTasks, hasUrgent };
-  }, [tasksByDate]);
-
-  const modifiersStyles = {
-    hasTasks: {
-      position: 'relative' as const,
-    },
-    hasUrgent: {
-      fontWeight: 'bold' as const,
-    },
-  };
-
-  // Status filter bar component
-  const StatusFilterBar = () => (
-    <div className="flex items-center gap-2 mb-4 flex-wrap">
-      <Filter className="w-4 h-4 text-muted-foreground" />
-      <span className="text-sm font-medium text-muted-foreground mr-2">Statut:</span>
-      <div className="flex bg-muted rounded-lg p-1 flex-wrap gap-1">
-        {statusFilterOptions.map((option) => (
-          <Button
-            key={option.value}
-            variant="ghost"
-            size="sm"
-            onClick={() => setStatusFilter(option.value)}
-            className={cn(
-              "text-xs px-3 py-1 h-auto rounded-md transition-all",
-              statusFilter === option.value
-                ? "bg-card shadow-sm text-foreground" 
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {option.label}
-          </Button>
-        ))}
-      </div>
-      {statusFilter !== 'all' && (
-        <Badge variant="secondary" className="ml-2">
-          {filteredTasks.length} tâche{filteredTasks.length !== 1 ? 's' : ''}
-        </Badge>
-      )}
-    </div>
-  );
-
-  if (filteredTasks.length === 0) {
-    return (
-      <div className="space-y-4">
-        <StatusFilterBar />
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-            <ClipboardList className="w-8 h-8 text-muted-foreground" />
-          </div>
-          <h3 className="text-lg font-medium text-foreground mb-1">Aucune tâche trouvée</h3>
-          <p className="text-sm text-muted-foreground">
-            {statusFilter !== 'all' 
-              ? 'Aucune tâche avec ce statut. Modifiez vos filtres.' 
-              : 'Modifiez vos filtres ou créez une nouvelle tâche'}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // Group tasks if groupBy is set
-  const renderGroupedTasks = () => {
-    if (!groupBy || groupBy === 'none') return null;
-
-    const groups = new Map<string, Task[]>();
-    
-    selectedDateTasks.forEach(task => {
-      let key = 'Non assigné';
-      switch (groupBy) {
-        case 'assignee':
-          key = task.assignee_id || 'Non assigné';
-          break;
-        case 'requester':
-          key = task.requester_id || 'Non défini';
-          break;
-        case 'reporter':
-          key = task.reporter_id || 'Non défini';
-          break;
-        case 'category':
-          key = task.category_id || 'Sans catégorie';
-          break;
-        case 'subcategory':
-          key = task.subcategory_id || 'Sans sous-catégorie';
-          break;
-        default:
-          key = 'Autre';
-      }
-      
-      if (!groups.has(key)) {
-        groups.set(key, []);
-      }
-      groups.get(key)!.push(task);
-    });
-
-    return (
-      <div className="space-y-4">
-        {Array.from(groups.entries()).map(([groupKey, groupTasks]) => (
-          <div key={groupKey}>
-            <h4 className="text-sm font-medium text-muted-foreground mb-2">
-              {groupLabels?.get(groupKey) || groupKey}
-            </h4>
-            <div className="space-y-2">
-              {groupTasks.map(task => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  onStatusChange={onStatusChange}
-                  onDelete={onDelete}
-                  compact
-                  taskProgress={progressMap?.[task.id]}
-                  onTaskUpdated={onTaskUpdated}
-                />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  };
+  const weeks = useMemo(() => {
+    const result: Date[][] = [];
+    for (let i = 0; i < calendarDays.length; i += 7) {
+      result.push(calendarDays.slice(i, i + 7));
+    }
+    return result;
+  }, [calendarDays]);
 
   return (
-    <div className="space-y-4">
-      {/* Status filter bar */}
-      <StatusFilterBar />
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Calendar */}
-        <Card className="lg:col-span-2">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle>Calendrier des tâches</CardTitle>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1))}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-sm font-medium min-w-[120px] text-center">
-                {format(currentMonth, 'MMMM yyyy', { locale: fr })}
-              </span>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1))}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={(date) => date && setSelectedDate(date)}
-            month={currentMonth}
-            onMonthChange={setCurrentMonth}
-            locale={fr}
-            className="rounded-md"
-            modifiers={modifiers}
-            modifiersStyles={modifiersStyles}
-            components={{
-              DayContent: ({ date }) => {
-                const dateKey = format(date, 'yyyy-MM-dd');
-                const dayTasks = tasksByDate.get(dateKey) || [];
-                
-                return (
-                  <div className="relative w-full h-full flex flex-col items-center justify-center">
-                    <span>{date.getDate()}</span>
-                    {dayTasks.length > 0 && (
-                      <div className="flex gap-0.5 mt-0.5">
-                        {dayTasks.slice(0, 3).map((task, i) => (
-                          <div 
-                            key={i} 
-                            className={cn("w-1.5 h-1.5 rounded-full", priorityColors[task.priority])} 
-                          />
-                        ))}
-                        {dayTasks.length > 3 && (
-                          <span className="text-[8px] text-muted-foreground">+{dayTasks.length - 3}</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              },
-            }}
-          />
-        </CardContent>
-      </Card>
+    <div className="flex flex-col h-full">
+      {/* Header toolbar */}
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() - 1))}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setCurrentMonth(new Date())}>
+            Aujourd'hui
+          </Button>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() + 1))}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <span className="text-base font-semibold capitalize text-foreground ml-2">
+            {format(currentMonth, 'MMMM yyyy', { locale: fr })}
+          </span>
+        </div>
 
-      {/* Selected day tasks */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">
-            {format(selectedDate, 'EEEE d MMMM', { locale: fr })}
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {selectedDateTasks.length} tâche{selectedDateTasks.length !== 1 ? 's' : ''}
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-3 max-h-[500px] overflow-y-auto">
-          {selectedDateTasks.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              Aucune tâche pour cette date
-            </p>
-          ) : groupBy && groupBy !== 'none' ? (
-            renderGroupedTasks()
-          ) : (
-            selectedDateTasks.map(task => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                onStatusChange={onStatusChange}
-                onDelete={onDelete}
-                compact
-                taskProgress={progressMap?.[task.id]}
-                onTaskUpdated={onTaskUpdated}
-              />
-            ))
+        {/* Status filter */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+          {statusFilterOptions.map(opt => (
+            <Button
+              key={opt.value}
+              variant="ghost"
+              size="sm"
+              onClick={() => setStatusFilter(opt.value)}
+              className={cn(
+                "text-xs h-7 px-2.5 rounded-md",
+                statusFilter === opt.value
+                  ? "bg-primary/10 text-primary font-medium"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {opt.label}
+            </Button>
+          ))}
+          {statusFilter !== 'all' && (
+            <Badge variant="secondary" className="text-[10px] ml-1">
+              {filteredTasks.length}
+            </Badge>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
+      {/* Day headers */}
+      <div className="grid grid-cols-7 border-b border-border">
+        {WEEK_DAYS.map(d => (
+          <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2 border-r border-border last:border-r-0">
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* Calendar grid */}
+      <div className="flex-1 border-l border-border">
+        {weeks.map((week, wi) => (
+          <div key={wi} className="grid grid-cols-7 border-b border-border" style={{ minHeight: '110px' }}>
+            {week.map(day => {
+              const key = format(day, 'yyyy-MM-dd');
+              const dayTasks = tasksByDate.get(key) || [];
+              const visible = dayTasks.slice(0, MAX_VISIBLE_PER_DAY);
+              const overflow = dayTasks.length - MAX_VISIBLE_PER_DAY;
+              const isCurrentMonth = isSameMonth(day, currentMonth);
+              const isTodayDate = isToday(day);
+
+              return (
+                <div
+                  key={key}
+                  className={cn(
+                    "border-r border-border p-1 flex flex-col gap-0.5 transition-colors",
+                    !isCurrentMonth && "bg-muted/30",
+                    isTodayDate && "bg-primary/5"
+                  )}
+                >
+                  {/* Day number */}
+                  <div className={cn(
+                    "text-xs font-medium mb-0.5 w-6 h-6 flex items-center justify-center rounded-full mx-auto",
+                    isTodayDate && "bg-primary text-primary-foreground",
+                    !isCurrentMonth && !isTodayDate && "text-muted-foreground/50",
+                    isCurrentMonth && !isTodayDate && "text-foreground"
+                  )}>
+                    {format(day, 'd')}
+                  </div>
+
+                  {/* Tasks */}
+                  {visible.map(task => (
+                    <button
+                      key={task.id}
+                      onClick={() => setSelectedTask(task)}
+                      className={cn(
+                        "w-full text-left text-[10px] leading-tight px-1.5 py-0.5 rounded border truncate hover:opacity-80 transition-opacity flex items-center gap-1 cursor-pointer",
+                        STATUS_BG[task.status] || 'bg-muted text-muted-foreground border-border'
+                      )}
+                    >
+                      <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", PRIORITY_COLORS[task.priority] || 'bg-muted-foreground')} />
+                      <span className="truncate">{task.title}</span>
+                    </button>
+                  ))}
+
+                  {/* Overflow */}
+                  {overflow > 0 && (
+                    <span className="text-[9px] text-muted-foreground px-1.5 cursor-default">
+                      +{overflow} autre{overflow > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
 
       {/* Tasks without due date */}
-      {tasksWithoutDueDate.length > 0 && (
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle className="text-lg">Tâches sans date d'échéance</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {tasksWithoutDueDate.length} tâche{tasksWithoutDueDate.length !== 1 ? 's' : ''}
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-              {tasksWithoutDueDate.slice(0, 8).map(task => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  onStatusChange={onStatusChange}
-                  onDelete={onDelete}
-                  compact
-                  taskProgress={progressMap?.[task.id]}
-                  onTaskUpdated={onTaskUpdated}
-                />
-              ))}
-            </div>
-            {tasksWithoutDueDate.length > 8 && (
-              <p className="text-sm text-muted-foreground text-center mt-4">
-                Et {tasksWithoutDueDate.length - 8} autres tâches...
-              </p>
+      {tasksWithoutDate.length > 0 && (
+        <div className="mt-4 border border-border rounded-lg p-3 bg-muted/20">
+          <p className="text-xs font-medium text-muted-foreground mb-2">
+            Tâches sans date d'échéance ({tasksWithoutDate.length})
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {tasksWithoutDate.slice(0, 12).map(t => (
+              <button
+                key={t.id}
+                onClick={() => setSelectedTask(t)}
+                className="text-[10px] px-2 py-0.5 rounded border border-border bg-card hover:bg-accent truncate max-w-[180px] cursor-pointer"
+              >
+                {t.title}
+              </button>
+            ))}
+            {tasksWithoutDate.length > 12 && (
+              <span className="text-[10px] text-muted-foreground px-2 py-0.5">
+                +{tasksWithoutDate.length - 12} autres
+              </span>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
-      </div>
+
+      {/* Task detail dialog */}
+      {selectedTask && (
+        <TaskDetailDialog
+          task={selectedTask}
+          open={!!selectedTask}
+          onClose={() => setSelectedTask(null)}
+          onStatusChange={onStatusChange}
+        />
+
+      )}
     </div>
   );
 }
