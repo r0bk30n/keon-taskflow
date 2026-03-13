@@ -197,7 +197,7 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
       <Card className="border-border/50">
         <CardContent className="py-12 text-center text-muted-foreground">
           <Leaf className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
-          <p>Aucun projet KEON trouvé dans les filtres actuels.</p>
+          <p>Aucun projet SPV trouvé dans les filtres actuels.</p>
         </CardContent>
       </Card>
     );
