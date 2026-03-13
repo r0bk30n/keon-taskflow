@@ -834,10 +834,47 @@ export function BEProjectsSyntheseView({ projects, qstData, widgets: externalWid
           </div>
         );
 
-      default:
-        return null;
+      default: {
+        // Custom widgets: parse id to extract chart type and criterion
+        const match = widget.id.match(/^custom_(pie|bar)_(\w+)_/);
+        if (!match) return null;
+        const [, chartType, criterion] = match;
+        const data = buildCriterionData(criterion);
+        const h = getHeightPx(widget) - 60;
+
+        if (chartType === 'pie') {
+          return (
+            <ResponsiveContainer width="100%" height={h}>
+              <PieChart>
+                <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%"
+                  innerRadius={h * 0.22} outerRadius={h * 0.37} paddingAngle={3}>
+                  {data.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                </Pie>
+                <Tooltip formatter={(v: any, n: any) => [`${v} projet(s)`, n]} />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          );
+        }
+
+        // bar chart
+        return data.length === 0 ? (
+          <div className="text-center text-muted-foreground text-sm py-8">Aucune donnée</div>
+        ) : (
+          <ResponsiveContainer width="100%" height={Math.max(h, data.length * 28)}>
+            <BarChart data={data} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
+              <XAxis type="number" tick={{ fontSize: 10 }} />
+              <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10 }} />
+              <Tooltip formatter={(v: any) => [`${v} projet(s)`, 'Projets']} />
+              <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                {data.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        );
+      }
     }
-  }, [kpis, projects, allProjectStats, statusData, typoData, progressData, regionData, spvData, keonProjects, atRiskProjects, topProjects, navigate]);
+  }, [kpis, projects, allProjectStats, statusData, typoData, progressData, regionData, spvData, keonProjects, atRiskProjects, topProjects, navigate, buildCriterionData]);
 
   if (projects.length === 0) {
     return (
