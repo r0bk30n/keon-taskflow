@@ -23,7 +23,6 @@ import { BEProjectCardsView } from './BEProjectCardsView';
 import { BEProjectsSyntheseView } from './BEProjectsSyntheseView';
 import { ProjectMultiFiltersPanel } from './ProjectMultiFiltersPanel';
 import {
-  SyntheseWidgetConfigPanel,
   loadWidgetConfig,
   WidgetConfig,
 } from './SyntheseWidgetConfigPanel';
@@ -333,9 +332,6 @@ export function BEProjectsView() {
               />
             )}
 
-            {currentView === 'synthese' && (
-              <SyntheseWidgetConfigPanel widgets={syntheseWidgets} onChange={setSyntheseWidgets} />
-            )}
           </div>
 
           {/* Multi-criteria filters */}
@@ -362,7 +358,6 @@ export function BEProjectsView() {
         <BEProjectsSyntheseView
           projects={filteredProjects}
           qstData={qstData}
-          widgets={syntheseWidgets}
         />
       )}
 

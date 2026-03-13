@@ -15,7 +15,8 @@ import {
 } from 'recharts';
 import {
   MapPin, CheckCircle2, Clock, AlertTriangle, FolderOpen,
-  TrendingUp, Activity, Zap, Globe, Loader2, ChevronDown
+  TrendingUp, Activity, Zap, Globe, Loader2, ChevronDown,
+  Settings2, RotateCcw,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -26,8 +27,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   loadWidgetConfig,
+  saveWidgetConfig,
+  getDefaultWidgets,
   WidgetConfig,
 } from './SyntheseWidgetConfigPanel';
+import { WidgetWrapper, type WidgetSizePreset, type HeightPreset } from '@/components/dashboard/widgets/WidgetWrapper';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ProjectStats {
@@ -58,8 +62,33 @@ const TYPO_COLORS: Record<string, string> = {
 
 const CHART_COLORS = ['#10b981', '#f59e0b', '#6b7280', '#3b82f6', '#ec4899', '#8b5cf6'];
 
-// ─── Size → height mapping ────────────────────────────────────────────────────
-const SIZE_HEIGHTS: Record<string, number> = { compact: 160, normal: 200, large: 280 };
+// ─── Size → height mapping (from WidgetWrapper's HeightPreset) ────────────────
+const HEIGHT_PRESET_PX: Record<HeightPreset, number> = { xs: 150, sm: 250, md: 350, lg: 450, xl: 600 };
+const HEIGHT_PRESET_TO_H: Record<HeightPreset, number> = { xs: 1, sm: 2, md: 3, lg: 4, xl: 5 };
+const PRESET_DIMENSIONS: Record<WidgetSizePreset, { w: number; h: number }> = {
+  small: { w: 1, h: 2 },
+  medium: { w: 1, h: 3 },
+  large: { w: 2, h: 3 },
+  full: { w: 2, h: 4 },
+};
+
+const getSizePreset = (w: WidgetConfig): WidgetSizePreset => {
+  if (w.size.w >= 2 && w.size.h >= 4) return 'full';
+  if (w.size.w >= 2) return 'large';
+  if (w.size.h >= 3) return 'medium';
+  return 'small';
+};
+
+const getHeightPreset = (w: WidgetConfig): HeightPreset => {
+  const h = w.size.h;
+  if (h <= 1) return 'xs';
+  if (h <= 2) return 'sm';
+  if (h <= 3) return 'md';
+  if (h <= 4) return 'lg';
+  return 'xl';
+};
+
+const getHeightPx = (w: WidgetConfig): number => HEIGHT_PRESET_PX[getHeightPreset(w)];
 
 // ─── Count-up hook ────────────────────────────────────────────────────────────
 function useCountUp(target: number, duration = 800) {
@@ -75,7 +104,6 @@ function useCountUp(target: number, duration = 800) {
     const tick = (now: number) => {
       const elapsed = now - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      // ease-out cubic
       const eased = 1 - Math.pow(1 - progress, 3);
       setValue(Math.round(start + (target - start) * eased));
       if (progress < 1) raf = requestAnimationFrame(tick);
@@ -106,40 +134,6 @@ function RadialProgress({ value, size = 80, stroke = 7, color = '#10b981' }: {
         strokeWidth={stroke} strokeDasharray={circ} strokeDashoffset={offset}
         strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
     </svg>
-  );
-}
-
-// ─── Animated widget wrapper ──────────────────────────────────────────────────
-function WidgetCard({
-  children,
-  accentColor,
-  gradientFrom,
-  gradientTo,
-  className,
-  delay = 0,
-  ...props
-}: {
-  children: React.ReactNode;
-  accentColor: string;
-  gradientFrom: string;
-  gradientTo: string;
-  className?: string;
-  delay?: number;
-} & React.ComponentProps<typeof Card>) {
-  return (
-    <Card
-      className={cn(
-        'border-border/50 overflow-hidden transition-shadow duration-300 hover:shadow-lg hover:shadow-black/5',
-        className
-      )}
-      style={{
-        borderLeft: `3px solid ${accentColor}`,
-        animation: `synthese-slide-up 0.5s ease-out ${delay}ms both`,
-      }}
-      {...props}
-    >
-      {children}
-    </Card>
   );
 }
 
@@ -199,7 +193,6 @@ function ProjectMapCard({ projects, allProjectStats = {} }: { projects: BEProjec
       return { address: parts.length > 0 ? parts.join(', ') : null, qstKeys };
     }
 
-    // mode === 'missing': questionnaire priority then fallback
     const addressParts = [
       qst['04_GEN_commune'],
       qst['04_GEN_code_postal'],
@@ -382,35 +375,29 @@ function ProjectMapCard({ projects, allProjectStats = {} }: { projects: BEProjec
 
   if (withCoords.length === 0) {
     return (
-      <Card className="col-span-full border-border/50" style={{ borderLeft: '3px solid #12B6C8' }}>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Globe className="h-4 w-4 text-muted-foreground" />
-            Carte de localisation
-            {bulkButton}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex items-center justify-center h-64 text-muted-foreground text-sm">
+      <div className="h-full flex flex-col">
+        <div className="flex items-center gap-2 mb-2">
+          <Globe className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Carte de localisation</span>
+          {bulkButton}
+        </div>
+        <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
           Aucune coordonnée GPS disponible
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card className="col-span-full border-border/50 overflow-hidden" style={{ borderLeft: '3px solid #12B6C8' }}>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <Globe className="h-4 w-4 text-muted-foreground" />
-          Carte de localisation
-          <Badge variant="secondary">{withCoords.length} projets géolocalisés</Badge>
-          {bulkButton}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div ref={mapContainerRef} style={{ height: 340, width: '100%' }} />
-      </CardContent>
-    </Card>
+    <div className="h-full flex flex-col">
+      <div className="flex items-center gap-2 mb-2">
+        <Globe className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium">Carte de localisation</span>
+        <Badge variant="secondary">{withCoords.length} projets géolocalisés</Badge>
+        {bulkButton}
+      </div>
+      <div ref={mapContainerRef} className="flex-1 min-h-0 rounded-lg overflow-hidden" />
+    </div>
   );
 }
 
@@ -419,6 +406,18 @@ export function BEProjectsSyntheseView({ projects, qstData, widgets: externalWid
   const navigate = useNavigate();
   const [internalWidgets, setInternalWidgets] = useState<WidgetConfig[]>(loadWidgetConfig);
   const widgets = externalWidgets ?? internalWidgets;
+  const setWidgets = useCallback((next: WidgetConfig[] | ((prev: WidgetConfig[]) => WidgetConfig[])) => {
+    setInternalWidgets(prev => {
+      const result = typeof next === 'function' ? next(prev) : next;
+      saveWidgetConfig(result);
+      return result;
+    });
+  }, []);
+
+  // Edit mode state
+  const [isEditing, setIsEditing] = useState(false);
+  const [draggedWidget, setDraggedWidget] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
   // Fetch task stats for all projects (batch)
   const projectIds = useMemo(() => projects.map(p => p.id), [projects]);
@@ -547,37 +546,109 @@ export function BEProjectsSyntheseView({ projects, qstData, widgets: externalWid
     [projects, allProjectStats]
   );
 
-  // ── Widget visibility helper ──────────────────────────────────────────────
-  const isVisible = useCallback((id: string) => widgets.find(w => w.id === id)?.visible ?? true, [widgets]);
-  const getWidgetConfig = useCallback((id: string) => widgets.find(w => w.id === id), [widgets]);
-  const getHeight = useCallback((id: string) => {
-    const w = widgets.find(w => w.id === id);
-    return SIZE_HEIGHTS[w?.size ?? 'normal'];
-  }, [widgets]);
+  // ── Edit mode handlers ──────────────────────────────────────────────────
+  const handleReset = useCallback(() => {
+    setWidgets(getDefaultWidgets());
+    toast({ title: 'Configuration réinitialisée' });
+  }, [setWidgets]);
 
-  // Build ordered widget render map
+  const handleResizeWidget = useCallback((widgetId: string, preset: WidgetSizePreset) => {
+    setWidgets(prev => prev.map(w =>
+      w.id === widgetId ? { ...w, size: { ...PRESET_DIMENSIONS[preset], h: w.size.h } } : w
+    ));
+  }, [setWidgets]);
+
+  const handleHeightChange = useCallback((widgetId: string, preset: HeightPreset) => {
+    setWidgets(prev => prev.map(w =>
+      w.id === widgetId ? { ...w, size: { ...w.size, h: HEIGHT_PRESET_TO_H[preset] } } : w
+    ));
+  }, [setWidgets]);
+
+  const handleRemoveWidget = useCallback((widgetId: string) => {
+    setWidgets(prev => prev.map(w =>
+      w.id === widgetId ? { ...w, visible: false } : w
+    ));
+    toast({ title: 'Widget masqué' });
+  }, [setWidgets]);
+
+  const handleRestoreAll = useCallback(() => {
+    setWidgets(prev => prev.map(w => ({ ...w, visible: true })));
+    toast({ title: 'Tous les widgets sont visibles' });
+  }, [setWidgets]);
+
+  // Drag-and-drop
+  const handleDragStart = (widgetId: string) => {
+    if (!isEditing) return;
+    setDraggedWidget(widgetId);
+  };
+
+  const handleDragOverEnhanced = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!draggedWidget || draggedWidget === targetId) return;
+    setDropTargetId(targetId);
+  };
+
+  const handleDropEnhanced = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    setDropTargetId(null);
+    if (!draggedWidget || draggedWidget === targetId) return;
+
+    setWidgets(prev => {
+      const newWidgets = [...prev];
+      const draggedIndex = newWidgets.findIndex(w => w.id === draggedWidget);
+      const targetIndex = newWidgets.findIndex(w => w.id === targetId);
+      if (draggedIndex === -1 || targetIndex === -1) return prev;
+      const [removed] = newWidgets.splice(draggedIndex, 1);
+      newWidgets.splice(targetIndex, 0, removed);
+      return newWidgets;
+    });
+
+    setDraggedWidget(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedWidget(null);
+    setDropTargetId(null);
+  };
+
+  // ── Visible widgets ─────────────────────────────────────────────────────
   const visibleWidgets = useMemo(() => widgets.filter(w => w.visible), [widgets]);
+  const hiddenCount = widgets.length - visibleWidgets.length;
 
-  if (projects.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
-        Aucun projet à afficher avec ces filtres.
-      </div>
-    );
-  }
+  // ── 2-column bin-packing layout ─────────────────────────────────────────
+  const gridLayout = useMemo(() => {
+    const GAP = 16;
+    const colHeights = [0, 0];
+    const placements: { widget: WidgetConfig; col: 0 | 1 | 'full'; top: number }[] = [];
 
-  // ── Render a widget by id ────────────────────────────────────────────────
-  const renderWidget = (widget: WidgetConfig, delay: number) => {
-    const h = SIZE_HEIGHTS[widget.size];
+    for (const w of visibleWidgets) {
+      const h = getHeightPx(w);
+      if (w.size.w >= 2) {
+        const top = Math.max(colHeights[0], colHeights[1]);
+        placements.push({ widget: w, col: 'full', top });
+        const newBottom = top + h + GAP;
+        colHeights[0] = newBottom;
+        colHeights[1] = newBottom;
+      } else {
+        const targetCol = colHeights[0] <= colHeights[1] ? 0 : 1;
+        const top = colHeights[targetCol];
+        placements.push({ widget: w, col: targetCol as 0 | 1, top });
+        colHeights[targetCol] = top + h + GAP;
+      }
+    }
+
+    const totalHeight = Math.max(colHeights[0], colHeights[1]);
+    return { placements, totalHeight };
+  }, [visibleWidgets]);
+
+  // ── Render widget content by id ─────────────────────────────────────────
+  const renderWidgetContent = useCallback((widget: WidgetConfig) => {
+    const h = getHeightPx(widget) - 60; // subtract header height
 
     switch (widget.id) {
       case 'kpi_strip':
         return (
-          <div
-            key={widget.id}
-            className="col-span-full grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3"
-            style={{ animation: `synthese-slide-up 0.5s ease-out ${delay}ms both` }}
-          >
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 h-full">
             {[
               { icon: FolderOpen,    label: 'Total projets',  value: kpis.total,       color: 'text-primary',      accent: '#1E5EFF' },
               { icon: Activity,      label: 'Actifs',         value: kpis.active,      color: 'text-emerald-500',  accent: '#10b981' },
@@ -587,13 +658,10 @@ export function BEProjectsSyntheseView({ projects, qstData, widgets: externalWid
               { icon: CheckCircle2,  label: 'Tâches faites',  value: kpis.doneTasks,   color: 'text-emerald-500',  accent: '#10b981' },
               { icon: AlertTriangle, label: 'En retard',      value: kpis.overdue,     color: 'text-red-500',      accent: '#ef4444' },
               { icon: TrendingUp,    label: 'Avancement moy.', value: kpis.avgProgress, color: 'text-violet-500',  accent: '#8b5cf6', suffix: '%' },
-            ].map(({ icon: Icon, label, value, color, accent, suffix }, i) => (
+            ].map(({ icon: Icon, label, value, color, accent, suffix }) => (
               <Card key={label}
                 className="border-border/50 hover:shadow-md transition-all duration-300 overflow-hidden"
-                style={{
-                  borderLeft: `3px solid ${accent}`,
-                  animation: `synthese-slide-up 0.4s ease-out ${delay + i * 50}ms both`,
-                }}
+                style={{ borderLeft: `3px solid ${accent}` }}
               >
                 <CardContent className="p-3 flex flex-col gap-1">
                   <Icon className={cn('h-4 w-4', color)} />
@@ -608,268 +676,276 @@ export function BEProjectsSyntheseView({ projects, qstData, widgets: externalWid
         );
 
       case 'map':
-        return (
-          <div key={widget.id} className="col-span-full"
-            style={{ animation: `synthese-slide-up 0.5s ease-out ${delay}ms both` }}>
-            <ProjectMapCard projects={projects} allProjectStats={allProjectStats} />
-          </div>
-        );
+        return <ProjectMapCard projects={projects} allProjectStats={allProjectStats} />;
 
       case 'status_pie':
         return (
-          <WidgetCard key={widget.id} accentColor={widget.accentColor}
-            gradientFrom={widget.gradientFrom} gradientTo={widget.gradientTo} delay={delay}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Par statut</CardTitle>
-            </CardHeader>
-            <CardContent className="p-3">
-              <ResponsiveContainer width="100%" height={h}>
-                <PieChart>
-                  <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%"
-                    innerRadius={h * 0.22} outerRadius={h * 0.37} paddingAngle={3}>
-                    {statusData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                  </Pie>
-                  <Tooltip formatter={(v: any, n: any) => [`${v} projet(s)`, n]} />
-                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </WidgetCard>
+          <ResponsiveContainer width="100%" height={h}>
+            <PieChart>
+              <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%"
+                innerRadius={h * 0.22} outerRadius={h * 0.37} paddingAngle={3}>
+                {statusData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+              </Pie>
+              <Tooltip formatter={(v: any, n: any) => [`${v} projet(s)`, n]} />
+              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+            </PieChart>
+          </ResponsiveContainer>
         );
 
       case 'typo_pie':
         return (
-          <WidgetCard key={widget.id} accentColor={widget.accentColor}
-            gradientFrom={widget.gradientFrom} gradientTo={widget.gradientTo} delay={delay}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Par typologie</CardTitle>
-            </CardHeader>
-            <CardContent className="p-3">
-              <ResponsiveContainer width="100%" height={h}>
-                <PieChart>
-                  <Pie data={typoData} dataKey="value" nameKey="name" cx="50%" cy="50%"
-                    innerRadius={h * 0.22} outerRadius={h * 0.37} paddingAngle={3}>
-                    {typoData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                  </Pie>
-                  <Tooltip formatter={(v: any, n: any) => [`${v} projet(s)`, n]} />
-                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </WidgetCard>
+          <ResponsiveContainer width="100%" height={h}>
+            <PieChart>
+              <Pie data={typoData} dataKey="value" nameKey="name" cx="50%" cy="50%"
+                innerRadius={h * 0.22} outerRadius={h * 0.37} paddingAngle={3}>
+                {typoData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+              </Pie>
+              <Tooltip formatter={(v: any, n: any) => [`${v} projet(s)`, n]} />
+              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+            </PieChart>
+          </ResponsiveContainer>
         );
 
       case 'progress_bar':
-        return (
-          <WidgetCard key={widget.id} accentColor={widget.accentColor}
-            gradientFrom={widget.gradientFrom} gradientTo={widget.gradientTo} delay={delay}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                Avancement par projet (tâches)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-3">
-              {progressData.length === 0 ? (
-                <div className="text-center text-muted-foreground text-sm py-8">Aucune tâche enregistrée</div>
-              ) : (
-                <ResponsiveContainer width="100%" height={Math.max(h, progressData.length * 28)}>
-                  <BarChart data={progressData} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
-                    <XAxis type="number" domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{ fontSize: 10 }} />
-                    <YAxis type="category" dataKey="name" width={72} tick={{ fontSize: 10, fontFamily: 'monospace' }} />
-                    <Tooltip formatter={(v: any) => [`${v}%`, 'Avancement']} />
-                    <Bar dataKey="progress" radius={[0, 4, 4, 0]}>
-                      {progressData.map((entry, i) => (
-                        <Cell key={i} fill={entry.progress >= 80 ? '#10b981' : entry.progress >= 40 ? '#f59e0b' : '#6b7280'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </WidgetCard>
+        return progressData.length === 0 ? (
+          <div className="text-center text-muted-foreground text-sm py-8">Aucune tâche enregistrée</div>
+        ) : (
+          <ResponsiveContainer width="100%" height={Math.max(h, progressData.length * 28)}>
+            <BarChart data={progressData} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
+              <XAxis type="number" domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{ fontSize: 10 }} />
+              <YAxis type="category" dataKey="name" width={72} tick={{ fontSize: 10, fontFamily: 'monospace' }} />
+              <Tooltip formatter={(v: any) => [`${v}%`, 'Avancement']} />
+              <Bar dataKey="progress" radius={[0, 4, 4, 0]}>
+                {progressData.map((entry, i) => (
+                  <Cell key={i} fill={entry.progress >= 80 ? '#10b981' : entry.progress >= 40 ? '#f59e0b' : '#6b7280'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         );
 
       case 'region_bar':
-        return (
-          <WidgetCard key={widget.id} accentColor={widget.accentColor}
-            gradientFrom={widget.gradientFrom} gradientTo={widget.gradientTo} delay={delay}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                Répartition géographique
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-3">
-              {regionData.length === 0 ? (
-                <div className="text-center text-muted-foreground text-sm py-8">Aucune région renseignée</div>
-              ) : (
-                <ResponsiveContainer width="100%" height={Math.max(h, regionData.length * 28)}>
-                  <BarChart data={regionData} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
-                    <XAxis type="number" tick={{ fontSize: 10 }} />
-                    <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10 }} />
-                    <Tooltip formatter={(v: any) => [`${v} projet(s)`, 'Projets']} />
-                    <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                      {regionData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </WidgetCard>
+        return regionData.length === 0 ? (
+          <div className="text-center text-muted-foreground text-sm py-8">Aucune région renseignée</div>
+        ) : (
+          <ResponsiveContainer width="100%" height={Math.max(h, regionData.length * 28)}>
+            <BarChart data={regionData} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
+              <XAxis type="number" tick={{ fontSize: 10 }} />
+              <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10 }} />
+              <Tooltip formatter={(v: any) => [`${v} projet(s)`, 'Projets']} />
+              <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                {regionData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         );
 
       case 'keon_spv':
-        return (
-          <WidgetCard key={widget.id} accentColor={widget.accentColor}
-            gradientFrom={widget.gradientFrom} gradientTo={widget.gradientTo} delay={delay}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                KEON — SPV créée
-                <Badge variant="secondary" className="ml-auto text-[10px]">{keonProjects.length} projet(s) KEON</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-3">
-              {spvData.length === 0 ? (
-                <div className="text-center text-muted-foreground text-sm py-8">Aucune donnée questionnaire</div>
-              ) : (
-                <ResponsiveContainer width="100%" height={h - 20}>
-                  <PieChart>
-                    <Pie data={spvData} dataKey="value" nameKey="name" cx="50%" cy="50%"
-                      innerRadius={h * 0.2} outerRadius={h * 0.32} paddingAngle={3}>
-                      {spvData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                    </Pie>
-                    <Tooltip formatter={(v: any, n: any) => [`${v} projet(s)`, n]} />
-                    <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 10 }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </WidgetCard>
+        return spvData.length === 0 ? (
+          <div className="text-center text-muted-foreground text-sm py-8">Aucune donnée questionnaire</div>
+        ) : (
+          <ResponsiveContainer width="100%" height={h - 20}>
+            <PieChart>
+              <Pie data={spvData} dataKey="value" nameKey="name" cx="50%" cy="50%"
+                innerRadius={h * 0.2} outerRadius={h * 0.32} paddingAngle={3}>
+                {spvData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+              </Pie>
+              <Tooltip formatter={(v: any, n: any) => [`${v} projet(s)`, n]} />
+              <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 10 }} />
+            </PieChart>
+          </ResponsiveContainer>
         );
 
       case 'at_risk':
         return (
-          <WidgetCard key={widget.id} accentColor={widget.accentColor}
-            gradientFrom={widget.gradientFrom} gradientTo={widget.gradientTo} delay={delay}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-red-500" />
-                Projets en retard
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-2 space-y-2">
-              {atRiskProjects.length === 0 ? (
-                <div className="text-center text-muted-foreground text-sm py-6 flex flex-col items-center gap-2">
-                  <CheckCircle2 className="h-8 w-8 text-emerald-500/50" />
-                  Aucun projet en retard
-                </div>
-              ) : atRiskProjects.map(p => {
-                const st = allProjectStats[p.id];
-                return (
-                  <button key={p.id}
-                    onClick={() => navigate(`/be/projects/${p.code_projet}/overview`)}
-                    className="w-full text-left rounded-lg border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 px-3 py-2 transition-colors">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-xs text-primary">{p.code_projet}</span>
-                      <Badge variant="destructive" className="text-[10px] h-4 px-1">
-                        {st?.overdueTasks} retard{(st?.overdueTasks ?? 0) > 1 ? 's' : ''}
-                      </Badge>
-                    </div>
-                    <div className="text-xs text-muted-foreground truncate mt-0.5">{p.nom_projet}</div>
-                    <Progress value={st?.progress ?? 0} className="h-1 mt-1.5" />
-                  </button>
-                );
-              })}
-            </CardContent>
-          </WidgetCard>
+          <div className="space-y-2">
+            {atRiskProjects.length === 0 ? (
+              <div className="text-center text-muted-foreground text-sm py-6 flex flex-col items-center gap-2">
+                <CheckCircle2 className="h-8 w-8 text-emerald-500/50" />
+                Aucun projet en retard
+              </div>
+            ) : atRiskProjects.map(p => {
+              const st = allProjectStats[p.id];
+              return (
+                <button key={p.id}
+                  onClick={() => navigate(`/be/projects/${p.code_projet}/overview`)}
+                  className="w-full text-left rounded-lg border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 px-3 py-2 transition-colors">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs text-primary">{p.code_projet}</span>
+                    <Badge variant="destructive" className="text-[10px] h-4 px-1">
+                      {st?.overdueTasks} retard{(st?.overdueTasks ?? 0) > 1 ? 's' : ''}
+                    </Badge>
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate mt-0.5">{p.nom_projet}</div>
+                  <Progress value={st?.progress ?? 0} className="h-1 mt-1.5" />
+                </button>
+              );
+            })}
+          </div>
         );
 
       case 'top_projects':
         return (
-          <WidgetCard key={widget.id} accentColor={widget.accentColor}
-            gradientFrom={widget.gradientFrom} gradientTo={widget.gradientTo} delay={delay}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-emerald-500" />
-                Projets les plus avancés
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-2 space-y-2">
-              {topProjects.length === 0 ? (
-                <div className="text-center text-muted-foreground text-sm py-6">Aucune tâche enregistrée</div>
-              ) : topProjects.map(p => {
-                const st = allProjectStats[p.id];
-                const prog = st?.progress ?? 0;
-                const color = prog >= 80 ? '#10b981' : prog >= 40 ? '#f59e0b' : '#6b7280';
-                return (
-                  <button key={p.id}
-                    onClick={() => navigate(`/be/projects/${p.code_projet}/overview`)}
-                    className="w-full text-left rounded-lg border border-border/50 hover:bg-muted/30 px-3 py-2 transition-colors">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-xs text-primary">{p.code_projet}</span>
-                      <div className="relative w-10 h-10 shrink-0">
-                        <RadialProgress value={prog} size={40} stroke={4} color={color} />
-                        <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold" style={{ color }}>{prog}%</span>
-                      </div>
+          <div className="space-y-2">
+            {topProjects.length === 0 ? (
+              <div className="text-center text-muted-foreground text-sm py-6">Aucune tâche enregistrée</div>
+            ) : topProjects.map(p => {
+              const st = allProjectStats[p.id];
+              const prog = st?.progress ?? 0;
+              const color = prog >= 80 ? '#10b981' : prog >= 40 ? '#f59e0b' : '#6b7280';
+              return (
+                <button key={p.id}
+                  onClick={() => navigate(`/be/projects/${p.code_projet}/overview`)}
+                  className="w-full text-left rounded-lg border border-border/50 hover:bg-muted/30 px-3 py-2 transition-colors">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs text-primary">{p.code_projet}</span>
+                    <div className="relative w-10 h-10 shrink-0">
+                      <RadialProgress value={prog} size={40} stroke={4} color={color} />
+                      <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold" style={{ color }}>{prog}%</span>
                     </div>
-                    <div className="text-xs text-muted-foreground truncate">{p.nom_projet}</div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">{st?.doneTasks}/{st?.totalTasks} tâches</div>
-                  </button>
-                );
-              })}
-            </CardContent>
-          </WidgetCard>
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">{p.nom_projet}</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">{st?.doneTasks}/{st?.totalTasks} tâches</div>
+                </button>
+              );
+            })}
+          </div>
         );
 
       default:
         return null;
     }
-  };
+  }, [kpis, projects, allProjectStats, statusData, typoData, progressData, regionData, spvData, keonProjects, atRiskProjects, topProjects, navigate]);
 
-  // ── Layout: group widgets into rows ──────────────────────────────────────
-  // full-width: kpi_strip, map, progress_bar, region_bar
-  // half-width: status_pie, typo_pie
-  // third-width: keon_spv, at_risk, top_projects
-  const FULL_WIDTH = new Set(['kpi_strip', 'map']);
-  const HALF_WIDTH = new Set(['progress_bar', 'region_bar']);
-  const THIRD_WIDTH = new Set(['keon_spv', 'at_risk', 'top_projects']);
-
-  // Group visible widgets into layout sections
-  const fullWidgets = visibleWidgets.filter(w => FULL_WIDTH.has(w.id));
-  const halfWidgets = visibleWidgets.filter(w => HALF_WIDTH.has(w.id) || w.id === 'status_pie' || w.id === 'typo_pie');
-  const thirdWidgets = visibleWidgets.filter(w => THIRD_WIDTH.has(w.id));
-
-  let delayCounter = 0;
-  const getDelay = () => { delayCounter += 80; return delayCounter; };
+  if (projects.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64 text-muted-foreground">
+        Aucun projet à afficher avec ces filtres.
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* ── Toolbar ── */}
+      <div className="flex items-center justify-end gap-2 flex-wrap">
+        <Button
+          variant={isEditing ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setIsEditing(!isEditing)}
+          className="gap-2"
+        >
+          <Settings2 className="h-4 w-4" />
+          {isEditing ? 'Terminer' : 'Personnaliser'}
+        </Button>
 
-      {/* Render widgets in order */}
-      {visibleWidgets.map(widget => {
-        const delay = getDelay();
+        {isEditing && (
+          <>
+            <Button variant="outline" size="sm" onClick={handleReset} className="gap-2">
+              <RotateCcw className="h-4 w-4" />
+              Réinitialiser
+            </Button>
+            {hiddenCount > 0 && (
+              <Button variant="outline" size="sm" onClick={handleRestoreAll} className="gap-2">
+                Afficher tout ({hiddenCount} masqué{hiddenCount > 1 ? 's' : ''})
+              </Button>
+            )}
+          </>
+        )}
+      </div>
 
-        if (FULL_WIDTH.has(widget.id)) {
-          return renderWidget(widget, delay);
-        }
+      {/* ── Widget Grid (2-column bin-packing) ── */}
+      <div
+        className={cn(
+          'relative',
+          isEditing && 'rounded-xl border-2 border-dashed border-primary/30 p-4'
+        )}
+        style={{ minHeight: gridLayout.totalHeight || 'auto' }}
+      >
+        {/* Grid overlay in edit mode */}
+        {isEditing && (
+          <div className="absolute inset-0 pointer-events-none z-0 rounded-xl overflow-hidden">
+            <div className="absolute top-0 bottom-0 left-1/2 -translate-x-px w-[2px] border-l-2 border-dashed border-primary/15" />
+            {Array.from({ length: Math.ceil((gridLayout.totalHeight || 600) / 200) }).map((_, i) => (
+              <div
+                key={i}
+                className="absolute left-0 right-0 h-[1px] border-t border-dashed border-primary/10"
+                style={{ top: i * 200 }}
+              />
+            ))}
+          </div>
+        )}
 
-        return null;
-      })}
-
-      {/* Half-width row */}
-      {halfWidgets.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {halfWidgets.map(w => renderWidget(w, getDelay()))}
+        {/* Desktop: absolutely positioned widgets */}
+        <div className="hidden md:block relative" style={{ height: gridLayout.totalHeight || 'auto' }}>
+          {gridLayout.placements.map(({ widget, col, top }) => {
+            const heightPx = getHeightPx(widget);
+            const isFull = col === 'full';
+            return (
+              <div
+                key={widget.id}
+                className={cn(
+                  'absolute transition-all duration-300 ease-in-out',
+                  isEditing && 'cursor-move',
+                  draggedWidget === widget.id && 'opacity-40 scale-[0.98]',
+                  dropTargetId === widget.id && 'ring-2 ring-primary ring-offset-2 rounded-xl'
+                )}
+                style={{
+                  top,
+                  left: isFull ? 0 : col === 0 ? 0 : 'calc(50% + 8px)',
+                  width: isFull ? '100%' : 'calc(50% - 8px)',
+                  height: heightPx,
+                }}
+                draggable={isEditing}
+                onDragStart={() => handleDragStart(widget.id)}
+                onDragOver={(e) => handleDragOverEnhanced(e, widget.id)}
+                onDrop={(e) => handleDropEnhanced(e, widget.id)}
+                onDragEnd={handleDragEnd}
+                onDragLeave={() => setDropTargetId(null)}
+              >
+                <WidgetWrapper
+                  title={widget.label}
+                  onRemove={isEditing ? () => handleRemoveWidget(widget.id) : undefined}
+                  isDragging={draggedWidget === widget.id}
+                  sizePreset={isEditing ? getSizePreset(widget) : undefined}
+                  onResize={isEditing ? (preset) => handleResizeWidget(widget.id, preset) : undefined}
+                  heightPreset={isEditing ? getHeightPreset(widget) : undefined}
+                  onHeightChange={isEditing ? (preset) => handleHeightChange(widget.id, preset) : undefined}
+                >
+                  {renderWidgetContent(widget)}
+                </WidgetWrapper>
+              </div>
+            );
+          })}
         </div>
-      )}
 
-      {/* Third-width row */}
-      {thirdWidgets.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {thirdWidgets.map(w => renderWidget(w, getDelay()))}
+        {/* Mobile fallback: stacked layout */}
+        <div className="md:hidden space-y-4">
+          {visibleWidgets.map(widget => (
+            <div
+              key={widget.id}
+              style={{ height: getHeightPx(widget) }}
+              draggable={isEditing}
+              onDragStart={() => handleDragStart(widget.id)}
+              onDragOver={(e) => handleDragOverEnhanced(e, widget.id)}
+              onDrop={(e) => handleDropEnhanced(e, widget.id)}
+              onDragEnd={handleDragEnd}
+            >
+              <WidgetWrapper
+                title={widget.label}
+                onRemove={isEditing ? () => handleRemoveWidget(widget.id) : undefined}
+                isDragging={draggedWidget === widget.id}
+                sizePreset={isEditing ? getSizePreset(widget) : undefined}
+                onResize={isEditing ? (preset) => handleResizeWidget(widget.id, preset) : undefined}
+                heightPreset={isEditing ? getHeightPreset(widget) : undefined}
+                onHeightChange={isEditing ? (preset) => handleHeightChange(widget.id, preset) : undefined}
+              >
+                {renderWidgetContent(widget)}
+              </WidgetWrapper>
+            </div>
+          ))}
         </div>
-      )}
+      </div>
     </div>
   );
 }
