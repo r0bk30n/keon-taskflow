@@ -19,7 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Loader2, Search, BarChart2, LayoutGrid, List, Kanban, Leaf, Pencil, Trash2, Building2, LayoutDashboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SpvWidgetConfigPanel, loadSpvWidgetConfig, SpvWidgetConfig } from '@/components/projects/SpvWidgetConfigPanel';
+import { loadSpvWidgetConfig, SpvWidgetConfig } from '@/components/projects/SpvWidgetConfigPanel';
 import { SortableTableHead } from '@/components/ui/sortable-table-head';
 import { useTableSort } from '@/hooks/useTableSort';
 import { computePilierCompletion } from '@/components/projects/keon-synthese/utils';
