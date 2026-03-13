@@ -250,6 +250,7 @@ export default function KeonDashboard() {
                 qstData={qstData}
                 keonProjectIds={keonProjectIds}
                 widgetConfig={widgetConfig}
+                onWidgetConfigChange={setWidgetConfig}
               />
             )}
 
