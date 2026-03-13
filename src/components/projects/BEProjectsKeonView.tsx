@@ -24,6 +24,7 @@ interface Props {
   projects: BEProject[];
   qstData: Record<string, Record<string, any>>;
   keonProjectIds: Set<string>;
+  widgetConfig?: import('./SpvWidgetConfigPanel').SpvWidgetConfig[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
