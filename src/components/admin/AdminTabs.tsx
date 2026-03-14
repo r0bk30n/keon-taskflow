@@ -24,6 +24,7 @@ import { TableLookupConfigTab } from './TableLookupConfigTab';
 import { ServiceGroupsTab } from './ServiceGroupsTab';
 import { CategoriesManagementTab } from './CategoriesManagementTab';
 import { PageDeviceVisibilityTab } from './PageDeviceVisibilityTab';
+import { LuccaDuplicatesTab } from './LuccaDuplicatesTab';
 import type { Company, Department, JobTitle, HierarchyLevel, PermissionProfile, UserProfile } from '@/types/admin';
 
 interface AdminTabsProps {
