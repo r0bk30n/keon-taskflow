@@ -1206,13 +1206,18 @@ export function UsersTab({
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            {user.display_name || 'Sans nom'}
-                            {user.must_change_password && (
-                              <Badge variant="outline" className="text-[10px] h-4 px-1 text-amber-600 border-amber-300 bg-amber-50">
-                                <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
-                                MDP
-                              </Badge>
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                              {user.display_name || 'Sans nom'}
+                              {user.must_change_password && (
+                                <Badge variant="outline" className="text-[10px] h-4 px-1 text-amber-600 border-amber-300 bg-amber-50">
+                                  <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
+                                  MDP
+                                </Badge>
+                              )}
+                            </div>
+                            {user.id_lucca && (
+                              <span className="text-xs text-muted-foreground">Lucca #{user.id_lucca}</span>
                             )}
                           </div>
                         </TableCell>
