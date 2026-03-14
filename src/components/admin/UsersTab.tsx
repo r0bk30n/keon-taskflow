@@ -1206,13 +1206,18 @@ export function UsersTab({
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            {user.display_name || 'Sans nom'}
-                            {user.must_change_password && (
-                              <Badge variant="outline" className="text-[10px] h-4 px-1 text-amber-600 border-amber-300 bg-amber-50">
-                                <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
-                                MDP
-                              </Badge>
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                              {user.display_name || 'Sans nom'}
+                              {user.must_change_password && (
+                                <Badge variant="outline" className="text-[10px] h-4 px-1 text-amber-600 border-amber-300 bg-amber-50">
+                                  <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
+                                  MDP
+                                </Badge>
+                              )}
+                            </div>
+                            {user.id_lucca && (
+                              <span className="text-xs text-muted-foreground">Lucca #{user.id_lucca}</span>
                             )}
                           </div>
                         </TableCell>
@@ -1360,6 +1365,9 @@ export function UsersTab({
                                 <Building2 className="h-3 w-3 flex-shrink-0" />
                                 {user.company?.name || 'Aucune société'}
                               </p>
+                              {user.id_lucca && (
+                                <p className="text-xs text-muted-foreground truncate">Lucca #{user.id_lucca}</p>
+                              )}
                             </div>
                             <ChevronDown 
                               className={`h-4 w-4 text-muted-foreground transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} 

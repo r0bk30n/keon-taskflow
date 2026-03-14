@@ -106,6 +106,7 @@ export interface UserProfile {
   must_change_password: boolean;
   is_private: boolean;
   status: UserStatus;
+  id_lucca: string | null;
   lovable_email: string | null;
   secondary_email: string | null;
   lovable_status: LovableStatus;
