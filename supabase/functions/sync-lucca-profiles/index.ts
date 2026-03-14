@@ -333,13 +333,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Sync terminé: créés=${results.created}, mis à jour=${results.updated}, ignorés=${results.skipped}, managers=${managersResolved}, erreurs=${results.errors.length}, FK non résolues=${results.unresolved_fk.length}`);
+    console.log(`Sync terminé: créés=${results.created}, mis à jour=${results.updated}, emails=${results.email_updated}, ignorés=${results.skipped}, managers=${managersResolved}, erreurs=${results.errors.length}, FK non résolues=${results.unresolved_fk.length}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         created: results.created,
         updated: results.updated,
+        email_updated: results.email_updated,
         skipped: results.skipped,
         managers_resolved: managersResolved,
         error_count: results.errors.length,
