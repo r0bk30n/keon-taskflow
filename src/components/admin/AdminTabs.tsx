@@ -232,6 +232,10 @@ export function AdminTabs(props: AdminTabsProps) {
           <PageDeviceVisibilityTab />
         </TabsContent>
 
+        <TabsContent value="lucca-duplicates">
+          <LuccaDuplicatesTab />
+        </TabsContent>
+
       </Tabs>
     </div>
   );
