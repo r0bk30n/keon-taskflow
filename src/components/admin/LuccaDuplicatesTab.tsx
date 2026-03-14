@@ -199,7 +199,7 @@ export function LuccaDuplicatesTab() {
                           key={p.id}
                           onClick={() => setSelected(prev => ({ ...prev, [group.id_lucca]: p.id }))}
                           className={`rounded-lg border p-3 cursor-pointer transition-colors ${
-                            isKept ? 'border-green-500 bg-green-500/5' : isMarkedDelete ? 'border-destructive/40 bg-destructive/5' : ''
+                            isKept ? 'border-success bg-success/5' : isMarkedDelete ? 'border-destructive/40 bg-destructive/5' : ''
                           }`}
                         >
                           <div className="flex items-center gap-2 flex-wrap">
