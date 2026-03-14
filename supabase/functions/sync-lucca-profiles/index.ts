@@ -135,6 +135,7 @@ Deno.serve(async (req) => {
       created: 0,
       updated: 0,
       skipped: 0,
+      email_updated: 0,
       errors: [] as string[],
       unresolved_fk: [] as string[],
     };
@@ -174,7 +175,7 @@ Deno.serve(async (req) => {
         // ── Vérifier si le profil existe déjà par id_lucca ──
         const { data: existing } = await supabaseAdmin
           .from('profiles')
-          .select('id, lovable_status, user_id')
+          .select('id, lovable_status, user_id, lovable_email')
           .eq('id_lucca', idLuccaStr)
           .maybeSingle();
 
@@ -186,6 +187,41 @@ Deno.serve(async (req) => {
             .eq('id', existing.id);
 
           results.updated++;
+
+          // ── Gestion du changement d'email ──
+          const newEmail = email?.trim()?.toLowerCase();
+          if (newEmail && existing.user_id && newEmail !== existing.lovable_email) {
+            try {
+              // Vérifier qu'aucun autre profil n'utilise déjà ce nouvel email
+              const { data: emailConflict } = await supabaseAdmin
+                .from('profiles')
+                .select('id')
+                .eq('lovable_email', newEmail)
+                .neq('id', existing.id)
+                .maybeSingle();
+
+              if (emailConflict) {
+                results.errors.push(`Changement email impossible pour ${display_name} (id_lucca=${idLuccaStr}) : email ${newEmail} déjà utilisé par un autre profil`);
+              } else {
+                const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(existing.user_id, { email: newEmail });
+
+                if (authUpdateError) {
+                  results.errors.push(`Changement email impossible pour ${display_name} (id_lucca=${idLuccaStr}) : ${authUpdateError.message}`);
+                } else {
+                  await supabaseAdmin
+                    .from('profiles')
+                    .update({ lovable_email: newEmail, updated_at: new Date().toISOString() })
+                    .eq('id', existing.id);
+
+                  results.email_updated++;
+                  console.log(`📧 Email mis à jour pour ${display_name} (id_lucca=${idLuccaStr}): ${existing.lovable_email} → ${newEmail}`);
+                }
+              }
+            } catch (emailErr: unknown) {
+              const msg = emailErr instanceof Error ? emailErr.message : String(emailErr);
+              results.errors.push(`Changement email impossible pour ${display_name} (id_lucca=${idLuccaStr}) : ${msg}`);
+            }
+          }
         } else {
           // ── NOUVEAU SALARIÉ : créer un auth.user + profil avec lovable_status = NOK ──
 
@@ -297,13 +333,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Sync terminé: créés=${results.created}, mis à jour=${results.updated}, ignorés=${results.skipped}, managers=${managersResolved}, erreurs=${results.errors.length}, FK non résolues=${results.unresolved_fk.length}`);
+    console.log(`Sync terminé: créés=${results.created}, mis à jour=${results.updated}, emails=${results.email_updated}, ignorés=${results.skipped}, managers=${managersResolved}, erreurs=${results.errors.length}, FK non résolues=${results.unresolved_fk.length}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         created: results.created,
         updated: results.updated,
+        email_updated: results.email_updated,
         skipped: results.skipped,
         managers_resolved: managersResolved,
         error_count: results.errors.length,
