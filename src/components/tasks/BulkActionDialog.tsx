@@ -268,7 +268,7 @@ export function BulkActionDialog({ open, onOpenChange, tasks, onComplete, canRea
 
   useEffect(() => {
     setSelectedTaskIds(new Set());
-  }, [searchQuery, filterStatuses, filterCurrentAssignees, filterSources, filterServiceGroups]);
+  }, [searchQuery, filterStatuses, filterCurrentAssignees, filterSources, filterServiceGroups, filterItProjects]);
 
   const toggleTask = (taskId: string) => {
     setSelectedTaskIds(prev => {
