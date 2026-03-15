@@ -216,6 +216,7 @@ export function CrossFiltersPanel({ filters, onFiltersChange, onClose, processId
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [processes, setProcesses] = useState<{ id: string; name: string }[]>([]);
   const [sgLabels, setSgLabels] = useState<{ id: string; name: string; color: string }[]>([]);
+  const [itProjects, setItProjects] = useState<{ id: string; name: string }[]>([]);
   const [presets, setPresets] = useState<FilterPreset[]>([]);
   const [presetName, setPresetName] = useState('');
   const [showSavePreset, setShowSavePreset] = useState(false);
