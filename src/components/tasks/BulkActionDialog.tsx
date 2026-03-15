@@ -594,6 +594,64 @@ export function BulkActionDialog({ open, onOpenChange, tasks, onComplete, canRea
                 )}
               </div>
             )}
+
+            {/* IT Project assignment */}
+            <div className="p-3 rounded-lg border bg-muted/30 space-y-2">
+              <Label className="text-xs font-semibold flex items-center gap-1.5">
+                <Monitor className="h-3.5 w-3.5" />
+                Projet IT cible
+              </Label>
+              <Popover open={itProjectSearchOpen} onOpenChange={setItProjectSearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" role="combobox" className="w-full justify-between h-9 font-normal">
+                    {targetItProjectId ? (
+                      targetItProjectId === '__remove__' ? (
+                        <span className="text-destructive">Retirer du projet IT</span>
+                      ) : (
+                        <span className="truncate">{selectedItProject?.code} – {selectedItProject?.name}</span>
+                      )
+                    ) : (
+                      <span className="text-muted-foreground">Sélectionner...</span>
+                    )}
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0 z-50 bg-popover" align="start">
+                  <div className="p-2 border-b">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Rechercher un projet IT..."
+                        value={itProjectSearchQuery}
+                        onChange={(e) => setItProjectSearchQuery(e.target.value)}
+                        className="pl-9 h-9"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                  <ScrollArea className="max-h-[220px]">
+                    <button
+                      onClick={() => { setTargetItProjectId('__remove__'); setItProjectSearchOpen(false); setItProjectSearchQuery(''); }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-accent transition-colors text-sm text-destructive ${targetItProjectId === '__remove__' ? 'bg-primary/10' : ''}`}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Retirer du projet IT
+                    </button>
+                    {filteredItProjectMembers.map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => { setTargetItProjectId(p.id); setItProjectSearchOpen(false); setItProjectSearchQuery(''); }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-accent transition-colors text-sm ${targetItProjectId === p.id ? 'bg-primary/10' : ''}`}
+                      >
+                        <Badge variant="outline" className="text-[9px] font-mono border-violet-300 text-violet-700 shrink-0">{p.code}</Badge>
+                        <span className="flex-1 truncate">{p.name}</span>
+                        {targetItProjectId === p.id && <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />}
+                      </button>
+                    ))}
+                  </ScrollArea>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
 
           {/* Filters */}
