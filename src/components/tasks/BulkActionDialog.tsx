@@ -9,7 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Loader2, Search, CheckCircle2, Filter, Settings2, ChevronDown, X, UserRoundPlus, Tags, UserCheck } from 'lucide-react';
+import { Loader2, Search, CheckCircle2, Filter, Settings2, ChevronDown, X, UserRoundPlus, Tags, UserCheck, Monitor } from 'lucide-react';
 import { Task } from '@/types/task';
 import { useCategories } from '@/hooks/useCategories';
 import { supabase } from '@/integrations/supabase/client';
