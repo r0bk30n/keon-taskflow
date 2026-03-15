@@ -36,6 +36,12 @@ interface ServiceGroup {
   name: string;
 }
 
+interface ITProjectItem {
+  id: string;
+  code: string;
+  name: string;
+}
+
 const statusLabels: Record<string, string> = {
   to_assign: 'À affecter',
   todo: 'À faire',
