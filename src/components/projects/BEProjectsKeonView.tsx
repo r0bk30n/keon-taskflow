@@ -243,7 +243,28 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
                 <p className="text-xs mt-1">Renseignez les coordonnées GPS dans les fiches projet.</p>
               </div>
             ) : (
-              <div ref={mapRef} style={{ height: Math.max(200, mapH) }} className="w-full rounded-lg border border-border" />
+              <div className="space-y-3">
+                <iframe
+                  title="Carte des projets SPV"
+                  className="w-full rounded-lg border border-border"
+                  style={{ height: Math.max(200, mapH), border: 0 }}
+                  loading="lazy"
+                  src="https://www.openstreetmap.org/export/embed.html?bbox=-5,42,10,51&layer=mapnik"
+                />
+                <div className="flex flex-wrap gap-1.5">
+                  {keonWithCoords.map(p => (
+                    <Badge
+                      key={p.id}
+                      variant="secondary"
+                      className="cursor-pointer hover:bg-accent/20 text-xs"
+                      onClick={() => navigate(`/be/projects/${p.code_projet}/overview`)}
+                    >
+                      <MapPin className="h-3 w-3 mr-1 text-emerald-500" />
+                      {p.code_projet}{p.region ? ` · ${p.region}` : ''}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         );
