@@ -305,9 +305,10 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
   }, [widgets]);
 
   // --- Widget content renderers ---
-  const renderWidgetContent = useCallback((widget: WidgetConfig) => {
+  const renderWidgetContent = useCallback((widget: WidgetConfig, layout: 'desktop' | 'mobile') => {
     const mapH = getWidgetHeightPx(widget) - 60;
     const safeMapHeight = Math.max(200, mapH);
+    const activeMapRef = layout === 'desktop' ? desktopMapRef : mobileMapRef;
     switch (widget.id) {
       case 'kpis':
         return (
@@ -336,7 +337,7 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
               </div>
             ) : (
               <div className="space-y-3">
-                <div ref={mapRef} style={{ height: safeMapHeight }} className="w-full rounded-lg border border-border" />
+                <div ref={activeMapRef} style={{ height: safeMapHeight }} className="w-full rounded-lg border border-border" />
                 <div className="flex flex-wrap gap-1.5 max-h-[120px] overflow-y-auto">
                   {keonWithCoords.map(p => (
                     <Badge
