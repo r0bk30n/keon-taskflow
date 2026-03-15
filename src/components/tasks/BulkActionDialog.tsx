@@ -307,12 +307,20 @@ export function BulkActionDialog({ open, onOpenChange, tasks, onComplete, canRea
     );
   }, [teamMembers, requesterSearchQuery]);
 
+  const filteredItProjectMembers = useMemo(() => {
+    if (!itProjectSearchQuery) return itProjectsList;
+    const q = itProjectSearchQuery.toLowerCase();
+    return itProjectsList.filter(p => p.code.toLowerCase().includes(q) || p.name.toLowerCase().includes(q));
+  }, [itProjectsList, itProjectSearchQuery]);
+
   const getCategoryName = (categoryId: string | null) => {
     if (!categoryId) return null;
     return categories.find(c => c.id === categoryId)?.name;
   };
 
-  const hasAnyAction = targetCategoryId || targetUserId || targetRequesterId;
+  const selectedItProject = itProjectsList.find(p => p.id === targetItProjectId);
+
+  const hasAnyAction = targetCategoryId || targetUserId || targetRequesterId || targetItProjectId;
 
   const handleApply = async () => {
     if (selectedTaskIds.size === 0 || !hasAnyAction) return;
@@ -331,6 +339,9 @@ export function BulkActionDialog({ open, onOpenChange, tasks, onComplete, canRea
       }
       if (targetRequesterId) {
         updates.requester_id = targetRequesterId;
+      }
+      if (targetItProjectId) {
+        updates.it_project_id = targetItProjectId === '__remove__' ? null : targetItProjectId;
       }
 
       for (let i = 0; i < ids.length; i += 50) {
@@ -351,6 +362,13 @@ export function BulkActionDialog({ open, onOpenChange, tasks, onComplete, canRea
       if (targetCategoryId) actions.push('catégorisée(s)');
       if (targetUserId) actions.push(`réaffectée(s) à ${selectedMember?.display_name}`);
       if (targetRequesterId) actions.push(`demandeur → ${selectedRequester?.display_name}`);
+      if (targetItProjectId) {
+        if (targetItProjectId === '__remove__') {
+          actions.push('projet IT retiré');
+        } else {
+          actions.push(`affectée(s) au projet ${selectedItProject?.code || ''}`);
+        }
+      }
       toast.success(`${ids.length} tâche(s) ${actions.join(' et ')}`);
 
       setSelectedTaskIds(new Set());
@@ -368,6 +386,7 @@ export function BulkActionDialog({ open, onOpenChange, tasks, onComplete, canRea
     setTargetSubcategoryId('');
     setTargetUserId('');
     setTargetRequesterId('');
+    setTargetItProjectId('');
     setSearchQuery('');
     setFilterStatuses(new Set());
     setFilterCurrentAssignees(new Set());
@@ -375,6 +394,7 @@ export function BulkActionDialog({ open, onOpenChange, tasks, onComplete, canRea
     setFilterServiceGroups(new Set());
     setTargetSearchQuery('');
     setRequesterSearchQuery('');
+    setItProjectSearchQuery('');
   };
 
   return (
