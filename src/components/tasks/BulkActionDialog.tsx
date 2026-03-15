@@ -255,6 +255,13 @@ export function BulkActionDialog({ open, onOpenChange, tasks, onComplete, canRea
         const taskSg = taskServiceGroupMap.get(task.id);
         if (!taskSg || !filterServiceGroups.has(taskSg)) return false;
       }
+      if (filterItProjects.size > 0) {
+        const hasNone = filterItProjects.has('__none__');
+        const projectIds = [...filterItProjects].filter(id => id !== '__none__');
+        if (hasNone && !task.it_project_id) { /* pass */ }
+        else if (projectIds.length > 0 && task.it_project_id && projectIds.includes(task.it_project_id)) { /* pass */ }
+        else return false;
+      }
       return true;
     });
   }, [tasks, searchQuery, filterStatuses, filterCurrentAssignees, filterSources, filterServiceGroups, taskServiceGroupMap, plannerTaskIds]);
