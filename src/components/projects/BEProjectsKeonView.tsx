@@ -157,32 +157,39 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
   useEffect(() => {
     const L = (window as any).L;
     if (!L || !mapRef.current || keonWithCoords.length === 0) return;
-    if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; }
-    const map = L.map(mapRef.current, { zoomControl: true, scrollWheelZoom: true });
-    mapInstanceRef.current = map;
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 18 }).addTo(map);
-    const markers = L.markerClusterGroup({
-      iconCreateFunction: (cluster: any) => {
-        const count = cluster.getChildCount();
-        let bg = '#10b981';
-        if (count > 20) bg = '#ef4444'; else if (count > 5) bg = '#f59e0b';
-        return L.divIcon({
-          html: `<div style="background:${bg};color:#fff;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3);">${count}</div>`,
-          className: '', iconSize: L.point(36, 36),
-        });
-      },
-    });
-    const bounds: [number, number][] = [];
-    keonWithCoords.forEach(p => {
-      const [lat, lon] = p.gps_coordinates!.split(',').map(s => parseFloat(s.trim()));
-      bounds.push([lat, lon]);
-      const marker = L.circleMarker([lat, lon], { radius: 8, fillColor: '#10b981', color: '#fff', weight: 2, fillOpacity: 0.9 });
-      marker.bindPopup(`<div style="min-width:160px;font-family:system-ui,sans-serif;"><div style="font-weight:700;font-size:13px;color:#10b981;">${p.code_projet}</div><div style="font-size:12px;margin-top:2px;">${p.nom_projet}</div>${p.region ? `<div style="margin-top:4px;font-size:11px;color:#6b7280;">📍 ${p.region}</div>` : ''}<a href="/be/projects/${p.code_projet}/overview" style="display:inline-block;margin-top:6px;font-size:11px;color:#3b82f6;text-decoration:underline;">Ouvrir →</a></div>`, { maxWidth: 250 });
-      markers.addLayer(marker);
-    });
-    map.addLayer(markers);
-    if (bounds.length > 0) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 });
-    return () => { if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; } };
+    // Small delay to ensure container is rendered and has dimensions
+    const timer = setTimeout(() => {
+      if (!mapRef.current) return;
+      if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; }
+      const map = L.map(mapRef.current, { zoomControl: true, scrollWheelZoom: true });
+      mapInstanceRef.current = map;
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 18 }).addTo(map);
+      const markers = L.markerClusterGroup({
+        iconCreateFunction: (cluster: any) => {
+          const count = cluster.getChildCount();
+          let bg = '#10b981';
+          if (count > 20) bg = '#ef4444'; else if (count > 5) bg = '#f59e0b';
+          return L.divIcon({
+            html: `<div style="background:${bg};color:#fff;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3);">${count}</div>`,
+            className: '', iconSize: L.point(36, 36),
+          });
+        },
+      });
+      const bounds: [number, number][] = [];
+      keonWithCoords.forEach(p => {
+        const [lat, lon] = p.gps_coordinates!.split(',').map(s => parseFloat(s.trim()));
+        bounds.push([lat, lon]);
+        const marker = L.circleMarker([lat, lon], { radius: 8, fillColor: '#10b981', color: '#fff', weight: 2, fillOpacity: 0.9 });
+        marker.bindPopup(`<div style="min-width:160px;font-family:system-ui,sans-serif;"><div style="font-weight:700;font-size:13px;color:#10b981;">${p.code_projet}</div><div style="font-size:12px;margin-top:2px;">${p.nom_projet}</div>${p.region ? `<div style="margin-top:4px;font-size:11px;color:#6b7280;">📍 ${p.region}</div>` : ''}<a href="/be/projects/${p.code_projet}/overview" style="display:inline-block;margin-top:6px;font-size:11px;color:#3b82f6;text-decoration:underline;">Ouvrir →</a></div>`, { maxWidth: 250 });
+        markers.addLayer(marker);
+      });
+      map.addLayer(markers);
+      if (bounds.length > 0) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 });
+    }, 100);
+    return () => {
+      clearTimeout(timer);
+      if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; }
+    };
   }, [keonWithCoords]);
 
   // --- Widget manipulation handlers (same as ConfigurableDashboard) ---
