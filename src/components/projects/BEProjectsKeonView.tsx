@@ -170,7 +170,12 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
     };
 
     const initMap = () => {
-      const container = mapRef.current;
+      const desktopContainer = desktopMapRef.current;
+      const mobileContainer = mobileMapRef.current;
+      const visibleDesktop = desktopContainer && desktopContainer.offsetParent !== null;
+      const visibleMobile = mobileContainer && mobileContainer.offsetParent !== null;
+      const container = visibleDesktop ? desktopContainer : visibleMobile ? mobileContainer : null;
+
       if (!container || keonWithCoords.length === 0) return;
 
       const { height, width } = container.getBoundingClientRect();
