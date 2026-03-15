@@ -105,8 +105,12 @@ export function DenseTableView({ tasks, onStatusChange, onDelete, progressMap, o
   });
   const [profilesMap, setProfilesMap] = useState<Map<string, string>>(new Map());
   const [categoriesMap, setCategoriesMap] = useState<Map<string, string>>(new Map());
+  const [itProjectsMap, setItProjectsMap] = useState<Map<string, string>>(new Map());
+  const [itProjectsList, setItProjectsList] = useState<ITProjectOption[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [colSelectorOpen, setColSelectorOpen] = useState(false);
+  const [editingItProjectTaskId, setEditingItProjectTaskId] = useState<string | null>(null);
+  const [itProjectSearch, setItProjectSearch] = useState('');
 
   const { sortedData: sortedTasks, sortConfig, handleSort } = useTableSort<Task>(tasks, 'created_at', 'desc');
 
@@ -114,12 +118,13 @@ export function DenseTableView({ tasks, onStatusChange, onDelete, progressMap, o
     localStorage.setItem(STORAGE_KEY, JSON.stringify(visibleColumns));
   }, [visibleColumns]);
 
-  // Fetch profiles & categories
+  // Fetch profiles, categories & IT projects
   useEffect(() => {
     (async () => {
-      const [{ data: profiles }, { data: cats }] = await Promise.all([
+      const [{ data: profiles }, { data: cats }, { data: itProjects }] = await Promise.all([
         supabase.from('profiles').select('id, display_name').eq('status', 'active'),
         supabase.from('categories').select('id, name'),
+        supabase.from('it_projects').select('id, code_projet_digital, nom_projet').order('code_projet_digital'),
       ]);
       if (profiles) {
         const m = new Map<string, string>();
@@ -130,6 +135,12 @@ export function DenseTableView({ tasks, onStatusChange, onDelete, progressMap, o
         const m = new Map<string, string>();
         cats.forEach(c => m.set(c.id, c.name));
         setCategoriesMap(m);
+      }
+      if (itProjects) {
+        const m = new Map<string, string>();
+        itProjects.forEach((p: any) => m.set(p.id, p.code_projet_digital));
+        setItProjectsMap(m);
+        setItProjectsList(itProjects.map((p: any) => ({ id: p.id, code: p.code_projet_digital, name: p.nom_projet })));
       }
     })();
   }, []);
