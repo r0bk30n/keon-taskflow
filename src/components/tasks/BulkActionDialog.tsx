@@ -139,6 +139,7 @@ export function BulkActionDialog({ open, onOpenChange, tasks, onComplete, canRea
   const [filterCurrentAssignees, setFilterCurrentAssignees] = useState<Set<string>>(new Set());
   const [filterSources, setFilterSources] = useState<Set<string>>(new Set());
   const [filterServiceGroups, setFilterServiceGroups] = useState<Set<string>>(new Set());
+  const [filterItProjects, setFilterItProjects] = useState<Set<string>>(new Set());
 
   // Category targets
   const [targetCategoryId, setTargetCategoryId] = useState<string>('');
@@ -254,13 +255,20 @@ export function BulkActionDialog({ open, onOpenChange, tasks, onComplete, canRea
         const taskSg = taskServiceGroupMap.get(task.id);
         if (!taskSg || !filterServiceGroups.has(taskSg)) return false;
       }
+      if (filterItProjects.size > 0) {
+        const hasNone = filterItProjects.has('__none__');
+        const projectIds = [...filterItProjects].filter(id => id !== '__none__');
+        if (hasNone && !task.it_project_id) { /* pass */ }
+        else if (projectIds.length > 0 && task.it_project_id && projectIds.includes(task.it_project_id)) { /* pass */ }
+        else return false;
+      }
       return true;
     });
-  }, [tasks, searchQuery, filterStatuses, filterCurrentAssignees, filterSources, filterServiceGroups, taskServiceGroupMap, plannerTaskIds]);
+  }, [tasks, searchQuery, filterStatuses, filterCurrentAssignees, filterSources, filterServiceGroups, filterItProjects, taskServiceGroupMap, plannerTaskIds]);
 
   useEffect(() => {
     setSelectedTaskIds(new Set());
-  }, [searchQuery, filterStatuses, filterCurrentAssignees, filterSources, filterServiceGroups]);
+  }, [searchQuery, filterStatuses, filterCurrentAssignees, filterSources, filterServiceGroups, filterItProjects]);
 
   const toggleTask = (taskId: string) => {
     setSelectedTaskIds(prev => {
@@ -366,7 +374,14 @@ export function BulkActionDialog({ open, onOpenChange, tasks, onComplete, canRea
         if (targetItProjectId === '__remove__') {
           actions.push('projet IT retiré');
         } else {
-          actions.push(`affectée(s) au projet ${selectedItProject?.code || ''}`);
+          // Check if filtering by a single source project for better message
+          const sourceProjectIds = [...filterItProjects].filter(id => id !== '__none__');
+          if (sourceProjectIds.length === 1) {
+            const sourceProj = itProjectsList.find(p => p.id === sourceProjectIds[0]);
+            actions.push(`réaffectée(s) de ${sourceProj?.code || '?'} vers ${selectedItProject?.code || ''}`);
+          } else {
+            actions.push(`affectée(s) au projet ${selectedItProject?.code || ''}`);
+          }
         }
       }
       toast.success(`${ids.length} tâche(s) ${actions.join(' et ')}`);
@@ -392,6 +407,7 @@ export function BulkActionDialog({ open, onOpenChange, tasks, onComplete, canRea
     setFilterCurrentAssignees(new Set());
     setFilterSources(new Set());
     setFilterServiceGroups(new Set());
+    setFilterItProjects(new Set());
     setTargetSearchQuery('');
     setRequesterSearchQuery('');
     setItProjectSearchQuery('');
@@ -692,6 +708,16 @@ export function BulkActionDialog({ open, onOpenChange, tasks, onComplete, canRea
               selected={filterServiceGroups}
               onChange={setFilterServiceGroups}
               options={serviceGroups.map(sg => ({ value: sg.id, label: sg.name }))}
+            />
+            <MultiSelectFilter
+              label="Tous les projets IT"
+              icon={<Monitor className="h-3.5 w-3.5" />}
+              selected={filterItProjects}
+              onChange={setFilterItProjects}
+              options={[
+                { value: '__none__', label: 'Sans projet IT' },
+                ...itProjectsList.map(p => ({ value: p.id, label: `${p.code} – ${p.name}` })),
+              ]}
             />
           </div>
 
