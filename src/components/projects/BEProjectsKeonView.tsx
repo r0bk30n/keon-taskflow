@@ -302,6 +302,7 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
   // --- Widget content renderers ---
   const renderWidgetContent = useCallback((widget: WidgetConfig) => {
     const mapH = getWidgetHeightPx(widget) - 60;
+    const safeMapHeight = Math.max(200, mapH);
     switch (widget.id) {
       case 'kpis':
         return (
@@ -323,14 +324,14 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
               <Badge variant="secondary" className="ml-auto text-xs">{keonWithCoords.length} localisés</Badge>
             </div>
             {keonWithCoords.length === 0 ? (
-              <div className="flex flex-col items-center justify-center text-center py-12 text-muted-foreground" style={{ height: Math.max(200, mapH) }}>
+              <div className="flex flex-col items-center justify-center text-center py-12 text-muted-foreground" style={{ height: safeMapHeight }}>
                 <MapPin className="h-10 w-10 mb-3 opacity-30" />
                 <p className="text-sm font-medium">Aucun projet localisé</p>
                 <p className="text-xs mt-1">Renseignez les coordonnées GPS dans les fiches projet.</p>
               </div>
             ) : (
               <div className="space-y-3">
-                <div ref={mapRef} style={{ height: Math.max(200, mapH - 80) }} className="w-full rounded-lg border border-border" />
+                <div ref={mapRef} style={{ height: safeMapHeight }} className="w-full rounded-lg border border-border" />
                 <div className="flex flex-wrap gap-1.5 max-h-[120px] overflow-y-auto">
                   {keonWithCoords.map(p => (
                     <Badge
