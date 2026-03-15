@@ -154,26 +154,34 @@ export function BulkActionDialog({ open, onOpenChange, tasks, onComplete, canRea
   const [requesterSearchOpen, setRequesterSearchOpen] = useState(false);
   const [requesterSearchQuery, setRequesterSearchQuery] = useState('');
 
+  // IT Project target
+  const [targetItProjectId, setTargetItProjectId] = useState<string>('');
+  const [itProjectSearchOpen, setItProjectSearchOpen] = useState(false);
+  const [itProjectSearchQuery, setItProjectSearchQuery] = useState('');
+
   // Data
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loadingData, setLoadingData] = useState(false);
   const [serviceGroups, setServiceGroups] = useState<ServiceGroup[]>([]);
   const [processServiceGroupMap, setProcessServiceGroupMap] = useState<Map<string, string>>(new Map());
   const [plannerTaskIds, setPlannerTaskIds] = useState<Set<string>>(new Set());
+  const [itProjectsList, setItProjectsList] = useState<ITProjectItem[]>([]);
 
   useEffect(() => {
     if (!open) return;
     const fetchData = async () => {
       setLoadingData(true);
-      const [membersRes, sgRes, ptRes, plannerRes] = await Promise.all([
+      const [membersRes, sgRes, ptRes, plannerRes, itProjRes] = await Promise.all([
         supabase.from('profiles').select('id, display_name, avatar_url, job_title, department').eq('status', 'active').order('display_name'),
         (supabase as any).from('service_groups').select('id, name').order('name'),
         (supabase as any).from('process_templates').select('id, service_group_id'),
         supabase.from('planner_task_links').select('local_task_id'),
+        supabase.from('it_projects').select('id, code_projet_digital, nom_projet').order('code_projet_digital'),
       ]);
       setTeamMembers(membersRes.data || []);
       setServiceGroups(sgRes.data || []);
       if (plannerRes.data) setPlannerTaskIds(new Set(plannerRes.data.map(d => d.local_task_id)));
+      if (itProjRes.data) setItProjectsList(itProjRes.data.map((p: any) => ({ id: p.id, code: p.code_projet_digital, name: p.nom_projet })));
 
       const ptSgMap = new Map<string, string>();
       (ptRes.data || []).forEach((pt: any) => {
