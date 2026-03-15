@@ -764,6 +764,15 @@ export function CrossFiltersPanel({ filters, onFiltersChange, onClose, processId
             colorDotKey="color"
           />
         )}
+
+        {/* IT Projects */}
+        <MultiSelectDropdown
+          label="Projet IT"
+          icon={<Monitor className="h-3 w-3" />}
+          items={itProjects}
+          selectedIds={filters.itProjectIds || []}
+          onChange={(ids) => onFiltersChange({ ...filters, itProjectIds: ids })}
+        />
       </div>
       )}
     </div>
