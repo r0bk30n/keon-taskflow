@@ -484,6 +484,7 @@ export function CrossFiltersPanel({ filters, onFiltersChange, onClose, processId
     filters.statuses.length + 
     filters.priorities.length +
     (filters.labelIds?.length || 0) +
+    (filters.itProjectIds?.length || 0) +
     (filters.dateRange.start ? 1 : 0);
 
   // Status/Priority items formatted for MultiSelectDropdown
