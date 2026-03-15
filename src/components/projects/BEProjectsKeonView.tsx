@@ -1,5 +1,7 @@
 import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { BEProject } from '@/types/beProject';
 import { PilierCode } from '@/config/questionnaireConfig';
 import { computePilierCompletion } from './keon-synthese/utils';
