@@ -206,7 +206,7 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
 
       if (typeof ResizeObserver !== 'undefined') {
         resizeObserver = new ResizeObserver(() => {
-          mapInstanceRef.current?.invalidateSize();
+          scheduleInvalidate();
         });
         resizeObserver.observe(container);
       }
