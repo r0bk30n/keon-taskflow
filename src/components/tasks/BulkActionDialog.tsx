@@ -139,6 +139,7 @@ export function BulkActionDialog({ open, onOpenChange, tasks, onComplete, canRea
   const [filterCurrentAssignees, setFilterCurrentAssignees] = useState<Set<string>>(new Set());
   const [filterSources, setFilterSources] = useState<Set<string>>(new Set());
   const [filterServiceGroups, setFilterServiceGroups] = useState<Set<string>>(new Set());
+  const [filterItProjects, setFilterItProjects] = useState<Set<string>>(new Set());
 
   // Category targets
   const [targetCategoryId, setTargetCategoryId] = useState<string>('');
