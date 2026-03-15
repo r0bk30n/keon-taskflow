@@ -374,7 +374,14 @@ export function BulkActionDialog({ open, onOpenChange, tasks, onComplete, canRea
         if (targetItProjectId === '__remove__') {
           actions.push('projet IT retiré');
         } else {
-          actions.push(`affectée(s) au projet ${selectedItProject?.code || ''}`);
+          // Check if filtering by a single source project for better message
+          const sourceProjectIds = [...filterItProjects].filter(id => id !== '__none__');
+          if (sourceProjectIds.length === 1) {
+            const sourceProj = itProjectsList.find(p => p.id === sourceProjectIds[0]);
+            actions.push(`réaffectée(s) de ${sourceProj?.code || '?'} vers ${selectedItProject?.code || ''}`);
+          } else {
+            actions.push(`affectée(s) au projet ${selectedItProject?.code || ''}`);
+          }
         }
       }
       toast.success(`${ids.length} tâche(s) ${actions.join(' et ')}`);
