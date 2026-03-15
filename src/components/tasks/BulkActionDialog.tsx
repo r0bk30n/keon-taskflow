@@ -632,7 +632,7 @@ export function BulkActionDialog({ open, onOpenChange, tasks, onComplete, canRea
                     <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0 z-50 bg-popover" align="start">
+                <PopoverContent className="min-w-[340px] w-[--radix-popover-trigger-width] p-0 z-50 bg-popover" align="start">
                   <div className="p-2 border-b">
                     <div className="relative">
                       <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
