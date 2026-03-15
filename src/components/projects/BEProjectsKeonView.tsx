@@ -285,13 +285,7 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
               </div>
             ) : (
               <div className="space-y-3">
-                <iframe
-                  title="Carte des projets SPV"
-                  className="w-full rounded-lg border border-border"
-                  style={{ height: Math.max(150, mapH - 80), border: 0 }}
-                  loading="lazy"
-                  src="https://www.openstreetmap.org/export/embed.html?bbox=-5,42,10,51&layer=mapnik"
-                />
+                <div ref={mapRef} style={{ height: Math.max(200, mapH - 80) }} className="w-full rounded-lg border border-border" />
                 <div className="flex flex-wrap gap-1.5 max-h-[120px] overflow-y-auto">
                   {keonWithCoords.map(p => (
                     <Badge
