@@ -407,6 +407,7 @@ export function BulkActionDialog({ open, onOpenChange, tasks, onComplete, canRea
     setFilterCurrentAssignees(new Set());
     setFilterSources(new Set());
     setFilterServiceGroups(new Set());
+    setFilterItProjects(new Set());
     setTargetSearchQuery('');
     setRequesterSearchQuery('');
     setItProjectSearchQuery('');
