@@ -39,6 +39,7 @@ export default function Profile() {
   const [isUploading, setIsUploading] = useState(false);
   const [managers, setManagers] = useState<ManagerOption[]>([]);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [emailExistsInProfiles, setEmailExistsInProfiles] = useState<boolean | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<ProfileData>({
     display_name: '',
@@ -63,6 +64,32 @@ export default function Profile() {
       });
     }
   }, [profile]);
+
+  useEffect(() => {
+    const checkEmailInProfiles = async () => {
+      const email = user?.email?.trim().toLowerCase();
+      if (!email) {
+        setEmailExistsInProfiles(null);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id')
+        .ilike('lovable_email', email)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking email in profiles:', error);
+        setEmailExistsInProfiles(null);
+        return;
+      }
+
+      setEmailExistsInProfiles(!!data);
+    };
+
+    checkEmailInProfiles();
+  }, [user?.email]);
 
   useEffect(() => {
     const fetchManagers = async () => {
@@ -360,7 +387,11 @@ export default function Profile() {
                     <Input
                       value={user?.email || ''}
                       disabled
-                      className="bg-muted"
+                      className={
+                        emailExistsInProfiles === false
+                          ? 'bg-destructive/15 border-destructive/40'
+                          : 'bg-muted'
+                      }
                     />
                     <p className="text-xs text-muted-foreground">
                       L'email ne peut pas être modifié

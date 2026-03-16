@@ -5,15 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { CheckSquare, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,8 +13,6 @@ export default function Auth() {
   const { user, isLoading, signIn, signUp } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isPostLoginChecking, setIsPostLoginChecking] = useState(false);
-  const [showUnknownEmailOverlay, setShowUnknownEmailOverlay] = useState(false);
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
@@ -42,7 +31,7 @@ export default function Auth() {
     );
   }
 
-  if (user && !isPostLoginChecking) {
+  if (user) {
     return <Navigate to="/" replace />;
   }
 
@@ -95,56 +84,10 @@ export default function Auth() {
       setIsSubmitting(false);
       return;
     } else {
-      // Post-login access check: ensure the email exists in profiles (allowlist pattern).
-      // This prevents a brief redirect before we validate.
-      setIsPostLoginChecking(true);
-
-      try {
-        const {
-          data: { user: authedUser },
-          error: getUserError,
-        } = await supabase.auth.getUser();
-
-        if (getUserError) throw getUserError;
-
-        const email = authedUser?.email?.trim().toLowerCase();
-        if (!email) {
-          setShowUnknownEmailOverlay(true);
-          await supabase.auth.signOut();
-          return;
-        }
-
-        const { data: profileRow, error: profileError } = await supabase
-          .from('profiles')
-          .select('id')
-          .ilike('lovable_email', email)
-          .maybeSingle();
-
-        if (profileError) {
-          throw profileError;
-        }
-
-        if (!profileRow) {
-          setShowUnknownEmailOverlay(true);
-          await supabase.auth.signOut();
-          return;
-        }
-
-        toast({
-          title: 'Connexion réussie',
-          description: 'Bienvenue sur TaskFlow !',
-        });
-      } catch (err: any) {
-        console.error('Post-login profile check failed:', err);
-        toast({
-          title: 'Erreur',
-          description: err?.message ?? "Impossible de vérifier l'accès utilisateur.",
-          variant: 'destructive',
-        });
-        await supabase.auth.signOut();
-      } finally {
-        setIsPostLoginChecking(false);
-      }
+      toast({
+        title: 'Connexion réussie',
+        description: 'Bienvenue sur TaskFlow !',
+      });
     }
 
     setIsSubmitting(false);
@@ -174,22 +117,6 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
-      <AlertDialog open={showUnknownEmailOverlay} onOpenChange={() => {}}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Accès refusé</AlertDialogTitle>
-            <AlertDialogDescription>
-              L&apos;email n&apos;existe pas dans la base de données.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setShowUnknownEmailOverlay(false)}>
-              Compris
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       <div className="w-full max-w-md space-y-6">
         {/* Logo */}
         <div className="flex flex-col items-center gap-2">
