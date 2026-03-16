@@ -116,7 +116,7 @@ export function usePendingAssignments(): UsePendingAssignmentsResult {
       console.error('Error fetching tasks to assign:', error);
       toast({
         title: 'Erreur',
-        description: 'Impossible de charger les tâches à affecter',
+        description: 'Impossible de charger les tâches à affecter PendingAssignments.ts',
         variant: 'destructive',
       });
     } finally {

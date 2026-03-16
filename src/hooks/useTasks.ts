@@ -111,7 +111,7 @@ export function useTasks(externalScope?: TaskScope) {
       console.error('Error fetching tasks:', error);
       toast({
         title: 'Erreur',
-        description: 'Impossible de charger les tâches',
+        description: 'Impossible de charger les tâches useTasks.ts',
         variant: 'destructive',
       });
     } else {

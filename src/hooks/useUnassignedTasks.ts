@@ -45,7 +45,7 @@ export function useUnassignedTasks(): UseUnassignedTasksResult {
       console.error('Error fetching unassigned tasks:', error);
       toast({
         title: 'Erreur',
-        description: 'Impossible de charger les tâches à affecter',
+        description: 'Impossible de charger les tâches à affecter useUnassignedTasks.ts',
         variant: 'destructive',
       });
     } finally {
