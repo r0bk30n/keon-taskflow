@@ -7,31 +7,48 @@ export const INNOVATION_PROCESS_ID = 'a1b2c3d4-0000-4000-a000-000000000001';
 export const ENTITES = ['NASKEO', 'KEON.BIO', 'TEIKEI', 'SYCOMORE', 'KEON', 'CAPCOO', 'INTERFILIALE', 'GECO2', 'EXTERNE'] as const;
 
 export const THEMES = [
-  'PROCESS PRODUCTION',
   'INTRANTS',
+  'PROCESS PRODUCTION',
   'PROCESS VALORISATION BIOGAZ',
   'PROCESS VALORISATION DIGESTAT',
+  'SUPPORT ET FONCTIONS TRANSVERSES',
 ] as const;
 
 export const SOUS_THEMES: Record<string, string[]> = {
-  'PROCESS PRODUCTION': [
-    'Process méthanisation',
-    'Efficacité énergétique et auto-production',
-    'Préparation intrants',
-  ],
   'INTRANTS': [
+    'Nouveaux intrants',
     'Productions végétales',
     'Productions animales',
-    'Nouveaux intrants',
     'Stockage et manutention',
+    'Autre',
+  ],
+  'PROCESS PRODUCTION': [
+    'Préparation intrants',
+    'Pilotage, maintenance et exploitation',
+    'Efficacité énergétique et auto-production',
+    'Process méthanisation',
+    'Lots périphériques',
+    'Autre',
   ],
   'PROCESS VALORISATION BIOGAZ': [
+    'Epuration biogaz',
     'Valorisation offgaz',
+    'Efficacité énergétique',
     'Valorisation biométhane',
+    'Autre',
   ],
   'PROCESS VALORISATION DIGESTAT': [
+    'Logistique et épandage',
     'Amélioration des propriétés / qualité',
     'Nouvelles valorisations',
+    'Stockage et manutention',
+    'Autre',
+  ],
+  'SUPPORT ET FONCTIONS TRANSVERSES': [
+    "Pilotage de l'entreprise",
+    'RH',
+    'Communication et concertation',
+    'Autre',
   ],
 };
 
