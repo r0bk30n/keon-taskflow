@@ -11,6 +11,7 @@ import { ForcePasswordChange } from "@/components/auth/ForcePasswordChange";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
+import ResetPassword from "./pages/ResetPassword";
 import Profile from "./pages/Profile";
 import Templates from "./pages/Templates";
 import ProcessSettings from "./pages/ProcessSettings";
@@ -64,6 +65,7 @@ const App = () => (
             <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
             <Route
               path="/"
               element={
