@@ -1253,79 +1253,109 @@ export type Database = {
       inno_demandes: {
         Row: {
           audit_log: Json | null
+          capex_investissement: number | null
           challenge_inno: string | null
           code_projet: string
           commentaire_demande: string | null
+          commentaire_projet: string | null
+          commentaires_financiers: string | null
           created_at: string
           date_debut: string | null
           date_fin_previsionnelle: string | null
           demandeur_id: string
           descriptif: string
           difficulte_complexite: number | null
+          ebitda_retour_financier: number | null
           entite_concernee: string
           etat_projet: string | null
           etiquettes: string[] | null
+          gain_attendu: string | null
           id: string
           livrable_final: string | null
           niveau_strategique: number | null
           nom_projet: string
+          partenaires_identifies: string | null
           priorisation_urgence: string | null
           responsable_projet_id: string | null
+          roi: number | null
           service_porteur_id: string | null
+          sous_theme: string | null
           sponsor: string | null
           statut_demande: string
+          temps_caracteristique: string | null
+          theme: string | null
           updated_at: string
           usage: string
         }
         Insert: {
           audit_log?: Json | null
+          capex_investissement?: number | null
           challenge_inno?: string | null
           code_projet: string
           commentaire_demande?: string | null
+          commentaire_projet?: string | null
+          commentaires_financiers?: string | null
           created_at?: string
           date_debut?: string | null
           date_fin_previsionnelle?: string | null
           demandeur_id: string
           descriptif: string
           difficulte_complexite?: number | null
+          ebitda_retour_financier?: number | null
           entite_concernee: string
           etat_projet?: string | null
           etiquettes?: string[] | null
+          gain_attendu?: string | null
           id?: string
           livrable_final?: string | null
           niveau_strategique?: number | null
           nom_projet: string
+          partenaires_identifies?: string | null
           priorisation_urgence?: string | null
           responsable_projet_id?: string | null
+          roi?: number | null
           service_porteur_id?: string | null
+          sous_theme?: string | null
           sponsor?: string | null
           statut_demande?: string
+          temps_caracteristique?: string | null
+          theme?: string | null
           updated_at?: string
           usage: string
         }
         Update: {
           audit_log?: Json | null
+          capex_investissement?: number | null
           challenge_inno?: string | null
           code_projet?: string
           commentaire_demande?: string | null
+          commentaire_projet?: string | null
+          commentaires_financiers?: string | null
           created_at?: string
           date_debut?: string | null
           date_fin_previsionnelle?: string | null
           demandeur_id?: string
           descriptif?: string
           difficulte_complexite?: number | null
+          ebitda_retour_financier?: number | null
           entite_concernee?: string
           etat_projet?: string | null
           etiquettes?: string[] | null
+          gain_attendu?: string | null
           id?: string
           livrable_final?: string | null
           niveau_strategique?: number | null
           nom_projet?: string
+          partenaires_identifies?: string | null
           priorisation_urgence?: string | null
           responsable_projet_id?: string | null
+          roi?: number | null
           service_porteur_id?: string | null
+          sous_theme?: string | null
           sponsor?: string | null
           statut_demande?: string
+          temps_caracteristique?: string | null
+          theme?: string | null
           updated_at?: string
           usage?: string
         }

@@ -8,27 +8,38 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useInnoCodeProjetOptions, useInnoUsageOptions, useInnoEtiquetteSuggestions } from '@/hooks/useInnoOptions';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MultiSearchableSelect } from '@/components/ui/multi-searchable-select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Lightbulb, Send } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { toast } from 'sonner';
-
-const ENTITES = ['NASKEO', 'KEON.BIO', 'TEIKEI', 'SYCOMORE', 'KEON', 'CAPCOO', 'INTERFILIALE', 'GECO2', 'EXTERNE'] as const;
+import { ENTITES, THEMES, SOUS_THEMES } from '@/components/innovation/constants';
 
 const schema = z.object({
   nom_projet: z.string().min(1, 'Requis').max(200),
   code_projet: z.string().min(1, 'Requis'),
+  theme: z.string().min(1, 'Requis'),
+  sous_theme: z.string().min(1, 'Requis'),
   descriptif: z.string().min(1, 'Requis').max(5000),
   commentaire_demande: z.string().max(5000).optional(),
+  gain_attendu: z.string().min(1, 'Requis').max(1000),
+  partenaires_identifies: z.string().max(1000).optional(),
   entite_concernee: z.string().min(1, 'Requis'),
   usage: z.string().min(1, 'Requis'),
+  ebitda_retour_financier: z.coerce.number().optional(),
+  capex_investissement: z.coerce.number().optional(),
+  roi: z.coerce.number().optional(),
+  commentaires_financiers: z.string().max(5000).optional(),
+  temps_caracteristique: z.string().max(200).optional(),
+  difficulte_complexite: z.coerce.number().min(1).max(10).optional(),
+  niveau_strategique: z.coerce.number().min(1).max(10).optional(),
   etiquettes: z.array(z.string()).default([]),
   sponsor: z.string().max(200).optional(),
+  commentaire_projet: z.string().max(5000).optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -46,14 +57,29 @@ export default function InnovationNew() {
     defaultValues: {
       nom_projet: '',
       code_projet: '',
+      theme: '',
+      sous_theme: '',
       descriptif: '',
       commentaire_demande: '',
+      gain_attendu: '',
+      partenaires_identifies: '',
       entite_concernee: profile?.company || '',
       usage: '',
+      ebitda_retour_financier: undefined,
+      capex_investissement: undefined,
+      roi: undefined,
+      commentaires_financiers: '',
+      temps_caracteristique: '',
+      difficulte_complexite: undefined,
+      niveau_strategique: undefined,
       etiquettes: [],
       sponsor: '',
+      commentaire_projet: '',
     },
   });
+
+  const selectedTheme = form.watch('theme');
+  const availableSousThemes = selectedTheme ? (SOUS_THEMES[selectedTheme] || []) : [];
 
   const onSubmit = async (values: FormValues) => {
     if (!profile?.id) {
@@ -65,13 +91,25 @@ export default function InnovationNew() {
       const { error } = await supabase.from('inno_demandes').insert({
         nom_projet: values.nom_projet,
         code_projet: values.code_projet,
+        theme: values.theme,
+        sous_theme: values.sous_theme,
         descriptif: values.descriptif,
         commentaire_demande: values.commentaire_demande || null,
         demandeur_id: profile.id,
+        gain_attendu: values.gain_attendu,
+        partenaires_identifies: values.partenaires_identifies || null,
         entite_concernee: values.entite_concernee,
         usage: values.usage,
+        ebitda_retour_financier: values.ebitda_retour_financier || null,
+        capex_investissement: values.capex_investissement || null,
+        roi: values.roi || null,
+        commentaires_financiers: values.commentaires_financiers || null,
+        temps_caracteristique: values.temps_caracteristique || null,
+        difficulte_complexite: values.difficulte_complexite || null,
+        niveau_strategique: values.niveau_strategique || null,
         etiquettes: values.etiquettes,
         sponsor: values.sponsor || null,
+        commentaire_projet: values.commentaire_projet || null,
         audit_log: [{ action: 'Demande soumise', by: profile.display_name, at: new Date().toISOString() }],
       } as any);
       if (error) throw error;
@@ -102,109 +140,248 @@ export default function InnovationNew() {
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField control={form.control} name="nom_projet" render={({ field }) => (
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                {/* Section 1: Identification */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Identification</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="nom_projet" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sujet / Nom du projet *</FormLabel>
+                        <FormControl><Input placeholder="Nom du projet" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="code_projet" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Code projet *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {(codeOptions || []).map(opt => (
+                              <SelectItem key={opt.code} value={opt.code}>{opt.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="theme" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Thème *</FormLabel>
+                        <Select onValueChange={(v) => { field.onChange(v); form.setValue('sous_theme', ''); }} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {THEMES.map(t => (
+                              <SelectItem key={t} value={t}>{t}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="sous_theme" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sous-thème *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={!selectedTheme}>
+                          <FormControl>
+                            <SelectTrigger><SelectValue placeholder={selectedTheme ? 'Sélectionner...' : 'Choisir un thème d\'abord'} /></SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {availableSousThemes.map(st => (
+                              <SelectItem key={st} value={st}>{st}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                </div>
+
+                {/* Section 2: Description */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Description</h3>
+                  <FormField control={form.control} name="descriptif" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nom du projet *</FormLabel>
-                      <FormControl><Input placeholder="Nom du projet" {...field} /></FormControl>
+                      <FormLabel>Descriptif *</FormLabel>
+                      <FormControl><Textarea rows={4} placeholder="Décrivez votre projet innovant..." {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
-
-                  <FormField control={form.control} name="code_projet" render={({ field }) => (
+                  <FormField control={form.control} name="commentaire_demande" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Code projet *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {(codeOptions || []).map(opt => (
-                            <SelectItem key={opt.code} value={opt.code}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Commentaire demande</FormLabel>
+                      <FormControl><Textarea rows={2} placeholder="Commentaire optionnel..." {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="gain_attendu" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Gain attendu *</FormLabel>
+                        <FormControl><Input placeholder="Ex: Augmentation de la production de méthane" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="partenaires_identifies" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Partenaire(s) identifié(s)</FormLabel>
+                        <FormControl><Input placeholder="Ex: Tietjen, SONITO..." {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                </div>
+
+                {/* Section 3: Contexte */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Contexte</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="entite_concernee" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Entité concernée *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {ENTITES.map(e => (
+                              <SelectItem key={e} value={e}>{e}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="usage" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Usage *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {(usageOptions || []).map(opt => (
+                              <SelectItem key={opt.code} value={opt.code}>{opt.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                </div>
+
+                {/* Section 4: Données financières */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Données financières</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField control={form.control} name="ebitda_retour_financier" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>EBITDA (€/an)</FormLabel>
+                        <FormDescription className="text-xs">Retour financier attendu, site 40GWh</FormDescription>
+                        <FormControl><Input type="number" placeholder="0" {...field} value={field.value ?? ''} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="capex_investissement" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>CAPEX (€)</FormLabel>
+                        <FormDescription className="text-xs">Investissement financier attendu, site 40GWh</FormDescription>
+                        <FormControl><Input type="number" placeholder="0" {...field} value={field.value ?? ''} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="roi" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>ROI</FormLabel>
+                        <FormControl><Input type="number" step="0.1" placeholder="0.0" {...field} value={field.value ?? ''} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                  <FormField control={form.control} name="commentaires_financiers" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Commentaires sur retours financiers</FormLabel>
+                      <FormControl><Textarea rows={2} placeholder="Détails sur les hypothèses financières..." {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
                 </div>
 
-                <FormField control={form.control} name="descriptif" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Descriptif *</FormLabel>
-                    <FormControl><Textarea rows={4} placeholder="Décrivez votre projet innovant..." {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                <FormField control={form.control} name="commentaire_demande" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Commentaire</FormLabel>
-                    <FormControl><Textarea rows={2} placeholder="Commentaire optionnel..." {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField control={form.control} name="entite_concernee" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Entité concernée *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {ENTITES.map(e => (
-                            <SelectItem key={e} value={e}>{e}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-
-                  <FormField control={form.control} name="usage" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Usage *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {(usageOptions || []).map(opt => (
-                            <SelectItem key={opt.code} value={opt.code}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
+                {/* Section 5: Évaluation */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Évaluation</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField control={form.control} name="temps_caracteristique" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Temps caractéristique</FormLabel>
+                        <FormDescription className="text-xs">Du lancement à 1ère preuve industrielle</FormDescription>
+                        <FormControl><Input placeholder="Ex: 1 an, 6 mois..." {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="difficulte_complexite" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Difficulté / Complexité</FormLabel>
+                        <FormDescription className="text-xs">1=très facile, 5=faisabilité technique, 10=invention</FormDescription>
+                        <FormControl><Input type="number" min={1} max={10} placeholder="1-10" {...field} value={field.value ?? ''} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="niveau_strategique" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Niveau stratégique KEON</FormLabel>
+                        <FormDescription className="text-xs">1=facultatif, 5=enjeux modérés, 10=enjeu vital</FormDescription>
+                        <FormControl><Input type="number" min={1} max={10} placeholder="1-10" {...field} value={field.value ?? ''} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
                 </div>
 
-                <FormField control={form.control} name="etiquettes" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Étiquettes</FormLabel>
-                    <FormControl>
-                      <MultiSearchableSelect
-                        values={field.value}
-                        onValuesChange={field.onChange}
-                        options={etiquetteOptions}
-                        placeholder="Ajouter des étiquettes..."
-                        searchPlaceholder="Rechercher ou ajouter..."
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                <FormField control={form.control} name="sponsor" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Sponsor</FormLabel>
-                    <FormControl><Input placeholder="Nom du sponsor (optionnel)" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                {/* Section 6: Métadonnées */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Métadonnées</h3>
+                  <FormField control={form.control} name="etiquettes" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Étiquettes</FormLabel>
+                      <FormControl>
+                        <MultiSearchableSelect
+                          values={field.value}
+                          onValuesChange={field.onChange}
+                          options={etiquetteOptions}
+                          placeholder="Ajouter des étiquettes..."
+                          searchPlaceholder="Rechercher ou ajouter..."
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="sponsor" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sponsor</FormLabel>
+                        <FormControl><Input placeholder="Nom du sponsor (optionnel)" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="commentaire_projet" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Commentaire sur le projet</FormLabel>
+                        <FormControl><Input placeholder="Commentaire optionnel..." {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                </div>
 
                 <div className="flex justify-end gap-3 pt-4">
                   <Button type="button" variant="outline" onClick={() => navigate('/innovation')}>
