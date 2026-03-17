@@ -36,13 +36,14 @@ export const SOUS_THEMES: Record<string, string[]> = {
 };
 
 export const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  todo: { label: 'Soumise', color: 'hsl(210 80% 55%)' },
-  'in-progress': { label: 'En instruction', color: 'hsl(40 90% 50%)' },
-  pending_validation_1: { label: 'En validation', color: 'hsl(270 60% 55%)' },
-  validated: { label: 'Validée', color: 'hsl(140 60% 45%)' },
-  refused: { label: 'Refusée', color: 'hsl(0 70% 50%)' },
-  done: { label: 'Terminée', color: 'hsl(140 70% 40%)' },
-  cancelled: { label: 'Annulée', color: 'hsl(0 0% 60%)' },
+  'Soumise':           { label: 'Soumise',           color: 'hsl(210 80% 55%)' },
+  'En instruction':    { label: 'En instruction',    color: 'hsl(40 90% 50%)' },
+  'Préparation CODIR': { label: 'Préparation CODIR', color: 'hsl(270 60% 55%)' },
+  'Arbitrage CODIR':   { label: 'Arbitrage CODIR',   color: 'hsl(25 85% 52%)' },
+  'Validée':           { label: 'Validée',           color: 'hsl(140 60% 45%)' },
+  'Refusée':           { label: 'Refusée',           color: 'hsl(0 70% 50%)' },
+  'En attente info':   { label: 'En attente info',   color: 'hsl(55 85% 45%)' },
+  'Annulée':           { label: 'Annulée',           color: 'hsl(0 0% 60%)' },
 };
 
 export const GROUPING_FIELDS = [
