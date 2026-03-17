@@ -112,7 +112,7 @@ export function InnoFiltersBar({ filters, onChange, distinctValues }: Props) {
         </PopoverContent>
       </Popover>
 
-      {(filters.search || filters.status !== 'all' || filters.entite !== 'all' || filters.codeProjet !== 'all' || filters.usage !== 'all' || filters.dateFrom || filters.dateTo) && (
+      {(filters.search || filters.status !== 'all' || filters.entite !== 'all' || filters.codeProjet !== 'all' || filters.usage !== 'all' || filters.theme !== 'all' || filters.dateFrom || filters.dateTo) && (
         <Button
           variant="ghost"
           size="sm"
