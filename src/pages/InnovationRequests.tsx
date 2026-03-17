@@ -63,8 +63,7 @@ export default function InnovationRequests() {
         </div>
 
         {/* Filters + view toggle */}
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <InnoFiltersBar filters={filters} onChange={setFilters} distinctValues={distinctValues} />
+        <div className="flex items-center gap-4 flex-wrap">
           <ToggleGroup type="single" value={viewMode} onValueChange={v => v && setViewMode(v as 'table' | 'mindmap')}>
             <ToggleGroupItem value="table" aria-label="Vue table" className="gap-1">
               <TableIcon className="w-4 h-4" /> Table
@@ -73,6 +72,7 @@ export default function InnovationRequests() {
               <GitBranchPlus className="w-4 h-4" /> Mind Map
             </ToggleGroupItem>
           </ToggleGroup>
+          <InnoFiltersBar filters={filters} onChange={setFilters} distinctValues={distinctValues} />
         </div>
 
         {/* Content */}
