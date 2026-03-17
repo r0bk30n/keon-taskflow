@@ -17,6 +17,7 @@ interface Props {
     entites: string[];
     codeProjets: string[];
     usages: string[];
+    themes: string[];
   };
 }
 
@@ -67,6 +68,15 @@ export function InnoFiltersBar({ filters, onChange, distinctValues }: Props) {
           ))}
         </SelectContent>
       </Select>
+      <Select value={filters.theme || 'all'} onValueChange={v => set({ theme: v })}>
+        <SelectTrigger className="w-44"><SelectValue placeholder="Thème" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Tous thèmes</SelectItem>
+          {distinctValues.themes.map(t => (
+            <SelectItem key={t} value={t}>{t}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
       {/* Date range */}
       <Popover>
@@ -102,7 +112,7 @@ export function InnoFiltersBar({ filters, onChange, distinctValues }: Props) {
         </PopoverContent>
       </Popover>
 
-      {(filters.search || filters.status !== 'all' || filters.entite !== 'all' || filters.codeProjet !== 'all' || filters.usage !== 'all' || filters.dateFrom || filters.dateTo) && (
+      {(filters.search || filters.status !== 'all' || filters.entite !== 'all' || filters.codeProjet !== 'all' || filters.usage !== 'all' || filters.theme !== 'all' || filters.dateFrom || filters.dateTo) && (
         <Button
           variant="ghost"
           size="sm"
