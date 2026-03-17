@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, memo } from 'react';
 import {
   ReactFlow,
   Background,
@@ -11,12 +11,12 @@ import {
   Panel,
   useReactFlow,
   ReactFlowProvider,
+  Handle,
+  Position,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Maximize2, ChevronRight } from 'lucide-react';
 import { STATUS_CONFIG, GROUPING_FIELDS, type InnoRequest, type GroupingField } from './constants';
 
@@ -27,12 +27,9 @@ interface Props {
 
 const CLUSTER_LIMIT = 15;
 
-const LEVEL_COLORS = [
-  'hsl(var(--primary))',
-  'hsl(210 70% 55%)',
-  'hsl(270 55% 55%)',
-  'hsl(160 55% 45%)',
-  'hsl(30 80% 55%)',
+const GROUP_PALETTE = [
+  '#6366f1', '#f59e0b', '#10b981', '#ef4444',
+  '#8b5cf6', '#06b6d4', '#f97316', '#ec4899',
 ];
 
 function getFieldValue(req: InnoRequest, field: GroupingField): string {
@@ -40,12 +37,189 @@ function getFieldValue(req: InnoRequest, field: GroupingField): string {
   return (req[field] as string) || '(vide)';
 }
 
-function getRawFieldValue(req: InnoRequest, field: GroupingField): string {
-  if (field === 'status') return req.status;
-  return (req[field] as string) || '';
+function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
+  const rad = (angleDeg - 90) * (Math.PI / 180);
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
 }
 
-function buildGraph(
+// ── Custom Node Components ──
+
+const RootNode = memo(({ data }: { data: any }) => (
+  <div
+    style={{
+      width: 100,
+      height: 100,
+      borderRadius: '50%',
+      background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#fff',
+      boxShadow: '0 8px 32px rgba(99,102,241,0.4)',
+      border: '2.5px solid rgba(255,255,255,0.7)',
+    }}
+  >
+    <span style={{ fontSize: 13, fontWeight: 700 }}>Innovation</span>
+    <span style={{ fontSize: 11, opacity: 0.85 }}>{data.count} demandes</span>
+    <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
+    <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
+    <Handle type="source" position={Position.Left} style={{ opacity: 0 }} />
+    <Handle type="source" position={Position.Top} style={{ opacity: 0 }} />
+  </div>
+));
+RootNode.displayName = 'RootNode';
+
+const GroupNode = memo(({ data }: { data: any }) => {
+  const color = GROUP_PALETTE[data.colorIndex % GROUP_PALETTE.length];
+  return (
+    <div
+      style={{
+        borderRadius: 999,
+        padding: '8px 18px',
+        background: data.isActive ? `${color}dd` : `${color}1a`,
+        backdropFilter: 'blur(8px)',
+        border: `1.5px solid ${color}`,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        cursor: 'pointer',
+        transition: 'transform 150ms ease, box-shadow 150ms ease',
+        boxShadow: `0 2px 12px ${color}30`,
+        whiteSpace: 'nowrap' as const,
+      }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.06)'; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+    >
+      <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
+      <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
+      <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
+      <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
+      <span style={{ fontSize: 12, fontWeight: 600, color: data.isActive ? '#fff' : color }}>
+        {data.label}
+      </span>
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          color: '#fff',
+          background: color,
+          borderRadius: 999,
+          padding: '1px 7px',
+          lineHeight: '16px',
+        }}
+      >
+        {data.count}
+      </span>
+    </div>
+  );
+});
+GroupNode.displayName = 'GroupNode';
+
+const SubGroupNode = memo(({ data }: { data: any }) => {
+  const color = GROUP_PALETTE[data.colorIndex % GROUP_PALETTE.length];
+  return (
+    <div
+      style={{
+        borderRadius: 999,
+        padding: '5px 14px',
+        background: 'rgba(255,255,255,0.06)',
+        backdropFilter: 'blur(6px)',
+        border: `1px solid ${color}60`,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        cursor: 'pointer',
+        transition: 'transform 150ms ease',
+        whiteSpace: 'nowrap' as const,
+      }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+    >
+      <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
+      <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
+      <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
+      <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
+      <span style={{ fontSize: 11, fontWeight: 500, color: `${color}` }}>{data.label}</span>
+      <span
+        style={{
+          fontSize: 9,
+          fontWeight: 700,
+          color: '#fff',
+          background: `${color}aa`,
+          borderRadius: 999,
+          padding: '1px 6px',
+        }}
+      >
+        {data.count}
+      </span>
+    </div>
+  );
+});
+SubGroupNode.displayName = 'SubGroupNode';
+
+const LeafNode = memo(({ data }: { data: any }) => {
+  const statusColor = STATUS_CONFIG[data.status]?.color || '#888';
+  return (
+    <div
+      style={{
+        borderRadius: 999,
+        padding: '4px 12px',
+        background: `${statusColor}22`,
+        border: `1px solid ${statusColor}`,
+        cursor: 'pointer',
+        maxWidth: 150,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap' as const,
+        fontSize: 10,
+        fontWeight: 500,
+        color: statusColor,
+        transition: 'background 150ms ease',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.background = `${statusColor}55`; }}
+      onMouseLeave={e => { e.currentTarget.style.background = `${statusColor}22`; }}
+    >
+      <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
+      <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
+      {data.label}
+    </div>
+  );
+});
+LeafNode.displayName = 'LeafNode';
+
+const ClusterNode = memo(({ data }: { data: any }) => (
+  <div
+    style={{
+      width: 48,
+      height: 48,
+      borderRadius: '50%',
+      border: '1.5px dashed rgba(150,150,150,0.4)',
+      background: 'rgba(255,255,255,0.06)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: 10,
+      color: '#999',
+    }}
+  >
+    <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
+    +{data.count}
+  </div>
+));
+ClusterNode.displayName = 'ClusterNode';
+
+const nodeTypes = {
+  rootNode: RootNode,
+  groupNode: GroupNode,
+  subGroupNode: SubGroupNode,
+  leafNode: LeafNode,
+  clusterNode: ClusterNode,
+};
+
+// ── Radial Graph Builder ──
+
+function buildRadialGraph(
   requests: InnoRequest[],
   groupBy: GroupingField,
   subGroupBy: GroupingField | null,
@@ -53,32 +227,15 @@ function buildGraph(
 ): { nodes: Node[]; edges: Edge[] } {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
+  const CX = 0, CY = 0;
 
-  const rootId = 'root';
   nodes.push({
-    id: rootId,
-    position: { x: 0, y: 0 },
-    data: {
-      label: `Demandes Innovation (${requests.length})`,
-      count: requests.length,
-      level: 0,
-      isRoot: true,
-    },
-    type: 'default',
-    style: {
-      background: LEVEL_COLORS[0],
-      color: '#fff',
-      borderRadius: 12,
-      padding: '12px 20px',
-      fontWeight: 700,
-      fontSize: 14,
-      border: 'none',
-      minWidth: 200,
-      textAlign: 'center' as const,
-    },
+    id: 'root',
+    position: { x: CX - 50, y: CY - 50 },
+    type: 'rootNode',
+    data: { label: 'Innovation', count: requests.length, isRoot: true },
   });
 
-  // Group by level 1
   const groups = new Map<string, InnoRequest[]>();
   requests.forEach(r => {
     const key = getFieldValue(r, groupBy);
@@ -88,183 +245,177 @@ function buildGraph(
 
   const groupEntries = [...groups.entries()].sort((a, b) => b[1].length - a[1].length);
   const drillLevel1 = drillPath[0];
-  const filteredGroups = drillLevel1 ? groupEntries.filter(([k]) => k === drillLevel1) : groupEntries;
+  const filteredGroups = drillLevel1
+    ? groupEntries.filter(([k]) => k === drillLevel1)
+    : groupEntries;
 
-  const l1Spacing = 220;
-  const l1StartX = -(filteredGroups.length - 1) * l1Spacing / 2;
+  const R1 = 280;
+  const R2 = 520;
+  const R3 = 720;
+  const totalGroups = filteredGroups.length;
 
-  filteredGroups.forEach(([groupLabel, groupReqs], gi) => {
-    const gId = `g1-${gi}`;
-    const gx = l1StartX + gi * l1Spacing;
-    const gy = 140;
+  filteredGroups.forEach(([groupKey, groupReqs], gi) => {
+    const angle1 = totalGroups === 1 ? 0 : (gi / totalGroups) * 360;
+    const pos1 = polarToCartesian(CX, CY, R1, angle1);
+    const gId = `g-${gi}`;
 
     nodes.push({
       id: gId,
-      position: { x: gx, y: gy },
-      data: { label: `${groupLabel} (${groupReqs.length})`, count: groupReqs.length, level: 1, groupKey: groupLabel },
-      style: {
-        background: LEVEL_COLORS[1],
-        color: '#fff',
-        borderRadius: 10,
-        padding: '10px 16px',
-        fontWeight: 600,
-        fontSize: 12,
-        border: 'none',
-        cursor: 'pointer',
-        minWidth: 140,
-        textAlign: 'center' as const,
+      position: { x: pos1.x - 60, y: pos1.y - 20 },
+      type: 'groupNode',
+      data: {
+        label: groupKey,
+        count: groupReqs.length,
+        level: 1,
+        groupKey,
+        colorIndex: gi,
+        isActive: !!drillLevel1,
       },
     });
-    edges.push({ id: `e-root-${gId}`, source: rootId, target: gId, style: { stroke: LEVEL_COLORS[1], strokeWidth: 2 } });
+    edges.push({
+      id: `e-root-${gId}`,
+      source: 'root',
+      target: gId,
+      type: 'smoothstep',
+      style: { stroke: GROUP_PALETTE[gi % GROUP_PALETTE.length], strokeWidth: 2, opacity: 0.6 },
+    });
 
-    // Sub-group or leaf
+    // If not drilled and has subGroupBy, don't expand further
+    if (subGroupBy && !drillLevel1) return;
+
     if (subGroupBy) {
       const subGroups = new Map<string, InnoRequest[]>();
       groupReqs.forEach(r => {
-        const key = getFieldValue(r, subGroupBy);
-        if (!subGroups.has(key)) subGroups.set(key, []);
-        subGroups.get(key)!.push(r);
+        const sk = getFieldValue(r, subGroupBy);
+        if (!subGroups.has(sk)) subGroups.set(sk, []);
+        subGroups.get(sk)!.push(r);
       });
-
       const subEntries = [...subGroups.entries()].sort((a, b) => b[1].length - a[1].length);
       const drillLevel2 = drillPath[1];
       const filteredSubs = drillLevel2 ? subEntries.filter(([k]) => k === drillLevel2) : subEntries;
-      const l2Spacing = 180;
-      const l2StartX = gx - (filteredSubs.length - 1) * l2Spacing / 2;
 
-      filteredSubs.forEach(([subLabel, subReqs], si) => {
-        const sId = `g2-${gi}-${si}`;
-        const sx = l2StartX + si * l2Spacing;
-        const sy = gy + 130;
+      filteredSubs.forEach(([subKey, subReqs], si) => {
+        const spreadAngle = Math.min(120, 360 / Math.max(totalGroups, 1));
+        const startAngle = angle1 - spreadAngle / 2;
+        const angle2 = filteredSubs.length === 1
+          ? angle1
+          : startAngle + (si / (filteredSubs.length - 1)) * spreadAngle;
+        const pos2 = polarToCartesian(CX, CY, R2, angle2);
+        const sgId = `sg-${gi}-${si}`;
 
         nodes.push({
-          id: sId,
-          position: { x: sx, y: sy },
-          data: { label: `${subLabel} (${subReqs.length})`, count: subReqs.length, level: 2, groupKey: subLabel },
-          style: {
-            background: LEVEL_COLORS[2],
-            color: '#fff',
-            borderRadius: 8,
-            padding: '8px 14px',
-            fontWeight: 500,
-            fontSize: 11,
-            border: 'none',
-            cursor: 'pointer',
-            minWidth: 120,
-            textAlign: 'center' as const,
-          },
+          id: sgId,
+          position: { x: pos2.x - 55, y: pos2.y - 16 },
+          type: 'subGroupNode',
+          data: { label: subKey, count: subReqs.length, level: 2, groupKey: subKey, colorIndex: gi },
         });
-        edges.push({ id: `e-${gId}-${sId}`, source: gId, target: sId, style: { stroke: LEVEL_COLORS[2], strokeWidth: 1.5 } });
-
-        // Leaf nodes
-        const leafReqs = subReqs.length > CLUSTER_LIMIT ? subReqs.slice(0, CLUSTER_LIMIT) : subReqs;
-        const showCluster = subReqs.length > CLUSTER_LIMIT;
-        const leafSpacing = 160;
-        const leafStartX = sx - (leafReqs.length + (showCluster ? 1 : 0) - 1) * leafSpacing / 2;
-
-        leafReqs.forEach((r, ri) => {
-          const nId = `leaf-${r.id}`;
-          nodes.push({
-            id: nId,
-            position: { x: leafStartX + ri * leafSpacing, y: sy + 120 },
-            data: { label: r.nom_projet || r.title, requestId: r.id, level: 3, status: r.status },
-            style: {
-              background: STATUS_CONFIG[r.status]?.color || '#888',
-              color: '#fff',
-              borderRadius: 6,
-              padding: '6px 12px',
-              fontSize: 10,
-              fontWeight: 500,
-              border: 'none',
-              cursor: 'pointer',
-              maxWidth: 150,
-              whiteSpace: 'nowrap' as const,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              textAlign: 'center' as const,
-            },
-          });
-          edges.push({ id: `e-${sId}-${nId}`, source: sId, target: nId, style: { stroke: '#ccc', strokeWidth: 1 } });
+        edges.push({
+          id: `e-${gId}-${sgId}`,
+          source: gId,
+          target: sgId,
+          type: 'smoothstep',
+          style: { stroke: GROUP_PALETTE[gi % GROUP_PALETTE.length], strokeWidth: 1.5, opacity: 0.4 },
         });
 
-        if (showCluster) {
-          const clusterId = `cluster-${gi}-${si}`;
-          nodes.push({
-            id: clusterId,
-            position: { x: leafStartX + leafReqs.length * leafSpacing, y: sy + 120 },
-            data: { label: `+${subReqs.length - CLUSTER_LIMIT} demandes`, level: 3, isCluster: true },
-            style: {
-              background: 'hsl(var(--muted))',
-              color: 'hsl(var(--muted-foreground))',
-              borderRadius: 6,
-              padding: '6px 12px',
-              fontSize: 10,
-              fontWeight: 500,
-              border: '1px dashed hsl(var(--border))',
-              cursor: 'default',
-              textAlign: 'center' as const,
-            },
+        // Leaves when drilled to level 2
+        if (drillLevel2 === subKey || !drillLevel2) {
+          const leafReqs = subReqs.slice(0, CLUSTER_LIMIT);
+          const spreadLeaf = Math.min(80, spreadAngle);
+
+          leafReqs.forEach((r, ri) => {
+            const leafAngle = leafReqs.length === 1
+              ? angle2
+              : angle2 - spreadLeaf / 2 + (ri / (leafReqs.length - 1)) * spreadLeaf;
+            const pos3 = polarToCartesian(CX, CY, R3, leafAngle);
+            const leafId = `leaf-${r.id}`;
+            nodes.push({
+              id: leafId,
+              position: { x: pos3.x - 65, y: pos3.y - 14 },
+              type: 'leafNode',
+              data: { label: r.nom_projet || r.title, requestId: r.id, status: r.status, level: 3 },
+            });
+            edges.push({
+              id: `e-${sgId}-${leafId}`,
+              source: sgId,
+              target: leafId,
+              type: 'smoothstep',
+              style: { stroke: STATUS_CONFIG[r.status]?.color || '#888', strokeWidth: 1, opacity: 0.5 },
+            });
           });
-          edges.push({ id: `e-${sId}-${clusterId}`, source: sId, target: clusterId, style: { stroke: '#ccc', strokeWidth: 1, strokeDasharray: '4 4' } });
+
+          if (subReqs.length > CLUSTER_LIMIT) {
+            const clusterAngle = angle2 + spreadLeaf / 2 + 10;
+            const posC = polarToCartesian(CX, CY, R3, clusterAngle);
+            const clusterId = `cluster-${gi}-${si}`;
+            nodes.push({
+              id: clusterId,
+              position: { x: posC.x - 24, y: posC.y - 24 },
+              type: 'clusterNode',
+              data: { label: `+${subReqs.length - CLUSTER_LIMIT}`, count: subReqs.length - CLUSTER_LIMIT, isCluster: true },
+            });
+            edges.push({
+              id: `e-${sgId}-${clusterId}`,
+              source: sgId,
+              target: clusterId,
+              type: 'smoothstep',
+              style: { stroke: '#666', strokeWidth: 1, strokeDasharray: '4 4', opacity: 0.3 },
+            });
+          }
         }
       });
     } else {
-      // No sub-grouping: show leaves directly
-      const leafReqs = groupReqs.length > CLUSTER_LIMIT ? groupReqs.slice(0, CLUSTER_LIMIT) : groupReqs;
-      const showCluster = groupReqs.length > CLUSTER_LIMIT;
-      const leafSpacing = 160;
-      const leafStartX = gx - (leafReqs.length + (showCluster ? 1 : 0) - 1) * leafSpacing / 2;
+      // No sub-grouping: leaves directly when drilled
+      if (drillLevel1 === groupKey) {
+        const leafReqs = groupReqs.slice(0, CLUSTER_LIMIT);
+        const spreadLeaf = 80;
 
-      leafReqs.forEach((r, ri) => {
-        const nId = `leaf-${r.id}`;
-        nodes.push({
-          id: nId,
-          position: { x: leafStartX + ri * leafSpacing, y: gy + 130 },
-          data: { label: r.nom_projet || r.title, requestId: r.id, level: 3, status: r.status },
-          style: {
-            background: STATUS_CONFIG[r.status]?.color || '#888',
-            color: '#fff',
-            borderRadius: 6,
-            padding: '6px 12px',
-            fontSize: 10,
-            fontWeight: 500,
-            border: 'none',
-            cursor: 'pointer',
-            maxWidth: 150,
-            whiteSpace: 'nowrap' as const,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            textAlign: 'center' as const,
-          },
+        leafReqs.forEach((r, ri) => {
+          const leafAngle = leafReqs.length === 1
+            ? angle1
+            : angle1 - spreadLeaf / 2 + (ri / (leafReqs.length - 1)) * spreadLeaf;
+          const pos2 = polarToCartesian(CX, CY, R2, leafAngle);
+          const leafId = `leaf-${r.id}`;
+          nodes.push({
+            id: leafId,
+            position: { x: pos2.x - 65, y: pos2.y - 14 },
+            type: 'leafNode',
+            data: { label: r.nom_projet || r.title, requestId: r.id, status: r.status, level: 3 },
+          });
+          edges.push({
+            id: `e-${gId}-${leafId}`,
+            source: gId,
+            target: leafId,
+            type: 'smoothstep',
+            style: { stroke: STATUS_CONFIG[r.status]?.color || '#888', strokeWidth: 1 },
+          });
         });
-        edges.push({ id: `e-${gId}-${nId}`, source: gId, target: nId, style: { stroke: '#ccc', strokeWidth: 1 } });
-      });
 
-      if (showCluster) {
-        const clusterId = `cluster-${gi}`;
-        nodes.push({
-          id: clusterId,
-          position: { x: leafStartX + leafReqs.length * leafSpacing, y: gy + 130 },
-          data: { label: `+${groupReqs.length - CLUSTER_LIMIT} demandes`, level: 3, isCluster: true },
-          style: {
-            background: 'hsl(var(--muted))',
-            color: 'hsl(var(--muted-foreground))',
-            borderRadius: 6,
-            padding: '6px 12px',
-            fontSize: 10,
-            fontWeight: 500,
-            border: '1px dashed hsl(var(--border))',
-            cursor: 'default',
-            textAlign: 'center' as const,
-          },
-        });
-        edges.push({ id: `e-${gId}-${clusterId}`, source: gId, target: clusterId, style: { stroke: '#ccc', strokeWidth: 1, strokeDasharray: '4 4' } });
+        if (groupReqs.length > CLUSTER_LIMIT) {
+          const clusterAngle = angle1 + spreadLeaf / 2 + 10;
+          const posC = polarToCartesian(CX, CY, R2, clusterAngle);
+          const clusterId = `cluster-${gi}`;
+          nodes.push({
+            id: clusterId,
+            position: { x: posC.x - 24, y: posC.y - 24 },
+            type: 'clusterNode',
+            data: { label: `+${groupReqs.length - CLUSTER_LIMIT}`, count: groupReqs.length - CLUSTER_LIMIT, isCluster: true },
+          });
+          edges.push({
+            id: `e-${gId}-${clusterId}`,
+            source: gId,
+            target: clusterId,
+            type: 'smoothstep',
+            style: { stroke: '#666', strokeWidth: 1, strokeDasharray: '4 4', opacity: 0.3 },
+          });
+        }
       }
     }
   });
 
   return { nodes, edges };
 }
+
+// ── Inner Component ──
 
 function MindMapInner({ requests, onOpenDetail }: Props) {
   const [groupBy, setGroupBy] = useState<GroupingField>('status');
@@ -273,113 +424,127 @@ function MindMapInner({ requests, onOpenDetail }: Props) {
   const { fitView } = useReactFlow();
 
   const { nodes: initialNodes, edges: initialEdges } = useMemo(
-    () => buildGraph(requests, groupBy, subGroupBy, drillPath),
+    () => buildRadialGraph(requests, groupBy, subGroupBy, drillPath),
     [requests, groupBy, subGroupBy, drillPath],
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  // Update nodes/edges when data changes
   useMemo(() => {
     setNodes(initialNodes);
     setEdges(initialEdges);
-    setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 50);
+    setTimeout(() => fitView({ padding: 0.15, duration: 400 }), 50);
   }, [initialNodes, initialEdges]);
 
   const onNodeClick = useCallback((_: any, node: Node) => {
-    const data = node.data as any;
-    if (data.requestId) {
-      onOpenDetail(data.requestId);
-      return;
-    }
-    if (data.isRoot || data.isCluster) return;
-    if (data.level === 1) {
-      setDrillPath([data.groupKey]);
-    } else if (data.level === 2) {
-      setDrillPath(prev => [prev[0] || '', data.groupKey]);
-    }
+    const d = node.data as any;
+    if (d.requestId) { onOpenDetail(d.requestId); return; }
+    if (d.isRoot || d.isCluster) return;
+    if (d.level === 1) setDrillPath([d.groupKey]);
+    else if (d.level === 2) setDrillPath(prev => [prev[0] || '', d.groupKey]);
   }, [onOpenDetail]);
-
-  const breadcrumb = useMemo(() => {
-    const items: { label: string; onClick: () => void }[] = [
-      { label: 'Racine', onClick: () => setDrillPath([]) },
-    ];
-    if (drillPath[0]) {
-      const field1 = GROUPING_FIELDS.find(f => f.value === groupBy)?.label || groupBy;
-      items.push({ label: `${field1}: ${drillPath[0]}`, onClick: () => setDrillPath([drillPath[0]]) });
-    }
-    if (drillPath[1] && subGroupBy) {
-      const field2 = GROUPING_FIELDS.find(f => f.value === subGroupBy)?.label || subGroupBy;
-      items.push({ label: `${field2}: ${drillPath[1]}`, onClick: () => setDrillPath([drillPath[0], drillPath[1]]) });
-    }
-    return items;
-  }, [drillPath, groupBy, subGroupBy]);
 
   const subGroupOptions = GROUPING_FIELDS.filter(f => f.value !== groupBy);
 
   return (
-    <div className="h-[calc(100vh-280px)] min-h-[500px] rounded-lg border bg-background relative">
-      {/* Top controls */}
-      <Panel position="top-left" className="flex flex-wrap items-center gap-2 p-2 bg-background/90 backdrop-blur rounded-lg border shadow-sm m-2">
-        <span className="text-xs font-medium text-muted-foreground">Grouper par :</span>
-        <Select value={groupBy} onValueChange={v => { setGroupBy(v as GroupingField); setDrillPath([]); }}>
-          <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {GROUPING_FIELDS.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <span className="text-xs font-medium text-muted-foreground">Sous-grouper :</span>
-        <Select value={subGroupBy || 'none'} onValueChange={v => { setSubGroupBy(v === 'none' ? null : v as GroupingField); setDrillPath([]); }}>
-          <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">Aucun</SelectItem>
-            {subGroupOptions.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Button variant="outline" size="sm" className="h-8" onClick={() => fitView({ padding: 0.2, duration: 300 })}>
-          <Maximize2 className="w-3.5 h-3.5 mr-1" /> Centrer
-        </Button>
-      </Panel>
-
-      {/* Breadcrumb */}
-      {drillPath.length > 0 && (
-        <Panel position="top-right" className="flex items-center gap-1 p-2 bg-background/90 backdrop-blur rounded-lg border shadow-sm m-2">
-          {breadcrumb.map((item, i) => (
-            <span key={i} className="flex items-center gap-1">
-              {i > 0 && <ChevronRight className="w-3 h-3 text-muted-foreground" />}
-              <button
-                onClick={item.onClick}
-                className="text-xs hover:underline text-primary font-medium"
-              >
-                {item.label}
-              </button>
-            </span>
-          ))}
-        </Panel>
-      )}
-
+    <div className="h-[75vh] w-full relative rounded-xl border border-border overflow-hidden bg-background">
       <ReactFlow
         nodes={nodes}
         edges={edges}
+        nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
         fitView
-        fitViewOptions={{ padding: 0.2 }}
+        fitViewOptions={{ padding: 0.15 }}
         minZoom={0.1}
-        maxZoom={2}
+        maxZoom={3}
         proOptions={{ hideAttribution: true }}
         nodesDraggable={false}
+        className="rounded-xl overflow-hidden"
       >
-        <Background gap={20} size={1} />
+        <Background gap={24} size={1} color="rgba(255,255,255,0.06)" />
         <Controls showInteractive={false} />
         <MiniMap
-          nodeStrokeWidth={3}
+          nodeStrokeWidth={2}
           pannable
           zoomable
-          style={{ width: 120, height: 80 }}
+          style={{ width: 140, height: 90 }}
+          nodeColor={(n: Node) => {
+            const d = n.data as any;
+            if (d.status) return STATUS_CONFIG[d.status]?.color || '#888';
+            if (typeof d.colorIndex === 'number') return GROUP_PALETTE[d.colorIndex % GROUP_PALETTE.length];
+            return '#6366f1';
+          }}
         />
+
+        {/* Controls Panel */}
+        <Panel position="top-left" className="m-3">
+          <div className="flex flex-col gap-2 p-3 rounded-xl border border-border bg-background/80 backdrop-blur-md shadow-xl">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Paramètres</p>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground w-20">Grouper</span>
+              <Select value={groupBy} onValueChange={v => { setGroupBy(v as GroupingField); setDrillPath([]); }}>
+                <SelectTrigger className="h-7 w-36 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {GROUPING_FIELDS.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground w-20">Sous-groupe</span>
+              <Select value={subGroupBy || 'none'} onValueChange={v => { setSubGroupBy(v === 'none' ? null : v as GroupingField); setDrillPath([]); }}>
+                <SelectTrigger className="h-7 w-36 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucun</SelectItem>
+                  {subGroupOptions.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground w-20">Vue</span>
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => fitView({ padding: 0.15, duration: 400 })}>
+                <Maximize2 className="w-3 h-3 mr-1" /> Centrer
+              </Button>
+            </div>
+
+            <div className="mt-1 pt-2 border-t border-border flex flex-col gap-1">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Statuts</p>
+              {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+                <div key={k} className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: v.color }} />
+                  <span className="text-[10px] text-muted-foreground">{v.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Panel>
+
+        {/* Breadcrumb */}
+        {drillPath.length > 0 && (
+          <Panel position="top-right" className="m-3">
+            <div className="flex items-center gap-1 px-3 py-2 rounded-xl border border-border bg-background/80 backdrop-blur-md shadow-lg">
+              <button onClick={() => setDrillPath([])} className="text-xs text-primary hover:underline font-medium">
+                Tout
+              </button>
+              {drillPath.map((seg, i) => (
+                <span key={i} className="flex items-center gap-1">
+                  <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                  <button
+                    onClick={() => setDrillPath(drillPath.slice(0, i + 1))}
+                    className="text-xs text-primary hover:underline font-medium"
+                  >
+                    {seg}
+                  </button>
+                </span>
+              ))}
+            </div>
+          </Panel>
+        )}
       </ReactFlow>
     </div>
   );
