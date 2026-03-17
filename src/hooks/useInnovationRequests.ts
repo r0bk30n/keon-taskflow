@@ -41,6 +41,7 @@ export function useInnovationRequests(filters: InnoFilters) {
       created_at: r.created_at,
       updated_at: r.updated_at,
       requester_name: r.demandeur?.display_name || '-',
+      demandeur_id: r.demandeur_id || '',
       nom_projet: r.nom_projet || '',
       code_projet: r.code_projet || '',
       theme: r.theme || '',
