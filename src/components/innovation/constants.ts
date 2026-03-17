@@ -66,6 +66,7 @@ export interface InnoRequest {
   created_at: string;
   updated_at: string;
   requester_name: string;
+  demandeur_id: string;
   // Custom field values (flattened)
   nom_projet: string;
   code_projet: string;
