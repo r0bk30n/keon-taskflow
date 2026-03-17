@@ -208,7 +208,48 @@ export default function Auth() {
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Se connecter
               </Button>
+
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(true)}
+                className="w-full text-sm text-muted-foreground hover:text-primary transition-colors"
+              >
+                Mot de passe oublié ?
+              </button>
             </form>
+
+            {showForgotPassword && (
+              <div className="mt-4 pt-4 border-t border-border">
+                <form onSubmit={handleForgotPassword} className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Entrez votre adresse email pour recevoir un lien de réinitialisation.
+                  </p>
+                  <Input
+                    type="email"
+                    placeholder="votre@email.com"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    required
+                    disabled={isSendingReset}
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setShowForgotPassword(false)}
+                      disabled={isSendingReset}
+                    >
+                      Annuler
+                    </Button>
+                    <Button type="submit" className="flex-1" disabled={isSendingReset}>
+                      {isSendingReset && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Envoyer
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            )}
           </CardContent>
         </Card>
 
