@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SimulationProvider } from "@/contexts/SimulationContext";
@@ -50,10 +50,7 @@ import ITProjectHubSync from "./pages/it/ITProjectHubSync";
 import ITProjectHubDiscussions from "./pages/it/ITProjectHubDiscussions";
 import ITProjectHubFiles from "./pages/it/ITProjectHubFiles";
 
-const queryClient = new QueryClient();
-
 const App = () => (
-  <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <SimulationProvider>
         <TooltipProvider>
@@ -267,7 +264,6 @@ const App = () => (
         </TooltipProvider>
       </SimulationProvider>
     </AuthProvider>
-  </QueryClientProvider>
 );
 
 export default App;
