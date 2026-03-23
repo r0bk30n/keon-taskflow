@@ -1,17 +1,22 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
-const FALLBACK_BACKEND_URL = "https://xfcgunaxdlhopqlmqdzw.supabase.co";
-const FALLBACK_BACKEND_PUBLISHABLE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmY2d1bmF4ZGxob3BxbG1xZHp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwNDc4NTksImV4cCI6MjA4MzYyMzg1OX0.zkbvdnGpdkZ-SmA7APdEJ3Lg3VCiQaTsfOT_a2aCtvs";
-
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  const backendUrl = process.env.VITE_SUPABASE_URL ?? FALLBACK_BACKEND_URL;
+  // Vite charge implicitement les variables pour l'app (import.meta.env),
+  // mais pour le fichier de config lui-même on sécurise avec loadEnv.
+  const env = loadEnv(mode, process.cwd(), "VITE_");
+  const backendUrl = env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const backendPublishableKey =
-    process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? FALLBACK_BACKEND_PUBLISHABLE_KEY;
+    env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+  if (!backendUrl || !backendPublishableKey) {
+    throw new Error(
+      '[Supabase] VITE_SUPABASE_URL and/or VITE_SUPABASE_PUBLISHABLE_KEY are missing in environment.'
+    );
+  }
 
   return {
     server: {
