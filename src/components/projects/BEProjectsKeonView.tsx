@@ -26,7 +26,7 @@ const STORAGE_KEY = 'spv_widget_layout';
 
 // Default SPV widget configs using the same WidgetConfig shape as main dashboard
 const DEFAULT_SPV_WIDGETS: WidgetConfig[] = [
-  { id: 'kpis', type: 'stats-summary', title: 'KPI Band', size: { w: 4, h: 1 }, position: { x: 0, y: 0 } },
+  { id: 'kpis', type: 'stats-summary', title: 'KPI Band', size: { w: 4, h: 2 }, position: { x: 0, y: 0 } },
   { id: 'map', type: 'bar-chart', title: 'Carte des projets SPV', size: { w: 2, h: 4 }, position: { x: 0, y: 1 } },
   { id: 'typologie', type: 'pie-chart', title: 'Répartition par Typologie', size: { w: 2, h: 4 }, position: { x: 2, y: 1 } },
   { id: 'gisement', type: 'bar-chart', title: 'Gisement par projet', size: { w: 4, h: 4 }, position: { x: 0, y: 5 } },
@@ -63,6 +63,12 @@ const getHeightPresetFromWidget = (widget: WidgetConfig): HeightPreset => {
 };
 
 const getWidgetHeightPx = (widget: WidgetConfig): number => HEIGHT_PRESET_PX[getHeightPresetFromWidget(widget)];
+
+// Pour les widgets en fit-content, la hauteur réelle diffère de HEIGHT_PRESET_PX.
+// Cette valeur est utilisée dans le calcul du grid layout pour éviter les espaces vides.
+const KPI_BAND_AUTO_HEIGHT_PX = 185;
+const getEffectiveHeightPx = (widget: WidgetConfig): number =>
+  widget.id === 'kpis' ? KPI_BAND_AUTO_HEIGHT_PX : getWidgetHeightPx(widget);
 const isFullWidth = (widget: WidgetConfig) => widget.size.w >= 3;
 
 // --- Utility functions ---
@@ -87,7 +93,13 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
   // --- Widget config state (same pattern as ConfigurableDashboard) ---
   const [widgets, setWidgets] = useState<WidgetConfig[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
-    try { return saved ? JSON.parse(saved) : DEFAULT_SPV_WIDGETS; } catch { return DEFAULT_SPV_WIDGETS; }
+    try {
+      const list = saved ? JSON.parse(saved) : DEFAULT_SPV_WIDGETS;
+      // Migration : KPI Band doit avoir au moins h:2 (250px) pour afficher les valeurs
+      return list.map((w: WidgetConfig) =>
+        w.id === 'kpis' && w.size.h < 2 ? { ...w, size: { ...w.size, h: 2 } } : w
+      );
+    } catch { return DEFAULT_SPV_WIDGETS; }
   });
   const [isEditing, setIsEditing] = useState(false);
   const [draggedWidget, setDraggedWidget] = useState<string | null>(null);
@@ -351,7 +363,7 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
     const colHeights = [0, 0];
     const placements: { widget: WidgetConfig; col: 0 | 1 | 'full'; top: number }[] = [];
     for (const w of widgets) {
-      const h = getWidgetHeightPx(w);
+      const h = getEffectiveHeightPx(w);
       if (isFullWidth(w)) {
         const top = Math.max(colHeights[0], colHeights[1]);
         placements.push({ widget: w, col: 'full', top });
@@ -369,8 +381,6 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
 
   // --- Widget content renderers ---
   const renderWidgetContent = useCallback((widget: WidgetConfig, layout: 'desktop' | 'mobile') => {
-    const mapH = getWidgetHeightPx(widget) - 60;
-    const safeMapHeight = Math.max(200, mapH);
     const activeMapRef = layout === 'desktop' ? desktopMapRef : mobileMapRef;
     switch (widget.id) {
       case 'kpis':
@@ -386,34 +396,36 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
         );
       case 'map':
         return (
-          <div>
-            <div className="flex items-center gap-2 mb-2">
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <div className="flex items-center gap-2 mb-2 flex-shrink-0">
               <MapPin className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">Carte des projets SPV</span>
               <Badge variant="secondary" className="ml-auto text-xs">{keonWithCoords.length} localisés</Badge>
             </div>
             {keonWithCoords.length === 0 ? (
-              <div className="flex flex-col items-center justify-center text-center py-12 text-muted-foreground" style={{ height: safeMapHeight }}>
+              <div className="flex-1 min-h-0 flex flex-col items-center justify-center text-center py-12 text-muted-foreground">
                 <MapPin className="h-10 w-10 mb-3 opacity-30" />
                 <p className="text-sm font-medium">Aucun projet localisé</p>
                 <p className="text-xs mt-1">Renseignez les coordonnées GPS dans les fiches projet.</p>
               </div>
             ) : (
-              <div ref={activeMapRef} style={{ height: safeMapHeight }} className="w-full rounded-lg border border-border" />
+              <div ref={activeMapRef} className="flex-1 min-h-0 w-full rounded-lg border border-border relative z-0 isolate" />
             )}
           </div>
         );
       case 'typologie':
         return typoPieData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={Math.max(200, mapH)}>
-            <PieChart>
-              <Pie data={typoPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={95} paddingAngle={3} label={({ name, percent }) => percent > 0.05 ? name : ''}>
-                {typoPieData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={typoPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={95} paddingAngle={3} label={({ name, percent }) => percent > 0.05 ? name : ''}>
+                  {typoPieData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         ) : <p className="text-center text-muted-foreground py-8">Aucune donnée</p>;
       case 'gisement':
         return gisementBarData.length > 0 ? (
@@ -525,8 +537,9 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
         {/* Desktop: Absolutely positioned widgets for true 2-column packing */}
         <div className="hidden md:block relative" style={{ height: gridLayout.totalHeight || 'auto' }}>
           {gridLayout.placements.map(({ widget, col, top }) => {
-            const heightPx = getWidgetHeightPx(widget);
+            const heightPx = getEffectiveHeightPx(widget);
             const isFull = col === 'full';
+            const autoHeight = widget.id === 'kpis';
             return (
               <div
                 key={widget.id}
@@ -540,7 +553,7 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
                   top,
                   left: isFull ? 0 : col === 0 ? 0 : 'calc(50% + 8px)',
                   width: isFull ? '100%' : 'calc(50% - 8px)',
-                  height: heightPx,
+                  height: autoHeight ? 'fit-content' : heightPx,
                 }}
                 draggable={isEditing}
                 onDragStart={() => handleDragStart(widget.id)}
@@ -551,8 +564,10 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
               >
                 <WidgetWrapper
                   title={widget.title}
+                  autoHeight={widget.id === 'kpis'}
                   onRemove={isEditing ? () => handleRemoveWidget(widget.id) : undefined}
                   isDragging={draggedWidget === widget.id}
+                  showDragHandle={isEditing}
                   sizePreset={isEditing ? getSizePreset(widget) : undefined}
                   onResize={isEditing ? (preset) => handleResizeWidget(widget.id, preset) : undefined}
                   heightPreset={isEditing ? getHeightPresetFromWidget(widget) : undefined}
@@ -570,7 +585,7 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
           {widgets.map(widget => (
             <div
               key={widget.id}
-              style={{ height: getWidgetHeightPx(widget) }}
+              style={{ height: widget.id === 'kpis' ? 'fit-content' : getWidgetHeightPx(widget) }}
               draggable={isEditing}
               onDragStart={() => handleDragStart(widget.id)}
               onDragOver={(e) => handleDragOver(e, widget.id)}
@@ -579,8 +594,10 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
             >
               <WidgetWrapper
                 title={widget.title}
+                autoHeight={widget.id === 'kpis'}
                 onRemove={isEditing ? () => handleRemoveWidget(widget.id) : undefined}
                 isDragging={draggedWidget === widget.id}
+                showDragHandle={isEditing}
                 sizePreset={isEditing ? getSizePreset(widget) : undefined}
                 onResize={isEditing ? (preset) => handleResizeWidget(widget.id, preset) : undefined}
                 heightPreset={isEditing ? getHeightPresetFromWidget(widget) : undefined}

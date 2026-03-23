@@ -820,6 +820,7 @@ export function ConfigurableDashboard({
                   title={widget.title}
                   onRemove={isEditing ? () => handleRemoveWidget(widget.id) : undefined}
                   isDragging={draggedWidget === widget.id}
+                  showDragHandle={isEditing}
                   sizePreset={isEditing ? getSizePreset(widget) : undefined}
                   onResize={isEditing ? (preset) => handleResizeWidget(widget.id, preset) : undefined}
                   heightPreset={isEditing ? getHeightPresetFromWidget(widget) : undefined}
@@ -848,6 +849,7 @@ export function ConfigurableDashboard({
                 title={widget.title}
                 onRemove={isEditing ? () => handleRemoveWidget(widget.id) : undefined}
                 isDragging={draggedWidget === widget.id}
+                showDragHandle={isEditing}
                 sizePreset={isEditing ? getSizePreset(widget) : undefined}
                 onResize={isEditing ? (preset) => handleResizeWidget(widget.id, preset) : undefined}
                 heightPreset={isEditing ? getHeightPresetFromWidget(widget) : undefined}

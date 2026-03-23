@@ -17,6 +17,10 @@ interface WidgetWrapperProps {
   onToggleExpand?: () => void;
   className?: string;
   isDragging?: boolean;
+  /** If true, show the 6-dot drag handle (only when customizing/editing). */
+  showDragHandle?: boolean;
+  /** If true, the wrapper sizes to its content instead of filling the parent height. */
+  autoHeight?: boolean;
   /** Current size preset for resize UI */
   sizePreset?: WidgetSizePreset;
   /** Called when the user picks a new size */
@@ -51,6 +55,8 @@ export function WidgetWrapper({
   onToggleExpand,
   className,
   isDragging,
+  showDragHandle = false,
+  autoHeight = false,
   sizePreset,
   onResize,
   heightPreset,
@@ -59,7 +65,9 @@ export function WidgetWrapper({
   return (
     <div
       className={cn(
-        'bg-white rounded-xl border-2 border-keon-200 shadow-keon overflow-hidden h-full flex flex-col',
+        autoHeight
+          ? 'bg-white rounded-xl border-2 border-keon-200 shadow-keon overflow-hidden flex flex-col'
+          : 'bg-white rounded-xl border-2 border-keon-200 shadow-keon overflow-hidden h-full flex flex-col',
         'hover:border-keon-300 hover:shadow-keon-md transition-all duration-200',
         isDragging && 'opacity-75 shadow-2xl border-keon-blue',
         className
@@ -68,7 +76,11 @@ export function WidgetWrapper({
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-keon-50 to-white border-b border-keon-100">
         <div className="flex items-center gap-2">
-          <GripVertical className="h-4 w-4 text-keon-400 cursor-grab active:cursor-grabbing drag-handle" />
+          {showDragHandle ? (
+            <GripVertical className="h-4 w-4 text-keon-400 cursor-grab active:cursor-grabbing drag-handle" />
+          ) : (
+            <span className="h-4 w-4" aria-hidden="true" />
+          )}
           <h3 className="font-semibold text-sm text-keon-900">{title}</h3>
         </div>
         <div className="flex items-center gap-1">
@@ -160,7 +172,7 @@ export function WidgetWrapper({
       </div>
 
       {/* Content */}
-      <div className="flex-1 p-4 overflow-auto">
+      <div className={autoHeight ? 'p-4' : 'flex-1 min-h-0 p-4 overflow-auto flex flex-col'}>
         {children}
       </div>
     </div>

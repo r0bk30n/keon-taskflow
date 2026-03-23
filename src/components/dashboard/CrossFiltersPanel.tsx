@@ -41,6 +41,8 @@ interface CrossFiltersPanelProps {
   onFiltersChange: (filters: CrossFilters) => void;
   onClose?: () => void;
   processId?: string;
+  /** Whether the panel should start collapsed (toggled by user afterwards). */
+  defaultCollapsed?: boolean;
   /** Disambiguate context key when multiple panels share the same processId */
   contextId?: string;
   /** Current visible columns for persistence */
@@ -208,9 +210,19 @@ function MultiSelectDropdown({
   );
 }
 
-export function CrossFiltersPanel({ filters, onFiltersChange, onClose, processId, contextId, visibleColumns, onVisibleColumnsChange, isAdmin }: CrossFiltersPanelProps) {
+export function CrossFiltersPanel({
+  filters,
+  onFiltersChange,
+  onClose,
+  processId,
+  contextId,
+  visibleColumns,
+  onVisibleColumnsChange,
+  isAdmin,
+  defaultCollapsed = false,
+}: CrossFiltersPanelProps) {
   const { user } = useAuth();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => defaultCollapsed);
   const [profiles, setProfiles] = useState<{ id: string; display_name: string }[]>([]);
   const [serviceGroups, setServiceGroups] = useState<{ id: string; name: string }[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);

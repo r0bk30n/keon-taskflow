@@ -82,7 +82,7 @@ export function BEProjectHubLayout({ children }: BEProjectHubLayoutProps) {
   }
 
   return (
-    <div className="flex min-h-screen bg-muted/20">
+    <div className="flex h-screen overflow-hidden bg-muted/20">
       <Sidebar activeView="projects" onViewChange={() => {}} />
       
       <main className="flex-1 flex flex-col min-w-0">
