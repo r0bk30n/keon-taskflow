@@ -175,11 +175,14 @@ function ProjectMapCard({ projects, allProjectStats = {} }: { projects: BEProjec
       return { address: parts.length > 0 ? parts.join(', ') : null, qstKeys: [] };
     }
 
-    const { data: qstRows } = await (supabase as any)
-      .from('project_questionnaire')
-      .select('champ_id, valeur')
-      .eq('project_id', project.id)
-      .in('champ_id', ['04_GEN_commune', '04_GEN_code_postal', '04_GEN_departement_nom', '04_GEN_region', '04_GEN_pays']);
+    const ADDRESS_CHAMP_IDS = ['04_GEN_commune', '04_GEN_code_postal', '04_GEN_departement_nom', '04_GEN_region', '04_GEN_pays'];
+    const { data: pfvRows } = await (supabase as any)
+      .from('project_field_values')
+      .select('valeur, field_def:questionnaire_field_definitions!field_def_id(champ_id)')
+      .eq('project_id', project.id);
+    const qstRows = (pfvRows || [])
+      .map((r: any) => ({ champ_id: r.field_def?.champ_id, valeur: r.valeur }))
+      .filter((r: any) => r.champ_id && ADDRESS_CHAMP_IDS.includes(r.champ_id));
 
     const qst: Record<string, string> = {};
     qstRows?.forEach((r: any) => { if (r.valeur) qst[r.champ_id] = r.valeur; });
@@ -1029,6 +1032,7 @@ export function BEProjectsSyntheseView({ projects, qstData, widgets: externalWid
                   title={widget.label}
                   onRemove={isEditing ? () => handleRemoveWidget(widget.id) : undefined}
                   isDragging={draggedWidget === widget.id}
+                  showDragHandle={isEditing}
                   sizePreset={isEditing ? getSizePreset(widget) : undefined}
                   onResize={isEditing ? (preset) => handleResizeWidget(widget.id, preset) : undefined}
                   heightPreset={isEditing ? getHeightPreset(widget) : undefined}
@@ -1057,6 +1061,7 @@ export function BEProjectsSyntheseView({ projects, qstData, widgets: externalWid
                 title={widget.label}
                 onRemove={isEditing ? () => handleRemoveWidget(widget.id) : undefined}
                 isDragging={draggedWidget === widget.id}
+                showDragHandle={isEditing}
                 sizePreset={isEditing ? getSizePreset(widget) : undefined}
                 onResize={isEditing ? (preset) => handleResizeWidget(widget.id, preset) : undefined}
                 heightPreset={isEditing ? getHeightPreset(widget) : undefined}

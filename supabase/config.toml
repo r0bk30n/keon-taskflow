@@ -1,4 +1,4 @@
-project_id = "xfcgunaxdlhopqlmqdzw"
+project_id = "yqdbuwidnwhgqimimzpm"
 
 [functions.bulk-upsert]
 verify_jwt = false

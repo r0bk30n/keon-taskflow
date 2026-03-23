@@ -267,7 +267,7 @@ export function TaskDetailDialog({ task, open, onClose, onStatusChange }: TaskDe
     const ChildStatusIcon = statusConfig[selectedChildTask.status]?.icon || AlertCircle;
     return (
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-full w-full h-full max-h-full rounded-none sm:rounded-none flex flex-col overflow-hidden">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col overflow-hidden rounded-2xl sm:rounded-2xl">
           <DialogHeader>
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="icon" onClick={handleCloseChildTask}>
@@ -293,7 +293,7 @@ export function TaskDetailDialog({ task, open, onClose, onStatusChange }: TaskDe
                 </Button>
               )}
             </div>
-            <DialogTitle className="text-xl mt-2 flex items-center gap-2 flex-wrap">
+            <DialogTitle className="text-xl flex items-center gap-2 flex-wrap">
               {isEditing ? 'Modifier la tâche' : selectedChildTask.title}
               {task?.request_number && (
                 <Badge variant="outline" className="text-xs font-mono bg-primary/10 text-primary border-primary/30">
@@ -441,7 +441,11 @@ export function TaskDetailDialog({ task, open, onClose, onStatusChange }: TaskDe
                   {selectedChildTask.description && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground mb-2">Description</h4>
-                      <p className="text-sm whitespace-pre-wrap">{selectedChildTask.description}</p>
+                        <div className="rounded-lg border bg-muted/30 p-4">
+                          <p className="text-base leading-relaxed font-medium whitespace-pre-wrap">
+                            {selectedChildTask.description}
+                          </p>
+                        </div>
                     </div>
                   )}
 
@@ -475,11 +479,11 @@ export function TaskDetailDialog({ task, open, onClose, onStatusChange }: TaskDe
 
                   {/* Chat section for child task */}
                   <Separator />
-                  <TaskCommentsSection taskId={selectedChildTask.id} className="min-h-[200px]" />
+                  <TaskCommentsSection taskId={selectedChildTask.id} className="h-[36vh] max-h-[360px] min-h-[180px]" />
                 </TabsContent>
 
                 {selectedChildTask.parent_request_id && (
-                  <TabsContent value="request-info" className="mt-4">
+                  <TabsContent value="request-info" className="mt-2">
                     <RequestInfoTab
                       task={selectedChildTask}
                       profiles={profiles}
@@ -488,15 +492,15 @@ export function TaskDetailDialog({ task, open, onClose, onStatusChange }: TaskDe
                   </TabsContent>
                 )}
 
-                <TabsContent value="chat" className="mt-4">
-                  <TaskCommentsSection taskId={selectedChildTask.id} className="min-h-[300px]" />
+                <TabsContent value="chat" className="mt-2">
+                  <TaskCommentsSection taskId={selectedChildTask.id} className="h-[48vh] max-h-[460px] min-h-[220px]" />
                 </TabsContent>
               </Tabs>
             )}
 
             {/* Actions footer */}
             {!isEditing && (
-              <div className="flex justify-between items-center gap-2 pt-4 border-t mt-4">
+              <div className="flex justify-between items-center gap-2 pt-3 border-t mt-3">
                 <RequestValidationButton 
                   taskId={selectedChildTask.id} 
                   taskStatus={selectedChildTask.status}
@@ -528,7 +532,7 @@ export function TaskDetailDialog({ task, open, onClose, onStatusChange }: TaskDe
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-full w-full h-full max-h-full rounded-none sm:rounded-none flex flex-col overflow-hidden">
+      <DialogContent className="sm:max-w-[95%] max-h-[90vh] flex flex-col overflow-hidden rounded-2xl sm:rounded-2xl">
         <DialogHeader>
           <div className="flex items-center gap-2">
             {task.type === 'request' && <Building2 className="h-5 w-5 text-primary" />}
@@ -544,15 +548,28 @@ export function TaskDetailDialog({ task, open, onClose, onStatusChange }: TaskDe
               <Badge variant="secondary">Demande</Badge>
             )}
           </div>
-          <DialogTitle className="text-xl mt-2">{task.title}</DialogTitle>
+          <DialogTitle className="text-xl pr-8">{task.title}</DialogTitle>
+          {task.status !== 'done' && task.status !== 'validated' && (
+            <div className="mt-3 flex justify-end">
+              <Button
+                onClick={() => { onStatusChange(task.id, 'done'); onClose(); }}
+                className="gap-2"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Marquer terminé
+              </Button>
+            </div>
+          )}
         </DialogHeader>
 
-        <div className="space-y-6 mt-4 flex-1 overflow-y-auto px-1">
+        <div className="space-y-4 mt-4 flex-1 overflow-y-auto px-0">
           {/* Description */}
           {task.description && (
             <div>
               <h4 className="text-sm font-medium text-muted-foreground mb-2">Description</h4>
-              <p className="text-sm whitespace-pre-wrap">{task.description}</p>
+              <div className="rounded-lg border bg-muted/30 p-4">
+                <p className="text-base leading-relaxed font-medium whitespace-pre-wrap">{task.description}</p>
+              </div>
             </div>
           )}
 
@@ -797,7 +814,7 @@ export function TaskDetailDialog({ task, open, onClose, onStatusChange }: TaskDe
                 </TabsContent>
 
                 {task.parent_request_id && task.type !== 'request' && (
-                  <TabsContent value="request-info" className="mt-4">
+                  <TabsContent value="request-info" className="mt-2">
                     <RequestInfoTab
                       task={task}
                       profiles={profiles}
@@ -806,8 +823,8 @@ export function TaskDetailDialog({ task, open, onClose, onStatusChange }: TaskDe
                   </TabsContent>
                 )}
 
-                <TabsContent value="chat" className="mt-4">
-                  <TaskCommentsSection taskId={task.id} className="min-h-[300px]" />
+                <TabsContent value="chat" className="mt-2">
+                  <TaskCommentsSection taskId={task.id} className="h-[48vh] max-h-[460px] min-h-[220px]" />
                 </TabsContent>
               </Tabs>
             </>
@@ -829,10 +846,10 @@ export function TaskDetailDialog({ task, open, onClose, onStatusChange }: TaskDe
                       Détail demande
                     </TabsTrigger>
                   </TabsList>
-                  <TabsContent value="details" className="mt-4">
-                    <TaskCommentsSection taskId={task.id} className="min-h-[200px]" />
+                  <TabsContent value="details" className="mt-2">
+                    <TaskCommentsSection taskId={task.id} className="h-[36vh] max-h-[360px] min-h-[180px]" />
                   </TabsContent>
-                  <TabsContent value="request-info" className="mt-4">
+                  <TabsContent value="request-info" className="mt-2">
                     <RequestInfoTab
                       task={task}
                       profiles={profiles}
@@ -841,7 +858,7 @@ export function TaskDetailDialog({ task, open, onClose, onStatusChange }: TaskDe
                   </TabsContent>
                 </Tabs>
               ) : (
-                <TaskCommentsSection taskId={task.id} className="min-h-[200px]" />
+                <TaskCommentsSection taskId={task.id} className="h-[36vh] max-h-[360px] min-h-[180px]" />
               )}
             </>
           )}

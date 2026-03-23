@@ -29,3 +29,5 @@ dist-ssr
 /migrate_logs
 /migrate_state
 schema.sql
+users_export.csv*
+syncro-fabric-taskflow.md

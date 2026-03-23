@@ -63,7 +63,7 @@ export function TaskCommentsSection({ taskId, className }: TaskCommentsSectionPr
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : comments.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+          <div className="flex flex-col items-center justify-center py-4 text-muted-foreground">
             <MessageSquare className="h-8 w-8 mb-2 opacity-50" />
             <p className="text-sm">Aucun message</p>
             <p className="text-xs">Démarrez la conversation</p>

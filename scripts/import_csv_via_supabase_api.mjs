@@ -162,6 +162,8 @@ const FK_ORDER = [
   'recurrence_runs',
   'project_view_configs',
   'project_questionnaire',
+  'questionnaire_field_definitions_rows',
+  'project_field_values_rows',
   'supplier_purchase_permissions',
   'supplier_purchase_enrichment',
   'supplier_attachments',
@@ -175,6 +177,8 @@ const FK_ORDER = [
   'workflow_datalake_sync_logs',
   'workflow_notifications',
   'workflow_template_versions',
+  // Needed early for triggers that compute task/request numbers.
+  'number_counters',
 ];
 
 function listCsvFiles(dir) {
@@ -214,7 +218,7 @@ function normalizeValue(v) {
 }
 
 async function insertBatch(table, rows, columns) {
-  const payload = rows.map((r) => {
+  let payload = rows.map((r) => {
     const obj = {};
     for (const c of columns) obj[c] = normalizeValue(r[c]);
     return obj;
@@ -224,7 +228,34 @@ async function insertBatch(table, rows, columns) {
   if (doUpsert) {
     const onConflict = onConflictMap[table] || (columns.includes('id') ? 'id' : null);
     if (onConflict) {
-      const { error } = await supabase.from(table).upsert(payload, { onConflict, returning: 'minimal' });
+      // Postgres rejects ON CONFLICT DO UPDATE when the input statement contains
+      // the same conflict target value more than once.
+      // This happens if `tasks.csv` contains duplicate `task_number` rows.
+      if (table === 'tasks' && onConflict === 'task_number') {
+        const seen = new Set();
+        const deduped = [];
+        for (const obj of payload) {
+          const key = obj.task_number;
+          // UNIQUE constraints don't conflict on NULL, so keep all NULL rows.
+          if (key === null || key === undefined) {
+            deduped.push(obj);
+            continue;
+          }
+          // Be defensive with collation: in some DB setups equality may be case-insensitive.
+          const k = String(key).trim().toLowerCase();
+          if (seen.has(k)) continue;
+          seen.add(k);
+          deduped.push(obj);
+        }
+        payload = deduped;
+      }
+      const upsertOptions = { onConflict, returning: 'minimal' };
+      if (table === 'tasks' && onConflict === 'task_number') {
+        // Avoid Postgres: "ON CONFLICT DO UPDATE command cannot affect row a second time"
+        // when duplicates exist within the same upsert statement.
+        upsertOptions.ignoreDuplicates = true;
+      }
+      const { error } = await supabase.from(table).upsert(payload, upsertOptions);
       return error;
     }
   }
@@ -235,7 +266,8 @@ async function insertBatch(table, rows, columns) {
 
 async function importCsvFile(csvPath) {
   const basename = path.basename(csvPath);
-  const table = basename.replace(/\.csv$/i, '');
+  // _rows.csv files (e.g. questionnaire_field_definitions_rows.csv) map to the table without _rows
+  const table = basename.replace(/\.csv$/i, '').replace(/_rows$/, '');
 
   if (!shouldProcessFile(basename)) {
     console.log(`SKIP  ${basename} (filtered)`);
@@ -313,17 +345,18 @@ async function main() {
     // eslint-disable-next-line no-await-in-loop
     const r = await importCsvFile(f);
     results.push(r);
-    if (!r.ok) break;
+    // Don't break on error — process all files and report at end
   }
 
   const ok = results.filter((r) => r.ok && !r.skipped).length;
   const skipped = results.filter((r) => r.skipped).length;
-  const failed = results.find((r) => !r.ok);
+  const failed = results.filter((r) => !r.ok);
 
   console.log('');
-  console.log(`Done. ok=${ok} skipped=${skipped} total=${results.length}`);
-  if (failed) {
-    console.error(`FAILED at table: ${failed.table}`);
+  console.log(`Done. ok=${ok} skipped=${skipped} failed=${failed.length} total=${results.length}`);
+  if (failed.length > 0) {
+    console.error('\nFAILED tables:');
+    for (const f of failed) console.error(`  - ${f.table}: ${f.error?.message || f.error}`);
     process.exit(1);
   }
 }

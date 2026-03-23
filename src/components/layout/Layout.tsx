@@ -9,7 +9,7 @@ export function Layout({ children }: LayoutProps) {
   const [activeView, setActiveView] = useState('');
 
   return (
-    <div className="min-h-screen flex w-full bg-background">
+    <div className="h-screen flex w-full bg-background overflow-hidden">
       <Sidebar activeView={activeView} onViewChange={setActiveView} />
       <main className="flex-1 overflow-auto">
         {children}

@@ -50,7 +50,7 @@ const menuGroups: MenuGroup[] = [
   {
     label: 'PROJETS',
     items: [
-      { id: 'projects', label: 'Projets Bioénergie', icon: FolderOpen, path: '/projects', permissionKey: 'can_access_projects' },
+      { id: 'projects', label: 'Bureau d\'études', icon: FolderOpen, path: '/projects', permissionKey: 'can_access_projects' },
       { id: 'spv', label: 'Projets SPV', icon: Leaf, path: '/spv', permissionKey: 'can_access_projects' },
       { id: 'it-projects', label: 'Projets IT', icon: Monitor, path: '/it/projects', permissionKey: 'can_access_projects' },
       { id: 'innovation', label: 'Projets INNO', icon: Lightbulb, path: '/innovation/requests', permissionKey: 'can_access_dashboard' },
@@ -385,7 +385,7 @@ export function Sidebar({
         "top-0 h-screen flex flex-col transition-all duration-300 ease-in-out",
         collapsed 
           ? "relative w-[72px] flex-shrink-0 bg-white" 
-          : "fixed w-64 z-40 bg-white shadow-premium-xl",
+          : "sticky flex-shrink-0 w-64 z-40 bg-white shadow-premium-xl",
         isRightSide ? "right-0" : "left-0",
         "border-r border-border"
       )}

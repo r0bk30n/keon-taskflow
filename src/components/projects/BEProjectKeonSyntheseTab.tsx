@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { QUESTIONS, PILIERS, PilierCode } from '@/config/questionnaireConfig';
+import { PILIERS, PilierCode } from '@/config/questionnaireConfig';
 import { BEProject } from '@/types/beProject';
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
@@ -21,18 +21,126 @@ interface Props {
 
 const PIE_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#64748b'];
 
+const SPV_CREE_PROGRESS: Record<string, number> = {
+  'OUI': 100,
+  'EN COURS': 70,
+  'EN ATTENTE': 45,
+  'A LANCER': 20,
+  'NON': 0,
+  '?': 0,
+};
+
+const FONCIER_AVANCEMENT_PROGRESS: Record<string, number> = {
+  'NC': 0,
+  'A LANCER': 20,
+  'A DEMARRER': 35,
+  'EN ATTENTE': 50,
+  'EN COURS': 65,
+  'SIGNE': 80,
+  'LOI SIGNEE': 90,
+  'ACHETE': 100,
+};
+
+function isFilled(v: unknown): boolean {
+  if (v === undefined || v === null) return false;
+  if (typeof v === 'string') return v.trim() !== '' && v.trim() !== '—';
+  return true;
+}
+
+function toNumberOrNull(v: unknown): number | null {
+  if (v === undefined || v === null) return null;
+  const s = typeof v === 'string' ? v.trim() : String(v);
+  const n = parseFloat(s.replace(',', '.'));
+  return Number.isFinite(n) ? n : null;
+}
+
+function progressFromSelect(option: string | undefined, map: Record<string, number>): number {
+  const key = (option || '').toUpperCase().trim();
+  if (!key) return 0;
+  // Les valeurs du questionnaire sont en majuscules, mais on garde un fallback.
+  const direct = map[key];
+  if (direct !== undefined) return direct;
+
+  // Fallback sur clés sans majuscules strictes.
+  const found = Object.keys(map).find(k => k.toUpperCase() === key);
+  return found ? map[found] : 0;
+}
+
+function computePilierAvancement(pilierCode: PilierCode, qstData: Record<string, string>): number {
+  switch (pilierCode) {
+    case '00': {
+      // KPI band : typologie
+      return isFilled(qstData['00_GEN_typologie']) ? 100 : 0;
+    }
+    case '02': {
+      // KPI band : spv_cree + keon.co KS (%)
+      const spvOption = qstData['02_GEN_spv_cree'];
+      const spvProgress = progressFromSelect(spvOption, SPV_CREE_PROGRESS);
+      const ksRaw = toNumberOrNull(qstData['02_CAPI_keon_pct']);
+      const ksProgress = ksRaw === null ? null : Math.max(0, Math.min(100, ksRaw));
+
+      const parts: number[] = [];
+      if (isFilled(spvOption)) parts.push(spvProgress);
+      if (ksProgress !== null) parts.push(ksProgress);
+      return parts.length ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length) : 0;
+    }
+    case '04': {
+      // KPI-like : sécurisation niv1 avancement (si renseigné)
+      return progressFromSelect(qstData['04_SEC_p1_niv1_avancement'], FONCIER_AVANCEMENT_PROGRESS);
+    }
+    case '05': {
+      // KPI band : cmax1
+      const cmax1 = toNumberOrNull(qstData['05_GEN_cmax1']);
+      return cmax1 !== null && cmax1 > 0 ? 100 : 0;
+    }
+    case '06': {
+      // KPI band : gisement total (et on combine avec le statut agricole si présent)
+      const quantite = toNumberOrNull(qstData['06_GEN_quantite_totale']);
+      const statut = qstData['06_GEN_statut_agricole'];
+
+      const parts: number[] = [];
+      if (quantite !== null && quantite > 0) parts.push(100);
+      if (isFilled(statut)) {
+        // 'Oui' => 100, 'Non'/'NC' => 0
+        const statutKey = (statut || '').toLowerCase().trim();
+        parts.push(statutKey === 'oui' ? 100 : 0);
+      }
+      return parts.length ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length) : 0;
+    }
+    case '07': {
+      // Digestat : on combine 3 champs (si renseignés)
+      const eligible = progressFromSelect(qstData['07_DIG_eligible_digagri'], { 'OUI': 100, 'NON': 0, 'NC': 0 });
+      const plan = progressFromSelect(qstData['07_DIG_plan_epandage_necessaire'], { 'OUI': 100, 'NON': 0, 'NC': 0 });
+      const surface = toNumberOrNull(qstData['07_DIG_surface_epandable']);
+      const surfaceProg = surface !== null && surface > 0 ? 100 : 0;
+
+      const parts: number[] = [];
+      if (isFilled(qstData['07_DIG_eligible_digagri'])) parts.push(eligible);
+      if (isFilled(qstData['07_DIG_plan_epandage_necessaire'])) parts.push(plan);
+      if (isFilled(qstData['07_DIG_surface_epandable'])) parts.push(surfaceProg);
+      return parts.length ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length) : 0;
+    }
+    default:
+      return 0;
+  }
+}
+
 export function BEProjectKeonSyntheseTab({ project, qstData }: Props) {
-  const pilierCompletions = useMemo(() =>
-    PILIERS.map(p => ({
-      code: p.code,
-      label: p.shortLabel,
-      fullLabel: p.label,
-      completion: computePilierCompletion(p.code as PilierCode, qstData),
-    })), [qstData]
+  // Radar : complétude (nombre de champs renseignés) pour le côté "complétion".
+  // Gauges : on affiche un "avancement" cohérent avec les KPI band (présence/valeurs des champs clés).
+  const pilierCompletions = useMemo(
+    () =>
+      PILIERS.map(p => ({
+        code: p.code,
+        label: p.shortLabel,
+        fullLabel: p.label,
+        completion: computePilierCompletion(p.code as PilierCode, qstData),
+      })),
+    [qstData]
   );
 
-  const radarData = useMemo(() =>
-    pilierCompletions.map(p => ({ subject: p.label, value: p.completion, fullMark: 100 })),
+  const radarData = useMemo(
+    () => pilierCompletions.map(p => ({ subject: p.label, value: p.completion, fullMark: 100 })),
     [pilierCompletions]
   );
 
