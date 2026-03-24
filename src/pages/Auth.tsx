@@ -214,15 +214,32 @@ export default function Auth() {
               </div>
             )}
 
-            <div className="space-y-3 mb-4">
+            <div className="mb-5 space-y-3">
               <Button
                 type="button"
-                className="w-full"
+                className="group relative w-full overflow-hidden border-border/70 bg-gradient-to-r from-slate-50 to-white text-foreground shadow-sm transition-all hover:border-primary/40 hover:shadow-md dark:from-slate-900 dark:to-slate-800"
                 variant="outline"
-                disabled
+                onClick={handleMicrosoftLogin}
+                disabled={isSubmitting}
               >
-                Se connecter avec Microsoft (en développement)
+                <span className="absolute inset-y-0 left-0 w-1 bg-[#0078D4] transition-all group-hover:w-1.5" />
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Connexion Microsoft...
+                  </>
+                ) : (
+                  <>
+                    <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-sm bg-[#0078D4] text-[10px] font-bold text-white">
+                      M
+                    </span>
+                    Continuer avec Microsoft
+                  </>
+                )}
               </Button>
+              <p className="text-center text-xs text-muted-foreground">
+                Connexion SSO Microsoft 365 sécurisée
+              </p>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <div className="h-px flex-1 bg-border" />
                 <span>ou avec email</span>
