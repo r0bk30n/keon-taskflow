@@ -15,38 +15,19 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Authenticate via SYNC_SECRET or admin JWT
-    const syncSecret = req.headers.get("x-sync-secret") ?? "";
-    const expectedSecret = Deno.env.get("SYNC_SECRET") ?? "";
+    // Double security: require anon/publishable bearer AND sync secret.
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace("Bearer ", "").trim();
+    const anonKey = (Deno.env.get("SUPABASE_ANON_KEY") ?? "").trim();
+
+    const syncSecret = (req.headers.get("x-sync-secret") ?? "").trim();
+    const expectedSecret = (Deno.env.get("SYNC_SECRET") ?? "").trim();
     
-    let isAuthorized = false;
-    
-    // Method 1: SYNC_SECRET header (for cron/scheduler)
-    if (expectedSecret && syncSecret === expectedSecret) {
-      isAuthorized = true;
-    }
-    
-    // Method 2: Admin JWT (for manual trigger)
-    if (!isAuthorized) {
-      const authHeader = req.headers.get("Authorization");
-      if (authHeader?.startsWith("Bearer ")) {
-        const token = authHeader.replace("Bearer ", "");
-        const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
-        const { data: { user }, error: authError } = await anonClient.auth.getUser(token);
-        if (!authError && user) {
-          const adminClient = createClient(supabaseUrl, serviceRoleKey);
-          const { data: roleData } = await adminClient
-            .from("user_roles")
-            .select("role")
-            .eq("user_id", user.id)
-            .eq("role", "admin")
-            .maybeSingle();
-          if (roleData) isAuthorized = true;
-        }
-      }
-    }
-    
-    if (!isAuthorized) {
+    const authorizedByAnonKey = !!token && !!anonKey && token === anonKey;
+    const authorizedBySyncSecret =
+      !!syncSecret && !!expectedSecret && syncSecret === expectedSecret;
+
+    if (!authorizedByAnonKey || !authorizedBySyncSecret) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

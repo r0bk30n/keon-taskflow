@@ -98,9 +98,19 @@ async function resolveFK(
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
-  // ── Auth via sync secret (appelé par Fabric, pas par un user) ──
-  const syncSecret = req.headers.get('x-sync-secret');
-  if (!syncSecret || syncSecret !== Deno.env.get('SYNC_SECRET')) {
+  // ── Double security: require anon/publishable bearer AND sync secret ──
+  const authHeader = req.headers.get('Authorization') ?? '';
+  const token = authHeader.replace('Bearer ', '').trim();
+  const anonKey = (Deno.env.get('SUPABASE_ANON_KEY') ?? '').trim();
+
+  const syncSecret = (req.headers.get('x-sync-secret') ?? '').trim();
+  const expectedSyncSecret = (Deno.env.get('SYNC_SECRET') ?? '').trim();
+
+  const authorizedByAnonKey = !!token && !!anonKey && token === anonKey;
+  const authorizedBySyncSecret =
+    !!syncSecret && !!expectedSyncSecret && syncSecret === expectedSyncSecret;
+
+  if (!authorizedByAnonKey || !authorizedBySyncSecret) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -3,6 +3,8 @@ project_id = "yqdbuwidnwhgqimimzpm"
 [functions.bulk-upsert]
 verify_jwt = false
 
+[functions.bulk-fetch]
+verify_jwt = false
 
 [functions.microsoft-graph]
 verify_jwt = false

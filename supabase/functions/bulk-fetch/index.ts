@@ -14,9 +14,19 @@ serve(async (req) => {
   }
 
   try {
-    const syncSecret = req.headers.get("x-sync-secret") ?? "";
-    const expected = Deno.env.get("SYNC_SECRET") ?? "";
-    if (!expected || syncSecret !== expected) {
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace("Bearer ", "").trim();
+    const anonKey = (Deno.env.get("SUPABASE_ANON_KEY") ?? "").trim();
+
+    const syncSecret = (req.headers.get("x-sync-secret") ?? "").trim();
+    const expectedSyncSecret = (Deno.env.get("SYNC_SECRET") ?? "").trim();
+
+    const authorizedByAnonKey = !!token && !!anonKey && token === anonKey;
+    const authorizedBySyncSecret =
+      !!syncSecret && !!expectedSyncSecret && syncSecret === expectedSyncSecret;
+
+    // Double security: require BOTH anon/publishable bearer and sync secret.
+    if (!authorizedByAnonKey || !authorizedBySyncSecret) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
