@@ -1,7 +1,3 @@
-@import '@fontsource/oswald/400.css';
-@import '@fontsource/oswald/500.css';
-@import '@fontsource/oswald/600.css';
-@import '@fontsource/oswald/700.css';
 @import '@fontsource/roboto/300.css';
 @import '@fontsource/roboto/400.css';
 @import '@fontsource/roboto/500.css';
@@ -204,16 +200,15 @@
     font-weight: 400;
   }
 
-  /* Titres KEON : Oswald, MAJUSCULES, interlettrage +0.05em */
+  /* Titres KEON : Helvetica, MAJUSCULES, interlettrage +0.05em */
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Oswald', sans-serif;
-    font-weight: 500;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: hsl(var(--keon-gray-900));
   }
 
-  h1 { @apply text-3xl md:text-4xl font-semibold; }
+  h1 { @apply text-3xl md:text-4xl font-bold; }
   h2 { @apply text-2xl md:text-3xl; }
   h3 { @apply text-xl md:text-2xl; }
   h4 { @apply text-lg md:text-xl; }
@@ -476,7 +471,7 @@
 @layer utilities {
   /* Typographie KEON */
   .font-display {
-    font-family: 'Oswald', sans-serif;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   }
 
   .font-body {
@@ -484,8 +479,8 @@
   }
 
   .keon-title {
-    font-family: 'Oswald', sans-serif;
-    font-weight: 500;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: hsl(var(--keon-gray-900));
@@ -750,7 +745,7 @@
   }
   .workload-kpi-value {
     @apply text-2xl font-bold tabular-nums;
-    font-family: 'Oswald', sans-serif;
+    font-family: 'Roboto', sans-serif;
     color: hsl(var(--keon-gray-900));
   }
   .workload-kpi-label {
