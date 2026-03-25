@@ -13,6 +13,7 @@ import { OPTIONS_EVALUATION_RISQUE, type PilierCode } from '@/config/questionnai
 import { useProjectQuestionnaire, type AnswersMap } from '@/hooks/useProjectQuestionnaire';
 import { useQuestionnaireFieldDefs, groupFieldsBySection, type FieldDefinition } from '@/hooks/useQuestionnaireFieldDefs';
 import { AddCustomFieldDialog } from './AddCustomFieldDialog';
+import { TableInsertSpreadsheet } from './TableInsertSpreadsheet';
 
 interface PilierQuestionnaireTabProps {
   projectId: string;
@@ -209,7 +210,7 @@ export function PilierQuestionnaireTab({
 
       <Accordion
         type="multiple"
-        defaultValue={sections.map(s => s.section)}
+        defaultValue={[]}
         className="space-y-2"
       >
         {sections.map(({ section, fields: sectionFields }) => {
@@ -221,7 +222,7 @@ export function PilierQuestionnaireTab({
             <AccordionItem
               key={section}
               value={section}
-              className="border rounded-lg overflow-hidden"
+              className="border rounded-lg overflow-visible"
             >
               <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30">
                 <div className="flex items-center gap-3 w-full">
@@ -295,6 +296,15 @@ export function PilierQuestionnaireTab({
                       <Save className="h-3.5 w-3.5" />
                       {isSaving ? 'Sauvegarde…' : 'Sauvegarder la section'}
                     </Button>
+                  </div>
+                )}
+
+                {section === 'GENERALITES' && (
+                  <div className="mt-4 border-t pt-4">
+                    <TableInsertSpreadsheet
+                      disabled={!canWrite}
+                      persistenceKey={`${projectId}:${pilierCode}:${section}`}
+                    />
                   </div>
                 )}
               </AccordionContent>
