@@ -89,6 +89,10 @@ function completionColor(pct: number) {
 
 export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props) {
   const navigate = useNavigate();
+  const [isMobileViewport, setIsMobileViewport] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(max-width: 767px)').matches;
+  });
 
   // --- Widget config state (same pattern as ConfigurableDashboard) ---
   const [widgets, setWidgets] = useState<WidgetConfig[]>(() => {
@@ -107,6 +111,15 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
 
   // Persist to localStorage
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(widgets)); }, [widgets]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 767px)');
+    const onChange = (e: MediaQueryListEvent) => setIsMobileViewport(e.matches);
+    setIsMobileViewport(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
 
   // --- Data computations ---
   const keonProjects = useMemo(() => projects.filter(p => keonProjectIds.has(p.id)), [projects, keonProjectIds]);
@@ -415,8 +428,8 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
         );
       case 'typologie':
         return typoPieData.length > 0 ? (
-          <div className="flex-1 min-h-0 overflow-hidden">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="flex-1 min-h-[220px] overflow-hidden">
+            <ResponsiveContainer width="100%" height="100%" minHeight={220}>
               <PieChart>
                 <Pie data={typoPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={95} paddingAngle={3} label={({ name, percent }) => percent > 0.05 ? name : ''}>
                   {typoPieData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
@@ -534,33 +547,62 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
           </div>
         )}
 
-        {/* Desktop: Absolutely positioned widgets for true 2-column packing */}
-        <div className="hidden md:block relative" style={{ height: gridLayout.totalHeight || 'auto' }}>
-          {gridLayout.placements.map(({ widget, col, top }) => {
-            const heightPx = getEffectiveHeightPx(widget);
-            const isFull = col === 'full';
-            const autoHeight = widget.id === 'kpis';
-            return (
+        {!isMobileViewport ? (
+          <div className="relative" style={{ height: gridLayout.totalHeight || 'auto' }}>
+            {gridLayout.placements.map(({ widget, col, top }) => {
+              const heightPx = getEffectiveHeightPx(widget);
+              const isFull = col === 'full';
+              const autoHeight = widget.id === 'kpis';
+              return (
+                <div
+                  key={widget.id}
+                  className={cn(
+                    'absolute transition-all duration-300 ease-in-out',
+                    isEditing && 'cursor-move',
+                    draggedWidget === widget.id && 'opacity-40 scale-[0.98]',
+                    dropTargetId === widget.id && 'ring-2 ring-primary ring-offset-2 rounded-xl'
+                  )}
+                  style={{
+                    top,
+                    left: isFull ? 0 : col === 0 ? 0 : 'calc(50% + 8px)',
+                    width: isFull ? '100%' : 'calc(50% - 8px)',
+                    height: autoHeight ? 'fit-content' : heightPx,
+                  }}
+                  draggable={isEditing}
+                  onDragStart={() => handleDragStart(widget.id)}
+                  onDragOver={(e) => handleDragOver(e, widget.id)}
+                  onDrop={(e) => handleDrop(e, widget.id)}
+                  onDragEnd={handleDragEnd}
+                  onDragLeave={() => setDropTargetId(null)}
+                >
+                  <WidgetWrapper
+                    title={widget.title}
+                    autoHeight={widget.id === 'kpis'}
+                    onRemove={isEditing ? () => handleRemoveWidget(widget.id) : undefined}
+                    isDragging={draggedWidget === widget.id}
+                    showDragHandle={isEditing}
+                    sizePreset={isEditing ? getSizePreset(widget) : undefined}
+                    onResize={isEditing ? (preset) => handleResizeWidget(widget.id, preset) : undefined}
+                    heightPreset={isEditing ? getHeightPresetFromWidget(widget) : undefined}
+                    onHeightChange={isEditing ? (preset) => handleHeightChange(widget.id, preset) : undefined}
+                  >
+                    {renderWidgetContent(widget, 'desktop')}
+                  </WidgetWrapper>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {widgets.map(widget => (
               <div
                 key={widget.id}
-                className={cn(
-                  'absolute transition-all duration-300 ease-in-out',
-                  isEditing && 'cursor-move',
-                  draggedWidget === widget.id && 'opacity-40 scale-[0.98]',
-                  dropTargetId === widget.id && 'ring-2 ring-primary ring-offset-2 rounded-xl'
-                )}
-                style={{
-                  top,
-                  left: isFull ? 0 : col === 0 ? 0 : 'calc(50% + 8px)',
-                  width: isFull ? '100%' : 'calc(50% - 8px)',
-                  height: autoHeight ? 'fit-content' : heightPx,
-                }}
+                style={{ height: widget.id === 'kpis' ? 'fit-content' : getWidgetHeightPx(widget) }}
                 draggable={isEditing}
                 onDragStart={() => handleDragStart(widget.id)}
                 onDragOver={(e) => handleDragOver(e, widget.id)}
                 onDrop={(e) => handleDrop(e, widget.id)}
                 onDragEnd={handleDragEnd}
-                onDragLeave={() => setDropTargetId(null)}
               >
                 <WidgetWrapper
                   title={widget.title}
@@ -573,41 +615,12 @@ export function BEProjectsKeonView({ projects, qstData, keonProjectIds }: Props)
                   heightPreset={isEditing ? getHeightPresetFromWidget(widget) : undefined}
                   onHeightChange={isEditing ? (preset) => handleHeightChange(widget.id, preset) : undefined}
                 >
-                  {renderWidgetContent(widget, 'desktop')}
+                  {renderWidgetContent(widget, 'mobile')}
                 </WidgetWrapper>
               </div>
-            );
-          })}
-        </div>
-
-        {/* Mobile fallback: simple stacked layout */}
-        <div className="md:hidden space-y-4">
-          {widgets.map(widget => (
-            <div
-              key={widget.id}
-              style={{ height: widget.id === 'kpis' ? 'fit-content' : getWidgetHeightPx(widget) }}
-              draggable={isEditing}
-              onDragStart={() => handleDragStart(widget.id)}
-              onDragOver={(e) => handleDragOver(e, widget.id)}
-              onDrop={(e) => handleDrop(e, widget.id)}
-              onDragEnd={handleDragEnd}
-            >
-              <WidgetWrapper
-                title={widget.title}
-                autoHeight={widget.id === 'kpis'}
-                onRemove={isEditing ? () => handleRemoveWidget(widget.id) : undefined}
-                isDragging={draggedWidget === widget.id}
-                showDragHandle={isEditing}
-                sizePreset={isEditing ? getSizePreset(widget) : undefined}
-                onResize={isEditing ? (preset) => handleResizeWidget(widget.id, preset) : undefined}
-                heightPreset={isEditing ? getHeightPresetFromWidget(widget) : undefined}
-                onHeightChange={isEditing ? (preset) => handleHeightChange(widget.id, preset) : undefined}
-              >
-                {renderWidgetContent(widget, 'mobile')}
-              </WidgetWrapper>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
