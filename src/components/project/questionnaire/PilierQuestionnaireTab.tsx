@@ -59,9 +59,11 @@ function parseA1(address: string): { rowIndex: number; colIndex: number } | null
 function buildTemplateJsonFromRaw(raw: Matrix) {
   const rows = raw.length;
   const cols = raw[0]?.length ?? 0;
+  const cornerLabel = raw[0]?.[0] ?? '';
   const colHeaders = Array.from({ length: Math.max(cols - 1, 0) }, (_, i) => raw[0]?.[i + 1] ?? '');
   const rowHeaders = Array.from({ length: Math.max(rows - 1, 0) }, (_, i) => raw[i + 1]?.[0] ?? '');
-  return { rows, cols, colHeaders, rowHeaders };
+  // cornerLabel is the top-left cell (0,0), shared across projects like other headers
+  return { rows, cols, cornerLabel, colHeaders, rowHeaders };
 }
 
 function buildValueJsonbFromRawAndDisplay(raw: Matrix, display: Matrix) {
@@ -97,12 +99,14 @@ function buildInitialRawFromTemplateAndValue(
   const cols: number = template.cols ?? template.meta?.cols ?? 0;
   if (!rows || !cols) return null;
 
+  const cornerLabel: string = template.cornerLabel ?? template.meta?.cornerLabel ?? '';
   const colHeaders: string[] = template.colHeaders ?? template.meta?.colHeaders ?? [];
   const rowHeaders: string[] = template.rowHeaders ?? template.meta?.rowHeaders ?? [];
 
   const raw = Array.from({ length: rows }, () => Array.from({ length: cols }, () => ''));
 
   // Headers: row 0 => col headers, col 0 => row headers
+  raw[0][0] = cornerLabel ?? '';
   for (let c = 1; c < cols; c += 1) {
     raw[0][c] = colHeaders[c - 1] ?? '';
   }
@@ -185,7 +189,7 @@ function SpreadsheetFieldWidget({
         try {
           // 1) Propagate headers (only if changed)
           if (shouldUpdateTemplate) {
-            const { error: templateError } = await supabase
+            const { error: templateError } = await (supabase as any)
               .from('questionnaire_field_definitions')
               .update({ spreadsheet_template: templateToPersist })
               .eq('id', field.id);
@@ -195,7 +199,7 @@ function SpreadsheetFieldWidget({
 
           // 2) Persist sparse internal cells (only if changed)
           if (shouldUpdateValue) {
-            const { error: valueError } = await supabase
+            const { error: valueError } = await (supabase as any)
               .from('project_field_values')
               .upsert(
                 {
@@ -244,7 +248,31 @@ export function PilierQuestionnaireTab({
   const [addFieldCtx, setAddFieldCtx] = useState<AddFieldContext | null>(null);
 
   const canWrite = !readonly && canWritePilier(pilierCode);
-  const sections = groupFieldsBySection(fieldDefs);
+  const sections = useMemo(() => {
+    const base = groupFieldsBySection(fieldDefs);
+    if (pilierCode !== '02') return base;
+
+    const desiredOrder = [
+      'GENERALITES',
+      'TABLE DE CAPI ET CCA',
+      'STRUCTURATION JURIDIQUE',
+      'GOUVERNANCE',
+      'GESTION ADMINISTRATIVE ET FINANCIERE',
+      'GESTION DES RESSOURCES HUMAINES',
+      "GESTION DE L'IT",
+    ];
+    const rank = (s: string) => {
+      const idx = desiredOrder.indexOf(s);
+      return idx === -1 ? Number.POSITIVE_INFINITY : idx;
+    };
+
+    return [...base].sort((a, b) => {
+      const ra = rank(a.section);
+      const rb = rank(b.section);
+      if (ra !== rb) return ra - rb;
+      return a.section.localeCompare(b.section, 'fr');
+    });
+  }, [fieldDefs, pilierCode]);
   const isLoading = isLoadingAnswers || isLoadingDefs;
 
   useEffect(() => {

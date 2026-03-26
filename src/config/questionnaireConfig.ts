@@ -45,11 +45,73 @@ export const QUESTIONS: Question[] = [
   // PILIER 02 — SPV
   { champ_id: '02_GEN_spv_cree', pilier: '02', section: 'GENERALITES', sous_section: 'Données admin.', label: 'SPV créée ?', type: 'select', options: ['OUI', 'NON', 'EN COURS', 'EN ATTENTE', 'A LANCER', '?'] },
   { champ_id: '02_GEN_raison_sociale', pilier: '02', section: 'GENERALITES', sous_section: 'Données admin.', label: 'Raison sociale', type: 'text' },
-  { champ_id: '02_GEN_capital_social', pilier: '02', section: 'GENERALITES', sous_section: 'Données admin.', label: 'Capital social actuel de la SPV (€)', type: 'euros' },
+  { champ_id: '02_GEN_statut_juridique', pilier: '02', section: 'GENERALITES', sous_section: 'Données admin.', label: 'Statut juridique', type: 'text' },
+  { champ_id: '02_GEN_code_ape', pilier: '02', section: 'GENERALITES', sous_section: 'Données admin.', label: 'Code APE', type: 'text' },
+  { champ_id: '02_GEN_siret', pilier: '02', section: 'GENERALITES', sous_section: 'Données admin.', label: 'Numéro de SIRET', type: 'text' },
+  { champ_id: '02_GEN_rcs', pilier: '02', section: 'GENERALITES', sous_section: 'Données admin.', label: 'Numéro RCS', type: 'text' },
+  { champ_id: '02_GEN_date_prev_creation', pilier: '02', section: 'GENERALITES', sous_section: 'Données admin.', label: 'Date prévisionnelle de création', type: 'text', note: 'Format AAAA-MM-JJ' },
+  { champ_id: '02_GEN_date_creation', pilier: '02', section: 'GENERALITES', sous_section: 'Données admin.', label: 'Date de création', type: 'text', note: 'Format AAAA-MM-JJ' },
+  { champ_id: '02_GEN_date_immatriculation', pilier: '02', section: 'GENERALITES', sous_section: 'Données admin.', label: "Date d'immatriculation", type: 'text', note: 'Format AAAA-MM-JJ' },
+  { champ_id: '02_GEN_capital_social', pilier: '02', section: 'GENERALITES', sous_section: 'Données admin.', label: 'Montant du capital social actuel (€)', type: 'euros' },
+  { champ_id: '02_GEN_capital_social_closing', pilier: '02', section: 'GENERALITES', sous_section: 'Données admin.', label: 'Montant du capital social au moment du closing financier (€)', type: 'euros' },
+  { champ_id: '02_GEN_nb_salaries', pilier: '02', section: 'GENERALITES', sous_section: 'Données admin.', label: 'Nombre de salariés', type: 'number' },
+  { champ_id: '02_GEN_adresse_siege', pilier: '02', section: 'GENERALITES', sous_section: 'Données admin.', label: 'Adresse du siège social', type: 'textarea' },
+  { champ_id: '02_GEN_etablissement_secondaire', pilier: '02', section: 'GENERALITES', sous_section: 'Données admin.', label: "Présence d'un établissement secondaire", type: 'select', options: ['OUI', 'NON'] },
+  { champ_id: '02_GEN_adresse_etab_secondaire', pilier: '02', section: 'GENERALITES', sous_section: 'Données admin.', label: "Adresse de l'établissement secondaire", type: 'textarea' },
   { champ_id: '02_GEN_president', pilier: '02', section: 'GENERALITES', sous_section: 'Données admin.', label: 'Nom du président', type: 'text' },
+  { champ_id: '02_GEN_president_mandate', pilier: '02', section: 'GENERALITES', sous_section: 'Données admin.', label: 'Nom du président mandaté', type: 'text' },
+
+  // Capitalisation et apports en comptes courants
+  { champ_id: '02_CAPI_nb_actions', pilier: '02', section: 'TABLE DE CAPI ET CCA', label: "Nombre d'actions", type: 'number' },
+  { champ_id: '02_CAPI_valeur_action', pilier: '02', section: 'TABLE DE CAPI ET CCA', label: "Valeur d'une action (€/action)", type: 'euros' },
+  { champ_id: '02_CAPI_montant_ks', pilier: '02', section: 'TABLE DE CAPI ET CCA', label: 'Montant du capital social (KS) en €', type: 'euros' },
+  { champ_id: '02_CAPI_montant_cca_engages', pilier: '02', section: 'TABLE DE CAPI ET CCA', label: 'Montant de comptes courants (CCA) engagés (€)', type: 'euros' },
   { champ_id: '02_CAPI_keon_pct', pilier: '02', section: 'TABLE DE CAPI ET CCA', sous_section: 'Phase 2', label: 'Keon.co - KS (%)', type: 'percentage', note: 'Attention, le % peut évoluer — à gérer plus tard' },
+
+  // Structuration gouvernance — CODIR
+  { champ_id: '02_GOV_codir_frequence', pilier: '02', section: 'GOUVERNANCE', sous_section: 'CODIR', label: 'Fréquence CODIR', type: 'text' },
+  { champ_id: '02_GOV_codir_delai_convocation', pilier: '02', section: 'GOUVERNANCE', sous_section: 'CODIR', label: "Délai d'envoi de la convocation avant CODIR", type: 'text' },
   { champ_id: '02_GOV_majorite_simple', pilier: '02', section: 'GOUVERNANCE', sous_section: 'CODIR', label: 'Majorité simple du CODIR', type: 'text', note: 'Format X/X ou X%' },
   { champ_id: '02_GOV_majorite_qualifiee', pilier: '02', section: 'GOUVERNANCE', sous_section: 'CODIR', label: 'Majorité qualifiée du CODIR', type: 'text', note: 'Format X/X ou X%' },
+  { champ_id: '02_GOV_codir_quorum', pilier: '02', section: 'GOUVERNANCE', sous_section: 'CODIR', label: 'Quorum', type: 'text' },
+
+  // Structuration gouvernance — AG
+  { champ_id: '02_GOV_ag_frequence', pilier: '02', section: 'GOUVERNANCE', sous_section: 'AG', label: 'Fréquence AG', type: 'text' },
+  { champ_id: '02_GOV_ag_delai_convocation', pilier: '02', section: 'GOUVERNANCE', sous_section: 'AG', label: "Délai d'envoi de la convocation avant AG", type: 'text' },
+  { champ_id: '02_GOV_ag_majorite_simple', pilier: '02', section: 'GOUVERNANCE', sous_section: 'AG', label: "Majorité simple de l'AG", type: 'text', note: 'Format X/X ou X%' },
+  { champ_id: '02_GOV_ag_majorite_qualifiee', pilier: '02', section: 'GOUVERNANCE', sous_section: 'AG', label: "Majorité qualifiée de l'AG", type: 'text', note: 'Format X/X ou X%' },
+  { champ_id: '02_GOV_ag_quorum', pilier: '02', section: 'GOUVERNANCE', sous_section: 'AG', label: 'Quorum', type: 'text' },
+
+  // Structuration juridique
+  { champ_id: '02_JUR_statuts_grille_dispo', pilier: '02', section: 'STRUCTURATION JURIDIQUE', sous_section: 'Statuts', label: "Grille d'analyse des statuts disponible ?", type: 'select', options: ['OUI', 'NON', 'NC'] },
+  { champ_id: '02_JUR_statuts_conformite', pilier: '02', section: 'STRUCTURATION JURIDIQUE', sous_section: 'Statuts', label: 'Conformité des statuts à la grille ?', type: 'select', options: ['OUI', 'NON', 'NC'] },
+  { champ_id: '02_JUR_pacte_dispo', pilier: '02', section: 'STRUCTURATION JURIDIQUE', sous_section: "Pacte d'associés", label: "Pacte d'associés disponible ?", type: 'select', options: ['OUI', 'NON', 'NC'] },
+  { champ_id: '02_JUR_pacte_conformite', pilier: '02', section: 'STRUCTURATION JURIDIQUE', sous_section: "Pacte d'associés", label: "Conformité du pacte d'associés à la grille ?", type: 'select', options: ['OUI', 'NON', 'NC'] },
+  { champ_id: '02_JUR_cca_grille_dispo', pilier: '02', section: 'STRUCTURATION JURIDIQUE', sous_section: "Convention d'apports en CCA", label: "Grille d'analyse de la convention d'apports en CCA disponible ?", type: 'select', options: ['OUI', 'NON', 'NC'] },
+  { champ_id: '02_JUR_cca_conformite', pilier: '02', section: 'STRUCTURATION JURIDIQUE', sous_section: "Convention d'apports en CCA", label: "Conformité de la convention d'apports en CCA à la grille ?", type: 'select', options: ['OUI', 'NON', 'NC'] },
+
+  // Gestion administrative et financière
+  { champ_id: '02_ADM_date_cloture_comptes', pilier: '02', section: 'GESTION ADMINISTRATIVE ET FINANCIERE', label: 'Date de clôture des comptes', type: 'text', note: 'Format AAAA-MM-JJ' },
+  { champ_id: '02_ADM_societe_gestion', pilier: '02', section: 'GESTION ADMINISTRATIVE ET FINANCIERE', label: 'Société en charge de la gestion administrative et financière', type: 'text' },
+  { champ_id: '02_ADM_cac_impose', pilier: '02', section: 'GESTION ADMINISTRATIVE ET FINANCIERE', label: 'Commissaire aux comptes imposé ?', type: 'select', options: ['OUI', 'NON', 'NC'] },
+  { champ_id: '02_ADM_nom_cac', pilier: '02', section: 'GESTION ADMINISTRATIVE ET FINANCIERE', label: 'Nom du commissaire aux comptes', type: 'text' },
+  { champ_id: '02_ADM_frequence_tva', pilier: '02', section: 'GESTION ADMINISTRATIVE ET FINANCIERE', label: 'Fréquence de déclaration de TVA ?', type: 'text' },
+
+  // Gestion des ressources humaines
+  { champ_id: '02_RH_nb_etp', pilier: '02', section: 'GESTION DES RESSOURCES HUMAINES', sous_section: 'Informations générales', label: "Nombre d'ETP", type: 'number' },
+  { champ_id: '02_RH_recrutement_qui', pilier: '02', section: 'GESTION DES RESSOURCES HUMAINES', sous_section: 'Informations générales', label: 'Qui se charge du recrutement ?', type: 'text' },
+  { champ_id: '02_RH_budget_recrutement', pilier: '02', section: 'GESTION DES RESSOURCES HUMAINES', sous_section: 'Informations générales', label: 'Budget recrutement ? (€HT)', type: 'euros' },
+  { champ_id: '02_RH_table_recrutement_contrats', pilier: '02', section: 'GESTION DES RESSOURCES HUMAINES', sous_section: 'Recrutement et contrats de travail', label: 'Tableau recrutement et contrats de travail', type: 'spreadsheet' },
+  { champ_id: '02_RH_table_formations', pilier: '02', section: 'GESTION DES RESSOURCES HUMAINES', sous_section: 'Formations', label: 'Tableau formations', type: 'spreadsheet' },
+  { champ_id: '02_RH_table_vehicules_service', pilier: '02', section: 'GESTION DES RESSOURCES HUMAINES', sous_section: 'Véhicules de service', label: 'Tableau véhicules de service', type: 'spreadsheet' },
+
+  // Gestion de l'IT
+  { champ_id: '02_IT_logiciel_grille_dispo', pilier: '02', section: "GESTION DE L'IT", sous_section: "logiciel d'exploitation", label: "Grille d'analyse des statuts disponible ?", type: 'select', options: ['OUI', 'NON', 'NC'] },
+  { champ_id: '02_IT_logiciel_conformite', pilier: '02', section: "GESTION DE L'IT", sous_section: "logiciel d'exploitation", label: 'Conformité des statuts à la grille ?', type: 'select', options: ['OUI', 'NON', 'NC'] },
+  { champ_id: '02_IT_ext_grille_dispo', pilier: '02', section: "GESTION DE L'IT", sous_section: 'Tâches informatiques externalisées', label: "Grille d'analyse du pacte d'associés disponible ?", type: 'select', options: ['OUI', 'NON', 'NC'] },
+  { champ_id: '02_IT_ext_conformite', pilier: '02', section: "GESTION DE L'IT", sous_section: 'Tâches informatiques externalisées', label: "Conformité du pacte d'associé à la grille ?", type: 'select', options: ['OUI', 'NON', 'NC'] },
+  { champ_id: '02_IT_int_grille_dispo', pilier: '02', section: "GESTION DE L'IT", sous_section: 'Tâches informatiques internalisées', label: "Grille d'analyse de la convention d'apports en CCA disponible ?", type: 'select', options: ['OUI', 'NON', 'NC'] },
+  { champ_id: '02_IT_int_conformite', pilier: '02', section: "GESTION DE L'IT", sous_section: 'Tâches informatiques internalisées', label: "Conformité de la convention d'apports en CCA à la grille ?", type: 'select', options: ['OUI', 'NON', 'NC'] },
 
   // PILIER 04 — FONCIER
   { champ_id: '04_GEN_pays', pilier: '04', section: 'GENERALITES', sous_section: 'Localisation', label: 'Pays', type: 'text' },

@@ -15,6 +15,7 @@ interface Profile {
   manager_id: string | null;
   is_private: boolean;
   permission_profile_id: string | null;
+  permission_profile?: Record<string, any> | null;
   hierarchy_level_id: string | null;
   must_change_password: boolean;
 }
@@ -66,7 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      // Include permission_profile so write access checks work reliably client-side
+      .select('*, permission_profile:permission_profiles(*)')
       .eq('user_id', userId)
       .maybeSingle();
 
