@@ -17,6 +17,20 @@ interface TokenResponse {
   token_type: string;
 }
 
+function parseJwtExp(accessToken: string): string | null {
+  try {
+    const parts = accessToken.split('.');
+    if (parts.length < 2) return null;
+    const payloadJson = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+    const payload = JSON.parse(payloadJson);
+    const exp = payload?.exp;
+    if (!exp || typeof exp !== 'number') return null;
+    return new Date(exp * 1000).toISOString();
+  } catch {
+    return null;
+  }
+}
+
 // Get Azure AD credentials
 function getAzureCredentials() {
   const clientId = Deno.env.get('AZURE_CLIENT_ID');
@@ -505,6 +519,47 @@ Deno.serve(async (req) => {
 
       return new Response(JSON.stringify({
         success: true,
+        email: profile.mail || profile.userPrincipalName,
+        displayName: profile.displayName,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Connect using Supabase OAuth session tokens (single-consent flow).
+    // Client sends provider access/refresh tokens obtained during Supabase sign-in.
+    if (action === 'connect-supabase-session') {
+      if (!userId) throw new Error('User not authenticated');
+      const { access_token, refresh_token } = params as { access_token?: string; refresh_token?: string };
+      if (!access_token) throw new Error('Missing provider tokens');
+
+      const profile = await getUserProfile(access_token);
+      const expiresAt =
+        parseJwtExp(access_token) ?? new Date(Date.now() + 55 * 60 * 1000).toISOString();
+
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+
+      const { error } = await supabase
+        .from('user_microsoft_connections')
+        .upsert({
+          user_id: userId,
+          profile_id: userProfile?.id,
+          access_token,
+          refresh_token: refresh_token ?? null,
+          token_expires_at: expiresAt,
+          email: profile.mail || profile.userPrincipalName,
+          display_name: profile.displayName,
+          is_calendar_sync_enabled: true,
+          is_email_sync_enabled: true,
+        }, { onConflict: 'user_id' });
+
+      if (error) throw error;
+
+      return new Response(JSON.stringify({
+        success: true,
+        connected: true,
         email: profile.mail || profile.userPrincipalName,
         displayName: profile.displayName,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
