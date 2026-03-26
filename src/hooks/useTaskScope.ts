@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSimulation } from '@/contexts/SimulationContext';
@@ -61,31 +62,41 @@ export function useTaskScope(): TaskScopeContext {
   const profile = isSimulating && simulatedProfile ? simulatedProfile : authProfile;
   
   const [scope, setScope] = useState<TaskScope>('my_tasks');
-  const [allProfiles, setAllProfiles] = useState<FilterableProfile[]>([]);
-  const [allCompanies, setAllCompanies] = useState<FilterableCompany[]>([]);
-  const [allDepartments, setAllDepartments] = useState<FilterableDepartment[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch all data for filters
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      
-      const [profilesRes, companiesRes, departmentsRes] = await Promise.all([
-        supabase.from('profiles').select('id, display_name, department_id, department, company_id, company').eq('status', 'active'),
-        supabase.from('companies').select('id, name'),
-        supabase.from('departments').select('id, name, company_id'),
-      ]);
-      
-      if (profilesRes.data) setAllProfiles(profilesRes.data);
-      if (companiesRes.data) setAllCompanies(companiesRes.data);
-      if (departmentsRes.data) setAllDepartments(departmentsRes.data);
-      
-      setIsLoading(false);
-    };
-    
-    fetchData();
-  }, []);
+  // Catalog data cached for 10 minutes — almost never changes
+  const STALE_10MIN = 10 * 60 * 1000;
+
+  const { data: allProfiles = [], isLoading: profilesLoading } = useQuery<FilterableProfile[]>({
+    queryKey: ['catalog', 'profiles'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, display_name, department_id, department, company_id, company')
+        .eq('status', 'active');
+      return data ?? [];
+    },
+    staleTime: STALE_10MIN,
+  });
+
+  const { data: allCompanies = [], isLoading: companiesLoading } = useQuery<FilterableCompany[]>({
+    queryKey: ['catalog', 'companies'],
+    queryFn: async () => {
+      const { data } = await supabase.from('companies').select('id, name');
+      return data ?? [];
+    },
+    staleTime: STALE_10MIN,
+  });
+
+  const { data: allDepartments = [], isLoading: departmentsLoading } = useQuery<FilterableDepartment[]>({
+    queryKey: ['catalog', 'departments'],
+    queryFn: async () => {
+      const { data } = await supabase.from('departments').select('id, name, company_id');
+      return data ?? [];
+    },
+    staleTime: STALE_10MIN,
+  });
+
+  const isLoading = profilesLoading || companiesLoading || departmentsLoading;
 
   // Available scopes based on permissions
   const availableScopes = useMemo<ScopeOption[]>(() => {

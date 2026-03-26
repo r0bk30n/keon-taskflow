@@ -2,63 +2,80 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
+import { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SimulationProvider } from "@/contexts/SimulationContext";
+import { PermissionsProvider } from "@/contexts/PermissionsContext";
+import { TeamHierarchyProvider } from "@/contexts/TeamHierarchyContext";
 import { SimulationBanner } from "@/components/layout/SimulationBanner";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ForcePasswordChange } from "@/components/auth/ForcePasswordChange";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import AuthCallback from "./pages/AuthCallback";
-import ResetPassword from "./pages/ResetPassword";
-import Profile from "./pages/Profile";
-import Templates from "./pages/Templates";
-import ProcessSettings from "./pages/ProcessSettings";
-import SubProcessSettings from "./pages/SubProcessSettings";
-import Projects from "./pages/Projects";
-import Admin from "./pages/Admin";
-import Workload from "./pages/Workload";
-import Requests from "./pages/Requests";
-import CalendarPage from "./pages/Calendar";
-import Chat from "./pages/Chat";
-import DesignSystem from "./pages/DesignSystem";
-// WorkflowEditor removed — workflow config is now in SubProcessSettings tab
-import NotFound from "./pages/NotFound";
-import SupplierReference from "./pages/SupplierReference";
-// MaterialRequests is now embedded in ProcessTracking
-import ProcessTracking from "./pages/ProcessTracking";
-import Innovation from "./pages/Innovation";
-import InnovationRequests from "./pages/InnovationRequests";
-import KeonDashboard from "./pages/KeonDashboard";
+
+// Route-level code splitting: only load screens when visited.
+const Index = lazy(() => import("./pages/Index"));
+const Auth = lazy(() => import("./pages/Auth"));
+const AuthCallback = lazy(() => import("./pages/AuthCallback"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Templates = lazy(() => import("./pages/Templates"));
+const ProcessSettings = lazy(() => import("./pages/ProcessSettings"));
+const SubProcessSettings = lazy(() => import("./pages/SubProcessSettings"));
+const Projects = lazy(() => import("./pages/Projects"));
+const Admin = lazy(() => import("./pages/Admin"));
+const Workload = lazy(() => import("./pages/Workload"));
+const Requests = lazy(() => import("./pages/Requests"));
+const CalendarPage = lazy(() => import("./pages/Calendar"));
+const Chat = lazy(() => import("./pages/Chat"));
+const DesignSystem = lazy(() => import("./pages/DesignSystem"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const SupplierReference = lazy(() => import("./pages/SupplierReference"));
+const ProcessTracking = lazy(() => import("./pages/ProcessTracking"));
+const Innovation = lazy(() => import("./pages/Innovation"));
+const InnovationRequests = lazy(() => import("./pages/InnovationRequests"));
+const KeonDashboard = lazy(() => import("./pages/KeonDashboard"));
 
 // BE Project Hub pages
-import BEProjectHubOverview from "./pages/be/BEProjectHubOverview";
-import BEProjectHubTimeline from "./pages/be/BEProjectHubTimeline";
-import BEProjectHubDiscussions from "./pages/be/BEProjectHubDiscussions";
-import BEProjectHubFiles from "./pages/be/BEProjectHubFiles";
-import BEProjectHubQuestionnaire from "./pages/be/BEProjectHubQuestionnaire";
-import BEProjectHubKeonSynthese from "./pages/be/BEProjectHubKeonSynthese";
+const BEProjectHubOverview = lazy(() => import("./pages/be/BEProjectHubOverview"));
+const BEProjectHubTimeline = lazy(() => import("./pages/be/BEProjectHubTimeline"));
+const BEProjectHubDiscussions = lazy(() => import("./pages/be/BEProjectHubDiscussions"));
+const BEProjectHubFiles = lazy(() => import("./pages/be/BEProjectHubFiles"));
+const BEProjectHubQuestionnaire = lazy(() => import("./pages/be/BEProjectHubQuestionnaire"));
+const BEProjectHubKeonSynthese = lazy(() => import("./pages/be/BEProjectHubKeonSynthese"));
 
 // IT Project Hub pages
-import ITProjects from "./pages/it/ITProjects";
-import ITProjectImportFDR from "./pages/it/ITProjectImportFDR";
-import ITProjectHubOverview from "./pages/it/ITProjectHubOverview";
-import ITProjectHubTasks from "./pages/it/ITProjectHubTasks";
-import ITProjectHubTimeline from "./pages/it/ITProjectHubTimeline";
-import ITProjectHubSync from "./pages/it/ITProjectHubSync";
-import ITProjectHubDiscussions from "./pages/it/ITProjectHubDiscussions";
-import ITProjectHubFiles from "./pages/it/ITProjectHubFiles";
+const ITProjects = lazy(() => import("./pages/it/ITProjects"));
+const ITProjectImportFDR = lazy(() => import("./pages/it/ITProjectImportFDR"));
+const ITProjectHubOverview = lazy(() => import("./pages/it/ITProjectHubOverview"));
+const ITProjectHubTasks = lazy(() => import("./pages/it/ITProjectHubTasks"));
+const ITProjectHubTimeline = lazy(() => import("./pages/it/ITProjectHubTimeline"));
+const ITProjectHubSync = lazy(() => import("./pages/it/ITProjectHubSync"));
+const ITProjectHubDiscussions = lazy(() => import("./pages/it/ITProjectHubDiscussions"));
+const ITProjectHubFiles = lazy(() => import("./pages/it/ITProjectHubFiles"));
 
 const App = () => (
     <AuthProvider>
       <SimulationProvider>
+        <PermissionsProvider>
+        <TeamHierarchyProvider>
         <TooltipProvider>
           <ForcePasswordChange>
             <SimulationBanner />
             <Toaster />
             <Sonner />
-            <BrowserRouter>
+            <BrowserRouter
+              future={{
+                v7_startTransition: true,
+                v7_relativeSplatPath: true,
+              }}
+            >
+            <Suspense
+              fallback={
+                <div className="min-h-[40vh] flex items-center justify-center">
+                  <div className="text-sm text-muted-foreground">Chargement…</div>
+                </div>
+              }
+            >
             <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
@@ -308,9 +325,12 @@ const App = () => (
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </BrowserRouter>
+            </Suspense>
+            </BrowserRouter>
           </ForcePasswordChange>
         </TooltipProvider>
+        </TeamHierarchyProvider>
+        </PermissionsProvider>
       </SimulationProvider>
     </AuthProvider>
 );
