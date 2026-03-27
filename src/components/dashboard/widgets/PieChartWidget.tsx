@@ -1,5 +1,6 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { ChartDataPoint } from '../types';
+import { SafeChartContainer } from './SafeChartContainer';
 
 interface PieChartWidgetProps {
   data: ChartDataPoint[];
@@ -28,43 +29,47 @@ export function PieChartWidget({ data, isDonut = true }: PieChartWidgetProps) {
   const total = data.reduce((sum, d) => sum + d.value, 0);
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <PieChart>
-        <Pie
-          data={data}
-          cx="50%"
-          cy="45%"
-          innerRadius={isDonut ? '45%' : 0}
-          outerRadius="65%"
-          paddingAngle={2}
-          dataKey="value"
-          label={renderCustomLabel}
-          labelLine={{ stroke: '#9ca3af', strokeWidth: 1 }}
-        >
-          {data.map((entry, index) => (
-            <Cell
-              key={`cell-${index}`}
-              fill={entry.color || COLORS[index % COLORS.length]}
-              stroke="white"
-              strokeWidth={2}
+    <SafeChartContainer className="w-full flex-1 min-h-[240px] min-w-0" minHeight={240}>
+      {() => (
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={240}>
+          <PieChart>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="45%"
+              innerRadius={isDonut ? '45%' : 0}
+              outerRadius="65%"
+              paddingAngle={2}
+              dataKey="value"
+              label={renderCustomLabel}
+              labelLine={{ stroke: '#9ca3af', strokeWidth: 1 }}
+            >
+              {data.map((entry, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={entry.color || COLORS[index % COLORS.length]}
+                  stroke="white"
+                  strokeWidth={2}
+                />
+              ))}
+            </Pie>
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'white',
+                border: '2px solid #e5e7eb',
+                borderRadius: '8px',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+              }}
+              formatter={(value: number) => [`${value} (${((value / total) * 100).toFixed(1)}%)`, 'Tâches']}
             />
-          ))}
-        </Pie>
-        <Tooltip
-          contentStyle={{
-            backgroundColor: 'white',
-            border: '2px solid #e5e7eb',
-            borderRadius: '8px',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-          }}
-          formatter={(value: number) => [`${value} (${((value / total) * 100).toFixed(1)}%)`, 'Tâches']}
-        />
-        <Legend
-          verticalAlign="bottom"
-          height={36}
-          formatter={(value) => <span className="text-xs text-keon-700">{value}</span>}
-        />
-      </PieChart>
-    </ResponsiveContainer>
+            <Legend
+              verticalAlign="bottom"
+              height={36}
+              formatter={(value) => <span className="text-xs text-keon-700">{value}</span>}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      )}
+    </SafeChartContainer>
   );
 }

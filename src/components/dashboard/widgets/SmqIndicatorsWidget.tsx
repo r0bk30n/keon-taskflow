@@ -6,6 +6,7 @@ import { TicketCheck, Clock, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LabelList } from 'recharts';
+import { SafeChartContainer } from './SafeChartContainer';
 
 type SmqPeriod = 'month' | 'quarter' | 'year' | 'last3' | 'last6' | 'last12';
 type SmqStep = 'monthly' | 'quarterly';
@@ -234,54 +235,56 @@ export function SmqIndicatorsWidget({ tasks }: SmqIndicatorsWidgetProps) {
       </div>
 
       {chartData.length > 1 && (
-        <div className="flex-1 min-h-[200px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartData} margin={{ top: 20, right: 40, left: -10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} className="fill-muted-foreground" />
-              <YAxis
-                yAxisId="left"
-                tick={{ fontSize: 10 }}
-                className="fill-muted-foreground"
-                allowDecimals={false}
-                label={{ value: 'Tickets', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
-              />
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                tick={{ fontSize: 10 }}
-                className="fill-muted-foreground"
-                domain={[0, Math.ceil(maxDuree * 1.2)]}
-                label={{ value: 'Jours', angle: 90, position: 'insideRight', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
-              />
-              <Tooltip
-                contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))' }}
-                formatter={(value: number, name: string) => {
-                  if (name === 'Durée moy. (j)') return value !== null ? [`${value} j`, name] : ['—', name];
-                  return [value, name];
-                }}
-              />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar yAxisId="left" dataKey="ouverts" name="Tickets ouverts" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]}>
-                <LabelList dataKey="ouverts" position="top" style={{ fontSize: 9, fill: 'hsl(var(--foreground))' }} />
-              </Bar>
-              <Bar yAxisId="left" dataKey="fermes" name="Tickets fermés" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]}>
-                <LabelList dataKey="fermes" position="top" style={{ fontSize: 9, fill: 'hsl(var(--foreground))' }} />
-              </Bar>
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="duree"
-                name="Durée moy. (j)"
-                stroke="hsl(var(--chart-2))"
-                strokeWidth={2}
-                dot={{ r: 3, fill: 'hsl(var(--chart-2))' }}
-                connectNulls
-                label={{ position: 'top', style: { fontSize: 9, fill: 'hsl(var(--chart-2))' }, formatter: (v: number) => v !== null ? `${v}j` : '' }}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+        <SafeChartContainer className="flex-1 min-h-[200px] min-w-0" minHeight={200}>
+          {() => (
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
+              <ComposedChart data={chartData} margin={{ top: 20, right: 40, left: -10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} className="fill-muted-foreground" />
+                <YAxis
+                  yAxisId="left"
+                  tick={{ fontSize: 10 }}
+                  className="fill-muted-foreground"
+                  allowDecimals={false}
+                  label={{ value: 'Tickets', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  tick={{ fontSize: 10 }}
+                  className="fill-muted-foreground"
+                  domain={[0, Math.ceil(maxDuree * 1.2)]}
+                  label={{ value: 'Jours', angle: 90, position: 'insideRight', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
+                />
+                <Tooltip
+                  contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))' }}
+                  formatter={(value: number, name: string) => {
+                    if (name === 'Durée moy. (j)') return value !== null ? [`${value} j`, name] : ['—', name];
+                    return [value, name];
+                  }}
+                />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar yAxisId="left" dataKey="ouverts" name="Tickets ouverts" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]}>
+                  <LabelList dataKey="ouverts" position="top" style={{ fontSize: 9, fill: 'hsl(var(--foreground))' }} />
+                </Bar>
+                <Bar yAxisId="left" dataKey="fermes" name="Tickets fermés" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]}>
+                  <LabelList dataKey="fermes" position="top" style={{ fontSize: 9, fill: 'hsl(var(--foreground))' }} />
+                </Bar>
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="duree"
+                  name="Durée moy. (j)"
+                  stroke="hsl(var(--chart-2))"
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: 'hsl(var(--chart-2))' }}
+                  connectNulls
+                  label={{ position: 'top', style: { fontSize: 9, fill: 'hsl(var(--chart-2))' }, formatter: (v: number) => v !== null ? `${v}j` : '' }}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          )}
+        </SafeChartContainer>
       )}
     </div>
   );
